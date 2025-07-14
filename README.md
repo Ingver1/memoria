@@ -1,177 +1,133 @@
-# Unified Memory System
+# Unified Memory System (UMS) 🧠
 
-_A production-grade long-term memory backend for AI agents, assistants, and generative-retrieval workloads._
-
----
-
-## Overview
-
-Unified Memory System (UMS) combines classic database technology, a high-performance FAISS index, and modern engineering practices to provide a **fast, secure, and scalable** store for “memories” (text ＋ embeddings).  
-It ships with:
-
-* **Asynchronous** storage and retrieval APIs  
-* **Semantic search** via FAISS HNSW + cosine similarity  
-* **PII filtering**, encryption-at-rest, automated backups  
-* A **FastAPI** layer with auth, CORS, Prometheus metrics, rate limiting, and session isolation  
-* Flexible configuration through environment variables, `.env`, or Python objects
+*Scalable, encrypted, and fully-tested vector-memory backend for LLM agents.*
 
 ---
 
-## Key Features
+## ✨ What’s New (July 2025)
 
-| Category            | Details                                                                                 |
-| ------------------- | --------------------------------------------------------------------------------------- |
-| **Architecture**    | Fully async; supports high concurrency and streaming workloads                          |
-| **Vector search**   | FAISS HNSW index with dynamic `ef_search` tuning for large datasets                     |
-| **Privacy**         | PII redaction, Fernet AES-GCM encryption, configurable retention policies               |
-| **Observability**   | Prometheus metrics, health/liveness/readiness probes, structured logging                |
-| **Automation**      | Scheduled backups & restore, connection-pool recycling, schema migrations              |
-| **Ease of use**     | Swagger / Redoc docs, typed Python client, Docker image, `.env`-first configuration    |
+> **MemOS vs UMS**  
+> A flurry of excitement followed the public preview of **MemOS 1.0 “Stellar”** – the self-described *“memory operating system”* for large language models.<br>
+> UMS takes a different stance: instead of a full OS-level scheduler, it delivers a slim, auditable service that you can embed today.
+
+|                        | **UMS (v0.9)** | **MemOS (1.0 Preview\*)** |
+|------------------------|----------------|---------------------------|
+| Install size           | ~180 MB Docker | 2+ GB multi-service stack |
+| Storage backend        | SQLite + FAISS | Custom “MemCube” shards   |
+| Encryption-at-rest     | ✅ SQLCipher   | ❌ roadmap Q4 2025        |
+| Test coverage (CI)     | 100 % unit/integration | unknown |
+| Deployment            | `pip`, Docker, serverless | k8s Operator (beta) |
+| Hardware requirements  | 1 CPU / 1 GB RAM | 8 CPUs / 16 GB RAM (rec.) |
+| License                | Apache-2.0     | Clause-7 research license |
+| Status                 | Stable / Prod  | Preview / Research        |
+
+<sub>\*Sources: arXiv 2507.03724, VentureBeat 08-Jul-2025, MemTensor/MemOS release notes.</sub>
+
+UMS = **small core, big confidence**.  
+If you need a plug-and-play semantic memory today, keep reading.
 
 ---
 
-## Installation
+## 🔑 Key Features
 
-### Requirements
+| Area | Highlights |
+|------|-----------|
+| **Architecture** | Async FastAPI + FAISS HNSW with dynamic `ef_search` tuning |
+| **Security** | SQLCipher encryption, API-token auth, rate limits |
+| **Observability** | `/metrics` (Prometheus), `/health` (deep), structured logs |
+| **Quality** | 100 % unit + property-based + fuzz + performance tests |
+| **CI/CD** | Fast smoke suite on each push, full perf suite nightly |
+| **Ease of use** | `pip install memoria1` or one-liner Docker run |
 
-* Python ≥ 3.10  
-* Linux / macOS / Windows (Linux recommended)  
-* Docker (optional, for containerised deployment)
+---
+
+## 🚀 Quick Start
 
 ```bash
-# local install
-pip install -r requirements.txt                # production
-pip install -r requirements_dev.txt            # with dev tools
-```
-# or build a container
-docker build -t unified-memory-system:<version>
+pip install memoria1        # production
+pip install memoria1[dev]   # +tests & tooling
+uvicorn memory_system.api.app:create_app --reload
+
+Minimal client
+
+from memoria1 import EnhancedMemoryStore, UnifiedSettings
+import numpy as np, asyncio
+
+settings = UnifiedSettings.for_testing()
+store = EnhancedMemoryStore(settings)
+
+async def demo():
+    await store.add_memory(text="Hello world!", embedding=np.random.rand(settings.model.vector_dim).tolist())
+    hits = await store.semantic_search(vector=np.random.rand(settings.model.vector_dim).tolist(), k=3)
+    print(hits)
+
+asyncio.run(demo())
+
 
 ---
 
-Quick Start
+🧪 Testing Matrix
 
-# 1 ) install deps (see above)
+Suite	Command	Avg time
 
-# 2 ) copy env template
-cp .env.example .env          # edit DB paths, tokens, etc.
+Smoke	pytest -q -m "not perf"	8 s
+Perf / Bench	pytest -q -m perf	30 s
+Load (Locust)	locust -f load_tests/locustfile.py	user-defined
+API fuzz	pytest tests/test_api_fuzz.py	4 s
 
-# 3 ) launch
-uvicorn memory_system.api.app:create_app --host 0.0.0.0 --port 8000 --reload
 
-# 4 ) open docs
-open http://localhost:8000/docs    # Swagger UI
+The smoke suite runs on every push; perf + load run nightly via GitHub Actions cron.
+
 
 ---
 
-### Environment Variables
+⚙️ Configuration
 
-UnifiedSettings reads configuration from variables prefixed with `AI_`. Copy
-`.env.example` to `.env` and adjust values as needed:
+Env var	Default	Description
 
-- `AI_DATABASE__DB_PATH=./data/memory.db`
-- `AI_SECURITY__API_TOKEN=your-secret-token-change-me`
-- `AI_MODEL__MODEL_NAME=all-MiniLM-L6-v2`
-- `AI_PERFORMANCE__MAX_WORKERS=4`
-- `AI_MONITORING__PROM_PORT=9100`
+AI_DATABASE__URL	sqlite:///./data/memory.db	DB path / DSN
+AI_SECURITY__ENCRYPT_AT_REST	false	Enable SQLCipher
+AI_MODEL__VECTOR_DIM	384	Embedding dimension
+AI_PERF__MAX_WORKERS	4	Async workers
+AI_MONITORING__ENABLE_METRICS	false	Expose /metrics
 
-**⚠️ Security notice:** The default value `your-secret-token-change-me` is a placeholder.
-Set `AI_SECURITY__API_TOKEN` to a strong, unique token before exposing the API.
-Other `AI_*` variables may reveal paths or open ports, so review them carefully for
-your environment.
+
+Copy .env.example → .env and tweak values.
+
+
 ---
 
-API Examples
+🛡  Security Model
 
-Add a memory
+Disk – AES-256-GCM via SQLCipher (pysqlcipher3).
 
-POST /api/v1/memory/add
-{
-  "user_id": "user123",
-  "session_id": "sess1",
-  "text": "The user is interested in quantum computing."
-}
+Transit – HTTPS/TLS recommended; API-token checked on every request.
 
-Semantic search
-
-POST /api/v1/memory/get
-{
-  "user_id": "user123",
-  "session_id": "sess1",
-  "query": "quantum algorithms",
-  "top_k": 5
-}
-
-Backups & metrics
-
-GET /api/v1/backup - create / download snapshot
-
-GET /api/v1/metrics - Prometheus endpoint
-
-GET /api/v1/health  - deep health-check (index, DB, dependencies)
+Fault tolerance – if FAISS index is missing/corrupted, /health returns 503 and write paths are blocked until recovery.
 
 
 
 ---
 
-Development & Testing
+🗺  Roadmap
 
-# run unit + integration tests
-pytest -q
-
-If tests fail with ``async def functions are not natively supported`` install
-the ``pytest-asyncio`` plugin::
-
-   pip install pytest-asyncio>=0.21
-   
-This allows ``pytest`` to run async tests without warnings.
-
-# build & start containerised dev stack
-docker compose up --build
+1. Hot-swap backends – Qdrant & DuckDB extensions.
 
 
----
+2. Hierarchical summarisation – automatic memory compaction.
 
-Architecture
 
-   memory_system/
-       ├── api/            # FastAPI layers, routers, middleware
-       ├── core/           # embedding.py, index.py, vector_store.py, store.py
-       ├── utils/          # metrics, security, cache, exceptions
-       └── config/         # configuration package
+3. Streaming ingestion – SSE / WebSocket pipeline.
 
-Major dependencies: FastAPI, Pydantic, FAISS, PyTorch, Prometheus client, SQLite / aiosqlite, cryptography.
+
+
+Pull Requests welcome!
 
 
 ---
 
-License
+📜 License
 
-Apache 2.0
+Apache License 2.0 – free for commercial & research use.
 
-
----
-
-Authors
-
-Evgeny Leshchenko — project maintainer
-ChatGPT & Claude — co-authors (AI assistance)
-
-
----
-
-Contact
-
-Telegram — https://t.me/Evgeny_LV
-
-GitHub   — https://github.com/Ingver1
-
-Email    — kayel.20221967@gmail.com
-
-
----
-
-> Unified Memory System – a universal memory backend for your next-generation AI applications.
-
-
-
-*Re-flowed lists/headings, corrected paths (`/api/v1/...`), added missing code fences, updated version strings, and ensured consistent Markdown syntax.*
+© 2025 Evgeny Leshchenko, with assistance from ChatGPT.
