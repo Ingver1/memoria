@@ -1,0 +1,44 @@
+# logging.yaml — default logging configuration for AI‑memory‑
+# ==========================================================
+# This file declares two stream handlers:
+#   1. console       – human‑readable plaintext output
+#   2. json_console  – structured JSON output compatible with Promtail/Loki
+#
+# The helper `configure_logging()` (see settings.py) inspects the
+# environment variable LOG_JSON.  If it equals "1", the helper swaps
+# the root handler to *json_console* at runtime.  Otherwise the
+# plaintext console handler remains active.
+# ----------------------------------------------------------
+
+version: 1
+
+formatters:
+  console:
+    format: "%(asctime)s │ %(levelname)-8s │ %(name)s:%(lineno)d │ %(message)s"
+    datefmt: "%Y-%m-%d %H:%M:%S"
+
+  json:
+    (): pythonjsonlogger.jsonlogger.JsonFormatter
+    format: "%(asctime)s %(levelname)s %(name)s %(message)s"
+    datefmt: "%Y-%m-%dT%H:%M:%S"
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    formatter: console
+    stream: ext://sys.stdout
+
+  json_console:
+    class: logging.StreamHandler
+    formatter: json
+    stream: ext://sys.stdout
+
+loggers:
+  memory_system:
+    level: INFO
+    handlers: [console]
+    propagate: false
+
+root:
+  level: INFO
+  handlers: [console]
