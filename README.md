@@ -10,7 +10,7 @@
 > A flurry of excitement followed the public preview of **MemOS 1.0 “Stellar”** – the self-described *“memory operating system”* for large language models.<br>
 > UMS takes a different stance: instead of a full OS-level scheduler, it delivers a slim, auditable service that you can embed today.
 
-|                        | **UMS (v0.9)** | **MemOS (1.0 Preview\*)** |
+|                        | **UMS (v1.0)** | **MemOS (1.0 Preview\*)** |
 |------------------------|----------------|---------------------------|
 | Install size           | ~180 MB Docker | 2+ GB multi-service stack |
 | Storage backend        | SQLite + FAISS | Custom “MemCube” shards   |
