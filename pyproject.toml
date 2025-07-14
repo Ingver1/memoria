@@ -1,0 +1,120 @@
+[build-system]
+requires = [
+  "setuptools>=68",
+  "wheel",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name            = "ai-memory"
+dynamic         = ["version"]
+description     = "Self-hosted long-term memory backend built with FastAPI, FAISS and SQLite."
+readme          = "README.md"
+requires-python = ">=3.11"
+license         = { text = "Apache-2.0" }
+authors         = [
+  { name = "Ingver", email = "kayel.20221967@gmail.com" },
+]
+keywords = [
+  "memory", "FAISS", "vector", "FastAPI", "SQLite",
+]
+
+# -------------------------------
+# Runtime dependencies
+# -------------------------------
+
+dependencies = [
+  # Web / API
+  "fastapi>=0.111",
+  "uvicorn[standard]>=0.29",
+
+  # Config & validation
+  "pydantic>=2.5",
+  "pydantic-settings>=2.2",
+
+  # Storage / Vector
+  "aiosqlite>=0.19",
+  "faiss-cpu>=1.8",
+
+  # Security
+  "cryptography>=42.0",
+  "python-multipart>=0.0.9",
+
+  # Observability
+  "prometheus-client>=0.20",
+  "python-json-logger>=2.0",
+  "opentelemetry-api>=1.23",
+  "opentelemetry-sdk>=1.23",
+  "opentelemetry-instrumentation-fastapi>=0.45b0",
+
+  # HTTP client (used by CLI & tests)
+  "httpx>=0.27",
+]
+
+# -------------------------------
+# Optional feature groups
+# -------------------------------
+
+[project.optional-dependencies]
+cli = [
+  "typer>=0.12",
+  "rich>=13.7",
+]
+
+dev = [
+  "ruff>=0.4",
+  "mypy>=1.10",
+  "pytest>=8.2",
+  "pytest-asyncio>=0.21",
+  "coverage>=7.5",
+  "bandit>=1.7",
+
+  # Config parsers for Python <3.11
+  "tomli>=2.0; python_version<'3.11'",
+  "pyyaml>=6.0",
+]
+
+[project.scripts]
+ai-mem = "memory_system.cli:app"
+
+# -------------------------------
+# Setuptools package discovery
+# -------------------------------
+
+[tool.setuptools.packages.find]
+where   = ["."]
+exclude = ["tests*", "examples*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "memory_system.__version__"}
+
+# -------------------------------
+# Linting / typing configuration
+# -------------------------------
+
+[tool.mypy]
+python_version         = "3.11"
+strict                 = true
+ignore_missing_imports = true
+show_error_codes       = true
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+exclude = ["build/*", "build/", "dist/*"]
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "I"]
+ignore = [
+    "E402",
+    "E501",
+    "E741",
+    "F401",
+    "F821",
+    "B008",
+    "B017",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E402", "F401", "B017", "F821"]
+"*/__init__.py" = ["F401", "E402"]
