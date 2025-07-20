@@ -45,7 +45,7 @@ def test_benchmark_semantic_search(mem_benchmark, populated_store, ef):
     """
     
     async def _run() -> None:
-        loop = asyncio.get_event_loop()
+        asyncio.get_event_loop()
         await populated_store.semantic_search(
             vector=RANDOM_VECTOR,
             k=5,
