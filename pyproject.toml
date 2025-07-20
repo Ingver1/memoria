@@ -69,6 +69,10 @@ dev = [
   "coverage>=7.5",
   "bandit>=1.7",
 
+# Extra pytest plugins for benchmarking & coverage reports
+  "pytest-benchmark>=4.0",
+  "pytest-cov>=4.1",
+
   # Config parsers for Python <3.11
   "tomli>=2.0; python_version<'3.11'",
   "pyyaml>=6.0",
