@@ -33,7 +33,8 @@ async def bench_store():
 @pytest.mark.perf
 @pytest.mark.benchmark
 def test_semantic_search_speed(mem_benchmark, bench_store):
-    loop = asyncio.get_event_loop()
-    mem_benchmark(lambda: loop.run_until_complete(
-        bench_store.semantic_search(vector=VECTOR, k=5)
-    ))
+    async def _run() -> None:
+        loop = asyncio.get_event_loop()
+        await bench_store.semantic_search(vector=VECTOR, k=5)
+
+    mem_benchmark(lambda: asyncio.run(_run()))
