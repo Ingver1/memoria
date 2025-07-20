@@ -37,13 +37,13 @@ async def populated_store():
 
 @pytest.mark.perf
 @pytest.mark.parametrize("ef", [10, 50, 100, 200])
-def test_benchmark_semantic_search(benchmark, populated_store, ef):
+def test_benchmark_semantic_search(mem_benchmark, populated_store, ef):
     """
     Benchmark throughput; pytest-benchmark handles statistics & regression
     tracking.  Coroutines must be driven inside the closure.
     """
     loop = asyncio.get_event_loop()
-    benchmark(lambda: loop.run_until_complete(
+    mem_benchmark(lambda: loop.run_until_complete(
         populated_store.semantic_search(
             vector=RANDOM_VECTOR,
             k=5,
