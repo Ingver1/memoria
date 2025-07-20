@@ -46,6 +46,7 @@ If you need a plug-and-play semantic memory today, keep reading.
 ```bash
 pip install memoria1        # production
 pip install memoria1[dev]   # +tests & tooling
+# or, in a cloned repo, pip install -r requirements_dev.txt for perf tests
 uvicorn memory_system.api.app:create_app --reload
 
 Minimal client
