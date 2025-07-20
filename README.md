@@ -62,7 +62,40 @@ async def demo():
     print(hits)
 
 asyncio.run(demo())
-```         
+
+### Offline embedding
+
+Create `embedder.py` and add:
+```python
+from sentence_transformers import SentenceTransformer
+import numpy as np
+import inspect
+
+_model = SentenceTransformer("all-MiniLM-L6-v2")
+
+def embed(text: str | list[str]) -> np.ndarray:
+    if isinstance(text, str):
+        text = [text]
+    if "normalize_embeddings" in inspect.signature(_model.encode).parameters:
+        vecs = _model.encode(text, normalize_embeddings=True)
+    else:
+        vecs = _model.encode(text)
+        vecs = np.asarray(vecs, dtype=np.float32)
+        vecs = vecs / np.linalg.norm(vecs, axis=1, keepdims=True)
+    return vecs[0] if len(vecs) == 1 else vecs
+```
+
+Use it with Memoria:
+```python
+from memoria1 import EnhancedMemoryStore, UnifiedSettings
+from embedder import embed
+
+settings = UnifiedSettings.for_testing()
+settings.embed_func = embed
+store = EnhancedMemoryStore(settings)
+```
+
+Now embeddings are generated locally without any external API.         
 
 ---
 
