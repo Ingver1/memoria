@@ -75,8 +75,8 @@ def clean_test_vectors(tmp_path):
     """Temporary path used for vector store tests."""
     return tmp_path / "vectors"
 
-@pytest.fixture(name="mem_benchmark")
-def _mem_benchmark():
+@pytest.fixture(name="benchmark")
+def _benchmark():
     """Simple stand-in for the pytest-benchmark fixture."""
 
     class DummyBenchmark:
@@ -84,6 +84,13 @@ def _mem_benchmark():
             return func(*args, **kwargs)
 
     return DummyBenchmark()
+
+
+@pytest.fixture(name="mem_benchmark")
+def _mem_benchmark(benchmark):
+    """Backward-compatible alias for the benchmark fixture."""
+
+    return benchmark
     
 # tests/test_basic.py
 import pytest
