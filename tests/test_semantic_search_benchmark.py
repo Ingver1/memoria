@@ -36,6 +36,7 @@ async def populated_store():
 
 
 @pytest.mark.perf
+@pytest.mark.benchmark
 @pytest.mark.parametrize("ef", [10, 50, 100, 200])
 def test_benchmark_semantic_search(mem_benchmark, populated_store, ef):
     """
