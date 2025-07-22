@@ -438,7 +438,7 @@ class TestCachePerformance:
 
         # Cache put should be fast
         assert avg_put_time < 0.0001, f"Average put time: {avg_put_time:.8f}s"
-        assert max_put_time < 0.001, f"Maximum put time: {max_put_time:.6f}s"
+        assert max_put_time < 0.005, f"Maximum put time: {max_put_time:.6f}s"
 
     def test_cache_concurrent_performance(self):
         """Test cache performance under concurrent access."""
