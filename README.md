@@ -46,6 +46,7 @@ If you need a plug-and-play semantic memory today, keep reading.
 ```bash
 pip install memoria1        # production
 pip install memoria1[dev]   # +tests & tooling
+pip install -e .[dev]   # editable install for local development
 # or, in a cloned repo, pip install -r requirements_dev.txt for perf tests
 uvicorn memory_system.api.app:create_app --reload
 
@@ -102,12 +103,13 @@ Now embeddings are generated locally without any external API.
 
 🧪 Testing Matrix
 
-Suite	Command	Avg time
+Suite   Command Avg time
 
-Smoke	pytest -q -m "not perf"	8 s
-Perf / Bench	pytest -q -m perf	30 s
-Load (Locust)	locust -f load_tests/locustfile.py	user-defined
-API fuzz	pytest tests/test_api_fuzz.py	4 s
+Smoke   pytest -q -m "not perf" 8 s
+Property  pytest -q -m property  8 s
+Perf / Bench    pytest -q tests/test_performance.py --benchmark-only       30 s
+Load (Locust)   locust -f load_tests/locustfile.py      user-defined
+API fuzz        pytest tests/test_api_fuzz.py   4 s
 
 
 The smoke suite runs on every push; perf + load run nightly via GitHub Actions cron.
