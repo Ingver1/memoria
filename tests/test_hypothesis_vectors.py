@@ -6,6 +6,8 @@ via an exact semantic search; the store must never raise or lose data.
 """
 import pytest
 
+pytestmark = pytest.mark.property
+
 import numpy as np
 import pytest_asyncio
 from hypothesis import given, settings
