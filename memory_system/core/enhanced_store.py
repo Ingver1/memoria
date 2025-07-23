@@ -1,6 +1,6 @@
 # enhanced_store.py — Enhanced memory store for Unified Memory System
 #
-# Version: 0.8‑alpha
+# Version: v{__version__}
 """Enhanced memory store with health checking and statistics."""
 
 from __future__ import annotations
