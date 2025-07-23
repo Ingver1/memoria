@@ -5,6 +5,7 @@ pick sensible defaults for the FAISS index. Async fixtures are provided
 via ``pytest_asyncio``.
 """
 import asyncio
+from memory_system.utils.loop import get_or_create_loop
 
 import pytest
 
@@ -41,7 +42,7 @@ async def populated_store():
 def test_benchmark_semantic_search(benchmark, populated_store, ef):
     """Benchmark throughput using pytest-benchmark."""
 
-    loop = asyncio.get_event_loop()
+    loop = get_or_create_loop()
     benchmark(
         lambda: loop.run_until_complete(
             populated_store.semantic_search(
