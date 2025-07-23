@@ -23,7 +23,6 @@ Features
 from __future__ import annotations
 
 import asyncio
-from memory_system.utils.rwlock import AsyncRWLock
 import json
 import logging
 import shutil
@@ -36,6 +35,7 @@ from typing import Any
 import faiss
 import numpy as _np
 from memory_system.utils.exceptions import StorageError, ValidationError
+from memory_system.utils.rwlock import AsyncRWLock
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -113,7 +113,7 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
             raise ValueError("vectors and metadata length mismatch")
 
         ids = [str(uuid.uuid4()) for _ in vectors]
-        async with self._rwlock.writer_lock:
+        async with self._rwlock.writer_lock():
             # FAISS needs contiguous array
             await self._loop.run_in_executor(
                 None, self._index.add_with_ids, _to_faiss_array(vectors), _to_faiss_ids(ids)
@@ -123,7 +123,7 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
         return ids
 
     async def search(self, vector: list[float], k: int = 5) -> list[tuple[str, float]]:
-        async with self._rwlock.reader_lock:
+        async with self._rwlock.reader_lock():
             D, indices = self._index.search(_to_faiss_array([vector]), k)
         matches: list[tuple[str, float]] = []
         for idx, dist in zip(indices[0], D[0], strict=False):
@@ -134,7 +134,7 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
         return matches
 
     async def delete(self, ids: Sequence[str]) -> None:
-        async with self._rwlock.writer_lock:
+        async with self._rwlock.writer_lock():
             id_array = _to_faiss_ids(ids)
             selector = faiss.IDSelectorBatch(id_array.size, faiss.swig_ptr(id_array))
             await self._loop.run_in_executor(None, self._index.remove_ids, selector)
@@ -142,7 +142,7 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
                 self._metadata.pop(_id, None)
 
     async def flush(self) -> None:  # noqa: D401 (imperative)
-        async with self._rwlock.writer_lock:
+        async with self._rwlock.writer_lock():
             await self._loop.run_in_executor(
                 None, faiss.write_index, self._index, str(self._index_path)
             )
@@ -171,7 +171,7 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
     async def compact(self) -> None:
         """Writes the current index to disk, replacing previous blob."""
         _LOGGER.debug("Compacting FAISS index → %s", self._index_path)
-        async with self._rwlock.writer_lock:
+        async with self._rwlock.writer_lock():
             await self._loop.run_in_executor(
                 None, faiss.write_index, self._index, str(self._index_path)
             )
