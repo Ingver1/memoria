@@ -111,7 +111,7 @@ Logs	logging.yaml → plaintext or JSON (LOG_JSON=1)
 
 6. Deployment 🚀
 
-Single-container image (python:3.11-slim-bookworm, ≈120 MB)
+Single-container image (python:3.12-slim-bookworm, ≈120 MB)
 
 Health probes:
 
