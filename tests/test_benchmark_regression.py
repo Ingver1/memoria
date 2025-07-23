@@ -5,6 +5,7 @@ with the stored baseline. pytest-benchmark handles the comparison, and
 pytest_asyncio is used for async fixtures.
 """
 import asyncio
+from memory_system.utils.loop import get_or_create_loop
 
 import pytest
 
@@ -34,7 +35,7 @@ async def bench_store():
 @pytest.mark.benchmark
 def test_semantic_search_speed(mem_benchmark, bench_store):
     async def _run() -> None:
-        asyncio.get_event_loop()
+        get_or_create_loop()
         await bench_store.semantic_search(vector=VECTOR, k=5)
 
     mem_benchmark(lambda: asyncio.run(_run()))
