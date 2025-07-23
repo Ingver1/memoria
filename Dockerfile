@@ -6,7 +6,7 @@
 # -------------------------------------------------------------
 
 ############################ 1️⃣  build stage ############################
-FROM python:3.11-bookworm AS build
+FROM python:3.12-bookworm AS build
 
 # Optional: label for build info
 LABEL org.opencontainers.image.source="https://github.com/Ingver1/AI-memory-"
