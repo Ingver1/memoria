@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager, contextmanager
-from typing import AsyncGenerator, Generator
 from threading import Condition
+from typing import AsyncGenerator, Generator
 
 
 class AsyncRWLock:
