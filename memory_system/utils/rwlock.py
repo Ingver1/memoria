@@ -48,7 +48,7 @@ class RWLock:
     """Thread based reader/writer lock."""
 
     def __init__(self) -> None:
-      self._cond = Condition()
+        self._cond = Condition()
         self._readers = 0
         self._writer = False
 
