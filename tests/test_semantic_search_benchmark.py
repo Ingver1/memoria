@@ -5,11 +5,11 @@ pick sensible defaults for the FAISS index. Async fixtures are provided
 via ``pytest_asyncio``.
 """
 import asyncio
-from memory_system.utils.loop import get_or_create_loop
 
 import pytest
 
 import pytest_asyncio
+from memory_system.utils.loop import get_or_create_loop
 
 # Skip benchmarks when pytest-benchmark is not installed
 pytest.importorskip("pytest_benchmark")
