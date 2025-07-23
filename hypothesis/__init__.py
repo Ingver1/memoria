@@ -27,8 +27,9 @@ def given(**kwargs):
             fkwargs.update(values)
             result = func(*args, **fkwargs)
             if inspect.iscoroutine(result):
-                import asyncio
-                return asyncio.get_event_loop().run_until_complete(result)
+                from memory_system.utils.loop import get_or_create_loop
+
+                return get_or_create_loop().run_until_complete(result)
             return result
 
         params = [p for p in sig.parameters.values() if p.name not in kwargs]
