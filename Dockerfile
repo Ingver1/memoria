@@ -35,7 +35,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip wheel --no-deps --wheel-dir /wheels /build
 
 ############################ 2️⃣  runtime stage ############################
-FROM python:3.11-slim-bookworm AS runtime
+FROM python:3.12-slim-bookworm AS runtime
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONHASHSEED=random \
