@@ -1,6 +1,6 @@
 [build-system]
 requires = [
-  "setuptools>=68",
+  "setuptools>=69",
   "wheel",
 ]
 build-backend = "setuptools.build_meta"
@@ -97,14 +97,14 @@ version = {attr = "memory_system.__version__"}
 # -------------------------------
 
 [tool.mypy]
-python_version         = "3.11"
+python_version         = "3.12"
 strict                 = true
 ignore_missing_imports = true
 show_error_codes       = true
 
 [tool.ruff]
 line-length = 120
-target-version = "py311"
+target-version = "py312"
 exclude = ["build/*", "build/", "dist/*"]
 
 [tool.ruff.lint]
