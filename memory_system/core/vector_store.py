@@ -10,7 +10,8 @@ This module provides:
 
 Features
 --------
-* Single **`asyncio.Lock`** guards mutating ops (no `threading.RLock`).
+* Reader/writer lock from ``asyncio-rwlock`` allows concurrent searches while
+  writes remain exclusive.
 * **JSON metadata** stored alongside IDs in a lightweight *sidecar*
   SQLite table – keeps FAISS fast and queries flexible.
 * Background task (`_maintenance_loop`) performs **compaction** &
@@ -22,6 +23,7 @@ Features
 from __future__ import annotations
 
 import asyncio
+from asyncio_rwlock import RWLock
 import json
 import logging
 import shutil
@@ -78,7 +80,7 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
     ) -> None:
         self._dim = dim
         self._index_path = index_path
-        self._lock = asyncio.Lock()
+        self._rwlock = RWLock()
         self._maintenance_interval = maintenance_interval
         self._loop = asyncio.get_running_loop()
 
@@ -111,7 +113,7 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
             raise ValueError("vectors and metadata length mismatch")
 
         ids = [str(uuid.uuid4()) for _ in vectors]
-        async with self._lock:
+        async with self._rwlock.writer_lock:
             # FAISS needs contiguous array
             await self._loop.run_in_executor(
                 None, self._index.add_with_ids, _to_faiss_array(vectors), _to_faiss_ids(ids)
@@ -121,9 +123,8 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
         return ids
 
     async def search(self, vector: list[float], k: int = 5) -> list[tuple[str, float]]:
-        D, indices = await self._loop.run_in_executor(
-            None, self._index.search, _to_faiss_array([vector]), k
-        )
+        async with self._rwlock.reader_lock:
+            D, indices = self._index.search(_to_faiss_array([vector]), k)
         matches: list[tuple[str, float]] = []
         for idx, dist in zip(indices[0], D[0], strict=False):
             if idx == -1:
@@ -133,7 +134,7 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
         return matches
 
     async def delete(self, ids: Sequence[str]) -> None:
-        async with self._lock:
+        async with self._rwlock.writer_lock:
             id_array = _to_faiss_ids(ids)
             selector = faiss.IDSelectorBatch(id_array.size, faiss.swig_ptr(id_array))
             await self._loop.run_in_executor(None, self._index.remove_ids, selector)
@@ -141,7 +142,7 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
                 self._metadata.pop(_id, None)
 
     async def flush(self) -> None:  # noqa: D401 (imperative)
-        async with self._lock:
+        async with self._rwlock.writer_lock:
             await self._loop.run_in_executor(
                 None, faiss.write_index, self._index, str(self._index_path)
             )
@@ -170,7 +171,7 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
     async def compact(self) -> None:
         """Writes the current index to disk, replacing previous blob."""
         _LOGGER.debug("Compacting FAISS index → %s", self._index_path)
-        async with self._lock:
+        async with self._rwlock.writer_lock:
             await self._loop.run_in_executor(
                 None, faiss.write_index, self._index, str(self._index_path)
             )
