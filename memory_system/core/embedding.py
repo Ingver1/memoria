@@ -23,6 +23,7 @@ import numpy as np
 from memory_system.config.settings import UnifiedSettings
 from memory_system.utils.cache import SmartCache
 from memory_system.utils.metrics import MET_ERRORS_TOTAL
+from memory_system.utils.loop import get_or_create_loop
 from sentence_transformers import SentenceTransformer
 
 __all__ = ["EmbeddingError", "EmbeddingJob", "EnhancedEmbeddingService"]
@@ -95,7 +96,7 @@ class EmbeddingService:
             asyncio.run(self.close())
         except RuntimeError:
             # In case an event loop is already running, schedule close
-            loop = asyncio.get_event_loop()
+            loop = get_or_create_loop()
             loop.run_until_complete(self.close())
     
     # Model management
@@ -197,7 +198,7 @@ class EmbeddingService:
             return cast(np.ndarray, cached).reshape(1, -1)
         # Not in cache: enqueue for batch processing
         await asyncio.sleep(0.001)
-        loop = asyncio.get_event_loop()
+        loop = get_or_create_loop()
         future: asyncio.Future[np.ndarray] = loop.create_future()
         job = EmbeddingJob(text=text, future=future)
         with self._queue_condition:
