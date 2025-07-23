@@ -72,6 +72,7 @@ class FaissHNSWIndex:
 
     DEFAULT_EF_CONSTRUCTION = int(os.getenv("UMS_EF_CONSTRUCTION", "128"))
     DEFAULT_HNSW_M = int(os.getenv("UMS_HNSW_M", "32"))
+    DEFAULT_EF_SEARCH = int(os.getenv("UMS_EF_SEARCH", "32"))
 
     def __init__(
         self,
@@ -91,7 +92,8 @@ class FaissHNSWIndex:
         base.hnsw.efConstruction = ef_construction or self.DEFAULT_EF_CONSTRUCTION
 
         self.index: faiss.IndexIDMap2 = faiss.IndexIDMap2(base)
-        self.ef_search: int = 32  # default runtime ef, can be tuned dynamically
+        self.ef_search: int = self.DEFAULT_EF_SEARCH
+        self.index.hnsw.efSearch = self.ef_search
 
         self._stats = IndexStats(dim=dim)
         # simple in-memory cache for repeated queries
@@ -176,8 +178,8 @@ class FaissHNSWIndex:
             )
             
         vec_flat = self._to_float32(vector).flatten()
-        vec_hash = hash(b''.join(struct.pack('f', float(x)) for x in vec_flat))
-        key = (vec_hash, k, ef_search or self.ef_search)
+        vec_bytes = struct.pack(f"{len(vec_flat)}f", *[float(x) for x in vec_flat])
+        key = (hash(vec_bytes), k, ef_search or self.ef_search)
         if key in self._cache:
             return self._cache[key]
             
