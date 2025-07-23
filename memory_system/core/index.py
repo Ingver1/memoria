@@ -1,6 +1,6 @@
 # index.py — FAISS‑based ANN index for Unified Memory System
 #
-# Version: 0.8‑alpha
+# Version: v{__version__}
 
 """Vector‑similarity index built on top of **FAISS** (*IndexHNSWFlat*) with
 ID mapping, basic statistics, dynamic search tuning and Prometheus hooks.
