@@ -21,12 +21,12 @@ from __future__ import annotations
 import json
 import logging
 import os
+import struct
 from collections import Counter
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from time import perf_counter
-import struct
 
 import faiss
 import numpy as np
