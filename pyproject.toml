@@ -35,6 +35,7 @@ dependencies = [
   # Storage / Vector
   "aiosqlite>=0.19",
   "faiss-cpu>=1.8",
+  "asyncio-rwlock>=1.0",
 
   # Security
   "cryptography>=42.0",
