@@ -25,13 +25,13 @@ from collections import Counter
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from memory_system.utils.rwlock import RWLock
 from time import perf_counter
 
 import faiss
 import numpy as np
 from memory_system.utils.exceptions import StorageError
 from memory_system.utils.metrics import prometheus_counter
+from memory_system.utils.rwlock import RWLock
 from numpy import ndarray as NDArray
 
 log = logging.getLogger(__name__)
