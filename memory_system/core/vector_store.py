@@ -10,8 +10,8 @@ This module provides:
 
 Features
 --------
-* Reader/writer lock from ``asyncio-rwlock`` allows concurrent searches while
-  writes remain exclusive.
+* Built-in asynchronous reader/writer lock allows concurrent searches while
+    writes remain exclusive.
 * **JSON metadata** stored alongside IDs in a lightweight *sidecar*
   SQLite table – keeps FAISS fast and queries flexible.
 * Background task (`_maintenance_loop`) performs **compaction** &
@@ -23,7 +23,7 @@ Features
 from __future__ import annotations
 
 import asyncio
-from asyncio_rwlock import RWLock
+from memory_system.utils.rwlock import AsyncRWLock
 import json
 import logging
 import shutil
@@ -80,7 +80,7 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
     ) -> None:
         self._dim = dim
         self._index_path = index_path
-        self._rwlock = RWLock()
+        self._rwlock = AsyncRWLock()
         self._maintenance_interval = maintenance_interval
         self._loop = asyncio.get_running_loop()
 
