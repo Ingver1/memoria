@@ -121,10 +121,9 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
         return ids
 
     async def search(self, vector: list[float], k: int = 5) -> list[tuple[str, float]]:
-        async with self._lock:
-            D, indices = await self._loop.run_in_executor(
-                None, self._index.search, _to_faiss_array([vector]), k
-            )
+        D, indices = await self._loop.run_in_executor(
+            None, self._index.search, _to_faiss_array([vector]), k
+        )
         matches: list[tuple[str, float]] = []
         for idx, dist in zip(indices[0], D[0], strict=False):
             if idx == -1:
