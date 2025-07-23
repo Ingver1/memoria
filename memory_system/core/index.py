@@ -12,7 +12,8 @@ idx.add_vectors(["id‑1", "id‑2"], np.random.rand(2, 768))
 ids, dist = idx.search(np.random.rand(768), k=5)
 ```
 
-The class is thread‑safe because all state mutations are protected by a :class:`threading.RLock`.
+The class is thread‑safe thanks to a reader/writer lock that allows concurrent
+searches while writes remain exclusive.
 """
 
 from __future__ import annotations
@@ -24,7 +25,7 @@ from collections import Counter
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from threading import RLock
+from memory_system.utils.rwlock import RWLock
 from time import perf_counter
 
 import faiss
@@ -81,7 +82,7 @@ class FaissHNSWIndex:
     ) -> None:
         self.dim = dim
         self.space = space
-        self._lock: RLock = RLock()
+        self._lock = RWLock()
 
         # Build underlying FAISS index -----------------------------------
         metric = faiss.METRIC_INNER_PRODUCT if space == "cosine" else faiss.METRIC_L2
@@ -128,7 +129,7 @@ class FaissHNSWIndex:
         if dup:
             raise ANNIndexError("duplicate IDs in input")
 
-        with self._lock:
+        with self._lock.writer_lock:
             existing = {i for i in ids if i in self._reverse_id_map}
             if existing:
                 raise ANNIndexError("IDs already present")
@@ -147,7 +148,7 @@ class FaissHNSWIndex:
     def remove_ids(self, ids: Iterable[str]) -> None:
         int_ids = np.array([self._string_to_int(i) for i in ids], dtype="int64")
         selector = faiss.IDSelectorBatch(int_ids.size, faiss.swig_ptr(int_ids))
-        with self._lock:
+        with self._lock.writer_lock:
             removed = self.index.remove_ids(selector)
             self._stats.total_vectors -= int(removed)
             _VEC_DELETED.inc(int(removed))
@@ -187,7 +188,7 @@ class FaissHNSWIndex:
 
         start = perf_counter()
         try:
-            with self._lock:
+            with self._lock.reader_lock:
                 distances, int_ids = self.index.search(vec, k)
         except Exception as exc:  # noqa: BLE001
             _QUERY_ERR.inc()
@@ -214,7 +215,7 @@ class FaissHNSWIndex:
         """Recreate the FAISS index from scratch in a transactional way."""
         temp = FaissHNSWIndex(self.dim, space=self.space)
         temp.add_vectors(ids, vectors)
-        with self._lock:
+        with self._lock.writer_lock:
             self.index = temp.index
             self._id_map = temp._id_map
             self._reverse_id_map = temp._reverse_id_map
@@ -224,13 +225,13 @@ class FaissHNSWIndex:
             log.info("Index rebuilt with %d vectors", len(ids))
 
     def save(self, path: str) -> None:
-        with self._lock:
+        with self._lock.writer_lock:
             faiss.write_index(self.index, path)
             (Path(path).with_suffix(".map.json")).write_text(json.dumps(self._id_map))
             log.info("Index saved to %s", path)
 
     def load(self, path: str) -> None:
-        with self._lock:
+        with self._lock.writer_lock:
             self.index = faiss.read_index(path)
             map_path = Path(path).with_suffix(".map.json")
             if map_path.exists():
