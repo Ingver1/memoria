@@ -26,6 +26,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from time import perf_counter
+import struct
 
 import faiss
 import numpy as np
@@ -94,7 +95,8 @@ class FaissHNSWIndex:
 
         self._stats = IndexStats(dim=dim)
         # simple in-memory cache for repeated queries
-        self._cache: dict[tuple[tuple[float, ...], int, int], tuple[list[str], list[float]]] = {}
+        # key = (hash(bytes(vector)), k, ef_search)
+        self._cache: dict[tuple[int, int, int], tuple[list[str], list[float]]] = {}
         self._id_map: dict[int, str] = {}
         self._reverse_id_map: dict[str, int] = {}
         log.info("FAISS HNSW index initialised: dim=%d, metric=%s", dim, space)
@@ -173,12 +175,13 @@ class FaissHNSWIndex:
                 f"dimension mismatch: expected dim={self.dim}, got {vector.shape[-1]}"
             )
             
-        vec_flat = vector.flatten()
-        key = (tuple(float(x) for x in vec_flat), k, ef_search or self.ef_search)
+        vec_flat = self._to_float32(vector).flatten()
+        vec_hash = hash(b''.join(struct.pack('f', float(x)) for x in vec_flat))
+        key = (vec_hash, k, ef_search or self.ef_search)
         if key in self._cache:
             return self._cache[key]
             
-        vec = self._to_float32(vector.reshape(1, -1))
+        vec = vec_flat.reshape(1, -1)
         if self.space == "cosine":
             faiss.normalize_L2(vec)
 
