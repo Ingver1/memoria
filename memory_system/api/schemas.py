@@ -1,6 +1,6 @@
 # schemas.py — Pydantic models for Unified Memory System API
 #
-# Version: 0.8‑alpha
+# Version: v{__version__}
 """Centralised data‑contracts used by the REST API layer."""
 
 from __future__ import annotations
