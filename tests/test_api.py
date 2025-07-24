@@ -7,6 +7,7 @@ import pytest
 
 import httpx
 import pytest_asyncio
+from typing import AsyncGenerator
 from fastapi import FastAPI, Request
 from fastapi.testclient import ClientHelper
 from memory_system import __version__
@@ -26,26 +27,26 @@ from starlette.responses import Response
 
 
 @pytest.fixture
-def test_settings():
+def test_settings() -> UnifiedSettings:
     """Create test settings."""
     return UnifiedSettings.for_testing()
 
 
 @pytest.fixture
-def test_app(test_settings):
+def test_app(test_settings: UnifiedSettings) -> FastAPI:
     """Create test FastAPI app."""
     app = create_app()
     return app
 
 
 @pytest.fixture
-def test_client(test_app):
+def test_client(test_app: FastAPI) -> ClientHelper:
     """Create test client."""
     return ClientHelper(test_app)
 
 
 @pytest_asyncio.fixture
-async def async_test_client(test_app):
+async def async_test_client(test_app: FastAPI) -> AsyncGenerator[httpx.AsyncClient, None]:
     """Create async test client."""
     async with httpx.AsyncClient(app=test_app, base_url="http://test") as client:
         yield client
@@ -54,7 +55,7 @@ async def async_test_client(test_app):
 class TestHealthEndpoints:
     """Test health and monitoring endpoints."""
 
-    def test_root_endpoint(self, test_client):
+    def test_root_endpoint(self, test_client: ClientHelper) -> None:
         """Test root endpoint."""
         response = test_client.get("/")
         assert response.status_code == 200
@@ -68,7 +69,7 @@ class TestHealthEndpoints:
         assert data["metrics"] == "/metrics"
         assert data["api_version"] == "v1"
 
-    def test_health_endpoint(self, test_client):
+    def test_health_endpoint(self, test_client: ClientHelper) -> None:
         """Test health check endpoint."""
         response = test_client.get("/api/v1/health")
         assert response.status_code == 200
@@ -85,7 +86,7 @@ class TestHealthEndpoints:
         assert isinstance(health_response.api_enabled, bool)
         assert health_response.timestamp is not None
 
-    def test_liveness_probe(self, test_client):
+    def test_liveness_probe(self, test_client: ClientHelper) -> None:
         """Test liveness probe endpoint."""
         response = test_client.get("/api/v1/health/live")
         assert response.status_code == 200
@@ -94,7 +95,7 @@ class TestHealthEndpoints:
         assert data["status"] == "alive"
         assert "timestamp" in data
 
-    def test_readiness_probe(self, test_client):
+    def test_readiness_probe(self, test_client: ClientHelper) -> None:
         """Test readiness probe endpoint."""
         response = test_client.get("/api/v1/health/ready")
         # Should be 200 for healthy service or 503 for unhealthy
@@ -106,7 +107,7 @@ class TestHealthEndpoints:
         else:
             assert "detail" in data
 
-    def test_stats_endpoint(self, test_client):
+    def test_stats_endpoint(self, test_client: ClientHelper) -> None:
         """Test stats endpoint."""
         response = test_client.get("/api/v1/stats")
         assert response.status_code == 200
@@ -120,7 +121,7 @@ class TestHealthEndpoints:
         assert isinstance(stats_response.memory_store_stats, dict)
         assert isinstance(stats_response.api_stats, dict)
 
-    def test_version_endpoint(self, test_client):
+    def test_version_endpoint(self, test_client: ClientHelper) -> None:
         """Test version endpoint."""
         response = test_client.get("/api/v1/version")
         assert response.status_code == 200
@@ -132,7 +133,7 @@ class TestHealthEndpoints:
         assert "platform" in data
         assert "architecture" in data
 
-    def test_metrics_endpoint_enabled(self, test_client):
+    def test_metrics_endpoint_enabled(self, test_client: ClientHelper) -> None:
         """Test metrics endpoint when enabled."""
         response = test_client.get("/api/v1/metrics")
         # Should be 200 if metrics enabled or 404 if disabled
@@ -146,7 +147,7 @@ class TestHealthEndpoints:
             content = response.text
             assert "# HELP" in content or "# TYPE" in content
 
-    def test_metrics_endpoint_disabled(self, test_client, monkeypatch):
+    def test_metrics_endpoint_disabled(self, test_client: ClientHelper, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test metrics endpoint when disabled."""
         from fastapi import HTTPException
         from memory_system.api.routes import health as health_routes
@@ -175,20 +176,20 @@ class TestHealthEndpoints:
 class TestAdminEndpoints:
     """Test admin endpoints."""
 
-    def test_maintenance_mode_status(self, test_client):
+    def test_maintenance_mode_status(self, test_client: ClientHelper) -> None:
         """Test getting maintenance mode status."""
         response = test_client.get("/api/v1/admin/maintenance-mode")
         assert response.status_code == 200
         data = response.json()
         assert data == {"enabled": False}
         
-    def test_maintenance_mode_enable(self, test_client):
+    def test_maintenance_mode_enable(self, test_client: ClientHelper) -> None:
         """Test enabling maintenance mode."""
         response = test_client.post("/api/v1/admin/maintenance-mode/enable")
         assert response.status_code == 204
         assert test_client.app.state.maintenance._enabled is True
         
-    def test_maintenance_mode_disable(self, test_client):
+    def test_maintenance_mode_disable(self, test_client: ClientHelper) -> None:
         """Test disabling maintenance mode."""
         test_client.post("/api/v1/admin/maintenance-mode/enable")
         response = test_client.post("/api/v1/admin/maintenance-mode/disable")
@@ -199,7 +200,7 @@ class TestAdminEndpoints:
 class TestSchemas:
     """Test Pydantic schemas."""
 
-    def test_memory_create_schema(self):
+    def test_memory_create_schema(self) -> None:
         """Test MemoryCreate schema."""
         # Valid data
         data = {"text": "Test memory text", "role": "user", "tags": ["test", "memory"]}
@@ -214,7 +215,7 @@ class TestSchemas:
         memory_create = MemoryCreate(**data)
         assert memory_create.user_id == "user123"
 
-    def test_memory_create_schema_validation(self):
+    def test_memory_create_schema_validation(self) -> None:
         """Test MemoryCreate schema validation."""
         # Empty text should fail
         with pytest.raises(ValueError):
@@ -232,7 +233,7 @@ class TestSchemas:
         with pytest.raises(ValueError):
             MemoryCreate(text="test", tags=["tag"] * 11)
 
-    def test_memory_read_schema(self):
+    def test_memory_read_schema(self) -> None:
         """Test MemoryRead schema."""
         from datetime import datetime
 
@@ -254,7 +255,7 @@ class TestSchemas:
         assert isinstance(memory_read.created_at, datetime)
         assert isinstance(memory_read.updated_at, datetime)
 
-    def test_memory_update_schema(self):
+    def test_memory_update_schema(self) -> None:
         """Test MemoryUpdate schema."""
         from memory_system.api.schemas import MemoryUpdate
 
@@ -270,7 +271,7 @@ class TestSchemas:
         assert update.role is None
         assert update.tags is None
 
-    def test_memory_query_schema(self):
+    def test_memory_query_schema(self) -> None:
         """Test MemoryQuery schema."""
         query = MemoryQuery(query="test query")
         assert query.query == "test query"
@@ -283,7 +284,7 @@ class TestSchemas:
         assert query.top_k == 5
         assert query.include_embeddings is True
 
-    def test_memory_query_schema_validation(self):
+    def test_memory_query_schema_validation(self) -> None:
         """Test MemoryQuery schema validation."""
         # Empty query should fail
         with pytest.raises(ValueError):
@@ -300,7 +301,7 @@ class TestSchemas:
         with pytest.raises(ValueError):
             MemoryQuery(query="test", top_k=101)
 
-    def test_memory_search_result_schema(self):
+    def test_memory_search_result_schema(self) -> None:
         """Test MemorySearchResult schema."""
         from datetime import datetime
 
@@ -320,7 +321,7 @@ class TestSchemas:
         assert result.score == 0.95
         assert result.embedding == [0.1, 0.2, 0.3]
 
-    def test_health_response_schema(self):
+    def test_health_response_schema(self) -> None:
         """Test HealthResponse schema."""
         data = {
             "status": "healthy",
@@ -340,7 +341,7 @@ class TestSchemas:
         assert health.memory_store_health == {"total_memories": 100}
         assert health.api_enabled is True
 
-    def test_stats_response_schema(self):
+    def test_stats_response_schema(self) -> None:
         """Test StatsResponse schema."""
         data = {
             "total_memories": 1000,
@@ -356,7 +357,7 @@ class TestSchemas:
         assert stats.memory_store_stats == {"cache_hit_rate": 0.85}
         assert stats.api_stats == {"requests_per_second": 100}
 
-    def test_success_response_schema(self):
+    def test_success_response_schema(self) -> None:
         """Test SuccessResponse schema."""
         success = SuccessResponse()
         assert success.message == "success"
@@ -366,7 +367,7 @@ class TestSchemas:
         assert success.message == "custom success"
         assert success.api_version == "v1"
 
-    def test_error_response_schema(self):
+    def test_error_response_schema(self) -> None:
         """Test ErrorResponse schema."""
         error = ErrorResponse(detail="Something went wrong")
         assert error.detail == "Something went wrong"
@@ -376,13 +377,13 @@ class TestSchemas:
 class TestMiddleware:
     """Test middleware functionality."""
 
-    def test_cors_headers(self, test_client):
+    def test_cors_headers(self, test_client: ClientHelper) -> None:
         """Test CORS headers are present."""
         test_client.get("/api/v1/health")
         # CORS headers should be present if enabled
         # This depends on the test configuration
 
-    def test_rate_limiting_middleware(self, test_client):
+    def test_rate_limiting_middleware(self, test_client: ClientHelper) -> None:
         """Test rate limiting middleware."""
         # Make multiple requests to trigger rate limiting
         responses = []
@@ -394,7 +395,7 @@ class TestMiddleware:
         for response in responses:
             assert response.status_code in [200, 429]
 
-    def test_maintenance_mode_middleware(self, test_client):
+    def test_maintenance_mode_middleware(self, test_client: ClientHelper) -> None:
         """Test maintenance mode middleware blocks and unblocks requests."""
         mw = test_client.app.state.maintenance
 
@@ -410,7 +411,7 @@ class TestMiddleware:
         req.app = test_client.app
         req.url = type("URL", (), {"path": "/api/v1/health"})()
 
-        async def _next(_request):
+        async def _next(_request: Request) -> Response:
             return Response(status_code=200)
 
         blocked = asyncio.run(mw.dispatch(req, _next))
@@ -427,7 +428,7 @@ class TestMiddleware:
 class TestAsyncEndpoints:
     """Test async endpoints."""
 
-    async def test_async_health_endpoint(self, async_test_client):
+    async def test_async_health_endpoint(self, async_test_client: httpx.AsyncClient) -> None:
         """Test health endpoint with async client."""
         response = await async_test_client.get("/api/v1/health")
         assert response.status_code == 200
@@ -436,7 +437,7 @@ class TestAsyncEndpoints:
         assert data["version"] == __version__
         assert data["status"] in ["healthy", "degraded", "unhealthy"]
 
-    async def test_async_stats_endpoint(self, async_test_client):
+    async def test_async_stats_endpoint(self, async_test_client: httpx.AsyncClient) -> None:
         """Test stats endpoint with async client."""
         response = await async_test_client.get("/api/v1/stats")
         assert response.status_code == 200
@@ -446,7 +447,7 @@ class TestAsyncEndpoints:
         assert "active_sessions" in data
         assert "uptime_seconds" in data
 
-    async def test_async_version_endpoint(self, async_test_client):
+    async def test_async_version_endpoint(self, async_test_client: httpx.AsyncClient) -> None:
         """Test version endpoint with async client."""
         response = await async_test_client.get("/api/v1/version")
         assert response.status_code == 200
@@ -459,18 +460,18 @@ class TestAsyncEndpoints:
 class TestErrorHandling:
     """Test error handling."""
 
-    def test_404_error(self, test_client):
+    def test_404_error(self, test_client: ClientHelper) -> None:
         """Test 404 error handling."""
         response = test_client.get("/api/v1/nonexistent")
         assert response.status_code == 404
 
-    def test_405_error(self, test_client):
+    def test_405_error(self, test_client: ClientHelper) -> None:
         """Test 405 error handling."""
         response = test_client.post("/api/v1/health")
         assert response.status_code == 405
         assert response.headers.get("content-type") == "application/json"
 
-    def test_422_validation_error(self, test_client):
+    def test_422_validation_error(self, test_client: ClientHelper) -> None:
         """Test 422 validation error handling."""
         # Use the memory creation endpoint with invalid payload
         resp = test_client.post("/api/v1/memory/", json={"text": ""})
@@ -480,17 +481,17 @@ class TestErrorHandling:
 class TestApplicationLifecycle:
     """Test application lifecycle events."""
 
-    def test_app_startup(self, test_app):
+    def test_app_startup(self, test_app: FastAPI) -> None:
         """Test application startup."""
         assert isinstance(test_app, FastAPI)
         assert test_app.title == "Unified Memory System"
         assert test_app.version == __version__
 
-    def test_app_shutdown(self, test_app):
+    def test_app_shutdown(self, test_app: FastAPI) -> None:
         """Test application shutdown."""
         called = False
 
-        async def fake_close(self):
+        async def fake_close(self: object) -> None:
             nonlocal called
             called = True
 
@@ -509,14 +510,14 @@ class TestApplicationLifecycle:
 class TestDependencyInjection:
     """Test dependency injection."""
 
-    def test_settings_dependency(self, test_client):
+    def test_settings_dependency(self, test_client: ClientHelper) -> None:
         """Test settings dependency is properly injected."""
         response = test_client.get("/api/v1/health")
         assert response.status_code == 200
         # The fact that we get a successful response means
         # the settings dependency was properly injected
 
-    def test_memory_store_dependency(self, test_client):
+    def test_memory_store_dependency(self, test_client: ClientHelper) -> None:
         """Test memory store dependency is properly injected."""
         response = test_client.get("/api/v1/stats")
         assert response.status_code == 200
@@ -528,7 +529,7 @@ class TestDependencyInjection:
 class TestConcurrency:
     """Test concurrent access."""
 
-    async def test_concurrent_health_checks(self, async_test_client):
+    async def test_concurrent_health_checks(self, async_test_client: httpx.AsyncClient) -> None:
         """Test concurrent health check requests."""
         tasks = []
         for _i in range(10):
@@ -541,7 +542,7 @@ class TestConcurrency:
         for response in responses:
             assert response.status_code == 200
 
-    async def test_concurrent_stats_requests(self, async_test_client):
+    async def test_concurrent_stats_requests(self, async_test_client: httpx.AsyncClient) -> None:
         """Test concurrent stats requests."""
         tasks = []
         for _i in range(5):
@@ -557,7 +558,7 @@ class TestConcurrency:
 class TestPerformance:
     """Test performance characteristics."""
 
-    def test_health_endpoint_performance(self, test_client):
+    def test_health_endpoint_performance(self, test_client: ClientHelper) -> None:
         """Test health endpoint performance."""
         start_time = time.time()
 
@@ -575,7 +576,7 @@ class TestPerformance:
         avg_time = total_time / 100
         assert avg_time < 0.1  # 100ms max per request
 
-    def test_stats_endpoint_performance(self, test_client):
+    def test_stats_endpoint_performance(self, test_client: ClientHelper) -> None:
         """Test stats endpoint performance."""
         start_time = time.time()
 
@@ -592,3 +593,4 @@ class TestPerformance:
         # Average response time should be reasonable
         avg_time = total_time / 50
         assert avg_time < 0.1  # 100ms max per request
+
