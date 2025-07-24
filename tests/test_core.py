@@ -36,7 +36,7 @@ from memory_system.utils.exceptions import StorageError, ValidationError
 class TestMemoryDataClass:
     """Test Memory data class."""
 
-    def test_store_initialization(self) -> None:
+    def test_store_initialization(self, store: SQLiteMemoryStore, temp_db_path: Path) -> None:
         """Test Memory object creation."""
         memory = Memory(id="test-id", text="test text")
         assert memory.id == "test-id"
@@ -248,29 +248,21 @@ class TestEmbeddingJob:
     def test_embedding_job_creation(self) -> None:
         """Test EmbeddingJob creation."""
         loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            future = loop.create_future()
-            job = EmbeddingJob(text="test text", future=future)
-            assert job.text == "test text"
-            assert job.future is future
-        finally:
-            loop.close()
+        future = loop.create_future()
+        job = EmbeddingJob(text="test text", future=future)
+        assert job.text == "test text"
+        assert job.future is future
 
     def test_embedding_job_immutable(self) -> None:
         """Test that EmbeddingJob is immutable."""
         loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            future = loop.create_future()
-            job = EmbeddingJob(text="test text", future=future)
+        future = loop.create_future()
+        job = EmbeddingJob(text="test text", future=future)
 
-            # Should not be able to modify frozen dataclass
-            # This test is expected to raise AttributeError because 'text' is read-only (frozen dataclass)
-            with pytest.raises(AttributeError):
-                job.text = "new text"
-        finally:
-            loop.close()
+        # Should not be able to modify frozen dataclass
+        # This test is expected to raise AttributeError because 'text' is read-only (frozen dataclass)
+        with pytest.raises(AttributeError):
+            job.text = "new text"
 
 
 class TestEmbeddingError:
