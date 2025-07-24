@@ -7,11 +7,35 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   create-release:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify tag matches version
+        run: |
+          VERSION=$(python -c "import memoria1; print(memoria1.__version__)")
+          TAG=${{ github.ref_name }}
+          if [[ "$TAG" != "v$VERSION" ]]; then
+            echo "Tag $TAG does not match version $VERSION"; exit 1
+          fi
+
+      - name: Build wheel
+        run: |
+          pip install build
+          python -m build --wheel
+
+      - name: Upload wheel as release asset
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/*.whl
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Create GitHub release
         uses: actions/create-release@v1
         env:
