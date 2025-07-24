@@ -88,7 +88,19 @@ class FaissHNSWIndex:
         self._cache: dict[tuple[int, int, int], tuple[list[str], list[float]]] = {}
         self._id_map: dict[int, str] = {}
         self._reverse_id_map: dict[str, int] = {}
+        self._warmed_up: bool = False
         log.info("FAISS HNSW index initialised: dim=%d, metric=%s", dim, space)
+
+     # ────────────────────────── Internal ──────────────────────────
+    def _warm_up(self) -> None:
+        """Run a dummy search to initialize FAISS structures."""
+        if not self._warmed_up and self.index.ntotal > 0:
+            dummy = np.asarray([[0.0] * self.dim], dtype=np.float32)
+            if self.space == "cosine":
+                faiss.normalize_L2(dummy)
+            with self._lock.reader_lock():
+                self.index.search(dummy, 1)
+            self._warmed_up = True
 
     # ─────────────────────── Helpers ────────────────────────
     @staticmethod
@@ -136,6 +148,8 @@ class FaissHNSWIndex:
             _VEC_ADDED.inc(len(ids))
             log.debug("Added %d vectors", len(ids))
             self._cache.clear()
+
+    self._warm_up()
 
     def remove_ids(self, ids: Iterable[str]) -> None:
         """Remove vectors by string IDs."""
