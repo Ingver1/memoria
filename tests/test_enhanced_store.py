@@ -28,7 +28,12 @@ async def store():
 
 def _rand_vec(dim: int, seed: int = 42) -> list[float]:
     rng = np.random.default_rng(seed)
-    return rng.random(dim).astype("float32").tolist()
+    arr = rng.random(dim)
+    if isinstance(arr, np.ndarray):
+        return arr.astype("float32").tolist()
+    else:
+        # fallback: if arr is a float, just wrap in a list
+        return [float(arr)]
 
 
 @pytest.mark.asyncio
