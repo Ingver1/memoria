@@ -88,6 +88,16 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
         if index_path.exists():
             _LOGGER.info("Loading FAISS index from %s", index_path)
             self._index = faiss.read_index(str(index_path))
+            # Load metadata if exists
+            meta_path = index_path.with_suffix(".meta.json")
+            if meta_path.exists():
+                try:
+                    self._metadata = json.loads(meta_path.read_text())
+                except Exception:
+                    _LOGGER.warning("Failed to load metadata from %s", meta_path)
+                    self._metadata = {}
+            else:
+                self._metadata = {}
         else:
             _LOGGER.info("Creating new FAISS HNSW index (dim=%d)", dim)
             base = faiss.IndexHNSWFlat(dim, 32)
@@ -97,7 +107,7 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
             faiss.write_index(self._index, str(index_path))
 
         # metadata sidecar (id -> json str) stored in simple dict; caller may persist separately
-        self._metadata: dict[str, dict[str, Any]] = {}
+        # _metadata is already set above, no need to redefine
 
         # start maintenance task
         self._stop_event = asyncio.Event()
@@ -118,7 +128,7 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
             await self._loop.run_in_executor(
                 None, self._index.add_with_ids, _to_faiss_array(vectors), _to_faiss_ids(ids)
             )
-            for _id, meta in zip(ids, metadata, strict=False):
+            for _id, meta in zip(ids, metadata):
                 self._metadata[_id] = meta
         return ids
 
@@ -126,7 +136,8 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
         async with self._rwlock.reader_lock():
             D, indices = self._index.search(_to_faiss_array([vector]), k)
         matches: list[tuple[str, float]] = []
-        for idx, dist in zip(indices[0], D[0], strict=False):
+        # Remove 'strict=False' for compatibility with Python <3.10
+        for idx, dist in zip(indices[0], D[0]):
             if idx == -1:
                 continue
             _id = _from_faiss_id(idx)
@@ -163,6 +174,8 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
         while not self._stop_event.is_set():
             try:
                 await asyncio.sleep(self._maintenance_interval)
+                if self._stop_event.is_set():
+                    break
                 await self.compact()
                 await self.replicate()
             except Exception:  # pragma: no cover
@@ -194,8 +207,7 @@ def _to_faiss_array(vectors: Sequence[Sequence[float]]) -> _np.ndarray:
     return arr
 
 def _to_faiss_ids(ids: Sequence[str]) -> _np.ndarray:
-    int_ids = _np.array([int(uuid.UUID(_id)) % (2**63) for _id in ids], dtype="int64")
-    return int_ids
+    return _np.array([uuid.UUID(_id).int & ((1 << 64) - 1) for _id in ids], dtype="int64")
 
 def _from_faiss_id(idx: int) -> str:
     return str(uuid.UUID(int=idx))
@@ -325,4 +337,3 @@ __all__ = [
     "VectorStore",
     "VectorStoreAsync",
 ]
-
