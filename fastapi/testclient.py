@@ -10,6 +10,8 @@ from . import FastAPI, Request
 
 
 class _TestResponse:
+    """Test response wrapper for FastAPI stub."""
+
     def __init__(self, result: Response | Any) -> None:
         if isinstance(result, Response):
             self._resp = result
@@ -32,19 +34,28 @@ class _TestResponse:
     @property
     def content(self) -> bytes:
         return getattr(self._resp, "content", b"") or b""
-        
+
     @property
     def headers(self) -> Dict[str, str]:
         return getattr(self._resp, "headers", {})
+
+    @property
+    def cookies(self) -> Dict[str, str]:
+        return getattr(self._resp, "cookies", {})
 
     def raise_for_status(self) -> None:
         if 400 <= self.status_code:
             raise RuntimeError(f"HTTP {self.status_code}")
 
+    def __repr__(self) -> str:
+        return f"<_TestResponse status={self.status_code}>"
+
 
 class ClientHelper:
+    """Minimal FastAPI test client for sync/async route testing."""
+
     __test__: ClassVar[bool] = False
-    
+
     def __init__(self, app: FastAPI, base_url: str = "http://test") -> None:
         self.app = app
         self.base_url = base_url.rstrip("/")
@@ -96,7 +107,7 @@ class ClientHelper:
                 return func
         return None
 
-    def _call(self, method: str, url: str, *, json: Any = None, params: Dict[str, Any] | None = None) -> _TestResponse:
+    def _call(self, method: str, url: str, *, json: Any = None, params: Dict[str, Any] | None = None, headers: Dict[str, str] | None = None) -> _TestResponse:
         handler = self._resolve_handler(method, url)
         if handler is None:
             return _TestResponse(Response(status_code=404))
@@ -104,6 +115,8 @@ class ClientHelper:
         kwargs: Dict[str, Any] = {}
         if params:
             kwargs.update(params)
+        if headers:
+            kwargs["headers"] = headers
         body_payload = json
         sig = getattr(handler, "__signature__", None)
         if sig is None:
@@ -119,7 +132,7 @@ class ClientHelper:
                 if hasattr(model, "model_validate"):
                     try:
                         kwargs[name] = model.model_validate(body_payload)
-                    except Exception:  # noqa: BLE001
+                    except Exception:
                         return _TestResponse(Response(status_code=422))
                 else:
                     kwargs[name] = body_payload
@@ -135,14 +148,32 @@ class ClientHelper:
         return _TestResponse(result)
 
     # Public methods --------------------------------------------------
-    def get(self, url: str, *, params: Dict[str, Any] | None = None) -> _TestResponse:
-        return self._call("GET", url, params=params)
+    def get(self, url: str, *, params: Dict[str, Any] | None = None, headers: Dict[str, str] | None = None) -> _TestResponse:
+        return self._call("GET", url, params=params, headers=headers)
 
-    def post(self, url: str, *, json: Any = None, params: Dict[str, Any] | None = None) -> _TestResponse:
-        return self._call("POST", url, json=json, params=params)
+    def post(self, url: str, *, json: Any = None, params: Dict[str, Any] | None = None, headers: Dict[str, str] | None = None) -> _TestResponse:
+        return self._call("POST", url, json=json, params=params, headers=headers)
 
-    def delete(self, url: str, *, params: Dict[str, Any] | None = None) -> _TestResponse:
-        return self._call("DELETE", url, params=params)
+    def put(self, url: str, *, json: Any = None, params: Dict[str, Any] | None = None, headers: Dict[str, str] | None = None) -> _TestResponse:
+        return self._call("PUT", url, json=json, params=params, headers=headers)
+
+    def patch(self, url: str, *, json: Any = None, params: Dict[str, Any] | None = None, headers: Dict[str, str] | None = None) -> _TestResponse:
+        return self._call("PATCH", url, json=json, params=params, headers=headers)
+
+    def options(self, url: str, *, params: Dict[str, Any] | None = None, headers: Dict[str, str] | None = None) -> _TestResponse:
+        return self._call("OPTIONS", url, params=params, headers=headers)
+
+    def delete(self, url: str, *, params: Dict[str, Any] | None = None, headers: Dict[str, str] | None = None) -> _TestResponse:
+        return self._call("DELETE", url, params=params, headers=headers)
+
+    def url_for(self, name: str) -> str:
+        for _, path, func in self.app.routes:
+            if getattr(func, "__name__", "") == name:
+                return self.base_url + path
+        raise KeyError(f"No route named {name}")
+
+    def __repr__(self) -> str:
+        return f"<ClientHelper app={self.app!r} base_url={self.base_url}>"
 
 
 TestClient = ClientHelper
