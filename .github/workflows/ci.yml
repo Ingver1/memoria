@@ -89,12 +89,21 @@ jobs:
 
       - name: Fail if coverage below 90%
         run: |
-          coverage_percent=$(grep -oP 'line-rate="\K[0-9.]+' coverage.xml | head -1)
-          percent=$(echo "$coverage_percent * 100" | bc)
+         coverage_percent=$(grep -o 'line-rate="[0-9.]*"' coverage.xml | head -1 | cut -d '"' -f2)
+          percent=$(python - <<'EOF'
+import os
+cov=os.environ.get('coverage_percent')
+print(float(cov)*100 if cov else 0)
+EOF
+          )
           echo "Coverage: $percent%"
-          if (( $(echo "$percent < 90" | bc -l) )); then
-            echo "Coverage below 90%!"; exit 1
-          fi
+          python - <<'EOF'
+import os,sys
+cov=float(os.environ.get('percent', 0))
+if cov < 90:
+    print('Coverage below 90%!')
+    sys.exit(1)
+EOF
         shell: bash
 
       - name: Test summary
