@@ -108,7 +108,7 @@ class EnhancedMemoryStore:
         updated_at: float | None = None,
     ) -> Memory:
         """Add a memory entry to the database and index."""
-         self._ensure_open()
+        self._ensure_open()
         ts = created_at if created_at is not None else time.time()
         text_to_store = text
         if self.settings.security.encrypt_at_rest:
@@ -155,7 +155,7 @@ class EnhancedMemoryStore:
         self._ensure_open()
         if user_id:
             return await self._store.search(metadata_filters={"user_id": user_id})
-       return await self._store.search(limit=1000)
+    return await self._store.search(limit=1000)
 
     def _ensure_open(self) -> None:
         if self._closed:
