@@ -37,10 +37,10 @@ class SmartCache:
         return self._data[key]
 
     def put(self, key: str, value: Any) -> None:
-        """Store a value in the cache under the given key. Evict oldest if over max_size."""
+        """Store a value in the cache under the given key. Evict oldest by timestamp if over max_size."""
         if len(self._data) >= self.max_size:
-            # Evict an arbitrary item (FIFO eviction strategy for simplicity)
-            oldest_key = next(iter(self._data))
+            # Evict the oldest item by timestamp (LRU eviction)
+            oldest_key = min(self._timestamps, key=lambda k: self._timestamps[k])
             self._data.pop(oldest_key, None)
             self._timestamps.pop(oldest_key, None)
         self._data[key] = value
