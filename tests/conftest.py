@@ -5,28 +5,27 @@ import logging
 import os
 import tempfile
 from pathlib import Path
-from typing import List, Callable, Any
 
 import pytest
-from fastapi import FastAPI
-from fastapi.testclient import ClientHelper
 
 from memory_system import __version__
-from memory_system.api.app import create_app
 
 
-def pytest_configure(config: pytest.Config) -> None:
+def pytest_configure(config):
     """Register custom markers used in the test suite."""
     config.addinivalue_line("markers", "asyncio: mark async test")
     config.addinivalue_line("markers", "perf: marks performance / load tests")
 
 
-def pytest_collection_modifyitems(config: pytest.Config, items: List[pytest.Item]) -> None:
+def pytest_collection_modifyitems(config, items):
     """Automatically mark async test functions with pytest.mark.asyncio."""
     for item in items:
         test_fn = getattr(item, "obj", None)
         if inspect.iscoroutinefunction(test_fn):
             item.add_marker(pytest.mark.asyncio)
+
+from fastapi.testclient import ClientHelper
+from memory_system.api.app import create_app
 
 # Set test environment variables
 os.environ.update(
@@ -41,7 +40,7 @@ os.environ.update(
 
 
 @pytest.fixture(autouse=True)
-def _raise_log_level(caplog: pytest.LogCaptureFixture) -> None:
+def _raise_log_level(caplog):
     """
     Silence DEBUG chatter from memory_system.core.index during CI.
     """
@@ -49,7 +48,7 @@ def _raise_log_level(caplog: pytest.LogCaptureFixture) -> None:
     
 
 @pytest.fixture(scope="session")
-def test_settings() -> object:
+def test_settings():
     """Create test settings."""
     try:
         from memory_system.config.settings import UnifiedSettings
@@ -60,35 +59,35 @@ def test_settings() -> object:
 
 
 @pytest.fixture
-def test_app(test_settings: object) -> FastAPI:
+def test_app(test_settings):
     """Create FastAPI application for tests."""
     return create_app()
 
 
 @pytest.fixture
-def test_client(test_app: FastAPI) -> ClientHelper:
+def test_client(test_app):
     """HTTP client for API tests."""
     return ClientHelper(test_app)
 
 
 @pytest.fixture
-def clean_test_vectors(tmp_path: Path) -> Path:
+def clean_test_vectors(tmp_path):
     """Temporary path used for vector store tests."""
     return tmp_path / "vectors"
 
 @pytest.fixture(name="benchmark")
-def _benchmark() -> object:
+def _benchmark():
     """Simple stand-in for the pytest-benchmark fixture."""
 
     class DummyBenchmark:
-        def __call__(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+        def __call__(self, func, *args, **kwargs):
             return func(*args, **kwargs)
 
     return DummyBenchmark()
 
 
 @pytest.fixture(name="mem_benchmark")
-def _mem_benchmark(benchmark: object) -> object:
+def _mem_benchmark(benchmark):
     """Backward-compatible alias for the benchmark fixture."""
 
     return benchmark
@@ -97,7 +96,7 @@ def _mem_benchmark(benchmark: object) -> object:
 import pytest
 
 
-def test_package_imports() -> None:
+def test_package_imports():
     """Test that basic package imports work."""
     try:
         import memory_system
@@ -107,7 +106,7 @@ def test_package_imports() -> None:
         pytest.skip("memory_system package not importable")
 
 
-def test_exceptions_module() -> None:
+def test_exceptions_module():
     """Test that exceptions module works."""
     try:
         from memory_system.utils.exceptions import (
@@ -129,7 +128,7 @@ def test_exceptions_module() -> None:
         pytest.skip("exceptions module not available")
 
 
-def test_config_module() -> None:
+def test_config_module():
     """Test that config module works."""
     try:
         from memory_system.config.settings import UnifiedSettings
@@ -143,7 +142,7 @@ def test_config_module() -> None:
         pytest.skip("config module not available")
 
 
-def test_utils_module() -> None:
+def test_utils_module():
     """Test that utils module imports."""
     try:
         import memory_system.utils
@@ -153,7 +152,7 @@ def test_utils_module() -> None:
         pytest.skip("utils module not available")
 
 
-def test_core_module() -> None:
+def test_core_module():
     """Test that core module imports."""
     try:
         import memory_system.core
@@ -163,7 +162,7 @@ def test_core_module() -> None:
         pytest.skip("core module not available")
 
 
-def test_api_module() -> None:
+def test_api_module():
     """Test that api module imports."""
     try:
         import memory_system.api
@@ -176,17 +175,17 @@ def test_api_module() -> None:
 class TestBasicFunctionality:
     """Basic functionality tests."""
 
-    def test_placeholder(self) -> None:
+    def test_placeholder(self):
         """Placeholder test that always passes."""
         assert True
 
-    def test_python_version(self) -> None:
+    def test_python_version(self):
         """Test Python version is supported."""
         import sys
 
         assert sys.version_info >= (3, 9)
 
-    def test_environment_variables(self) -> None:
+    def test_environment_variables(self):
         """Test that test environment is set up correctly."""
         assert os.environ.get("UMS_ENVIRONMENT") == "testing"
         assert os.environ.get("CUDA_VISIBLE_DEVICES") == ""
