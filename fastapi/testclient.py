@@ -50,6 +50,13 @@ class _TestResponse:
     def __repr__(self) -> str:
         return f"<_TestResponse status={self.status_code}>"
 
+ # Support awaiting the response in async-style tests
+    def __await__(self):
+        async def _dummy():
+            return self
+
+        return _dummy().__await__()
+
 
 class ClientHelper:
     """Minimal FastAPI test client for sync/async route testing."""
