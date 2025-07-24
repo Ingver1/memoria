@@ -323,4 +323,6 @@ __all__ = [
     "AbstractVectorStore",
     "AsyncFaissHNSWStore",
     "VectorStore",
+    "VectorStoreAsync",
 ]
+
