@@ -102,7 +102,7 @@ class EnhancedMemoryStore:
         embedding: list[float],
         created_at: float | None = None,
         updated_at: float | None = None,
-    ) -> Any:
+    ) -> Memory:
         """Add a memory entry to the database and index."""
         ts = created_at if created_at is not None else time.time()
         text_to_store = text
@@ -145,7 +145,7 @@ class EnhancedMemoryStore:
                 results.append(mem)
         return results
 
-    async def list_memories(self, user_id: str | None = None) -> list[Any]:
+    async def list_memories(self, user_id: str | None = None) -> list[Memory]:
         if user_id:
             return await self._store.search(metadata_filters={"user_id": user_id})
         return await self._store.search(limit=1000)
