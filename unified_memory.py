@@ -31,6 +31,7 @@ from collections.abc import MutableMapping, Sequence
 # local
 from dataclasses import dataclass
 from typing import Any, Protocol
+import copy
 
 
 @dataclass(slots=True)
@@ -76,7 +77,7 @@ class MemoryStoreProtocol(Protocol):
     async def list_recent(self, *, n: int = 20) -> Sequence[Memory]:
         ...
 
-logger = logging.getLogger("memory_system.unified_memory")
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Generic helpers
@@ -158,18 +159,21 @@ async def add(
 ) -> Memory:
     """Persist a *text* record with optional *metadata* and return a **Memory**.
 
-    Parameters
-        ----------
-    text:
-        Raw textual content of the memory.
-    metadata:
-        Arbitrary key/‑value mapping (JSON‑serialisable).  Reserved keys
-        such as ``created_at`` or ``memory_id`` will be overwritten.
-    store:
-        Optional explicit store object implementing the protocol.  If
-        *None* the process‑wide default is used.
-    """
+    Args:
+        text (str): Raw textual content of the memory.
+        valence (float, optional): Emotional valence. Defaults to 0.0.
+        emotional_intensity (float, optional): Intensity of emotion. Defaults to 0.0.
+        arousal (float, optional): Arousal level. Defaults to 0.0.
+        importance (float, optional): Importance score. Defaults to 0.0.
+        episode_id (str | None, optional): Episode identifier. Defaults to None.
+        modality (str, optional): Modality type. Defaults to "text".
+        connections (MutableMapping[str, float] | None, optional): Connections. Defaults to None.
+        metadata (MutableMapping[str, Any] | None, optional): Arbitrary metadata. Defaults to None.
+        store (MemoryStoreProtocol | None, optional): Store object. Defaults to None.
 
+    Returns:
+        Memory: The persisted memory object.
+    """
     memory = Memory(
         memory_id=str(uuid.uuid4()),
         text=text,
@@ -179,14 +183,18 @@ async def add(
         importance=importance,
         episode_id=episode_id,
         modality=modality,
-        connections=dict(connections) if connections else None,
-        metadata=dict(metadata) if metadata else {},
-        created_at=_dt.datetime.now(_dt.timezone.utc),
+        connections=dict(copy.deepcopy(connections)) if connections else None,
+        metadata=dict(copy.deepcopy(metadata)) if metadata else {},
+        created_at=_dt.datetime.utcnow().replace(tzinfo=_dt.timezone.utc),
     )
 
     st = await _resolve_store(store)
-    await asyncio.wait_for(st.add_memory(memory), timeout=ASYNC_TIMEOUT)
-    logger.debug("Memory %s added (%d chars).", memory.memory_id, len(text))
+    try:
+        await asyncio.wait_for(st.add_memory(memory), timeout=ASYNC_TIMEOUT)
+        logger.debug("Memory %s added (%d chars).", memory.memory_id, len(text))
+    except Exception as e:
+        logger.error("Failed to add memory: %s", e)
+        raise
     return memory
 
 
@@ -199,24 +207,25 @@ async def search(
 ) -> Sequence[Memory]:
     """Semantic search across stored memories.
 
-    Parameters
-    ----------
-    query:
-        Search phrase.
-    k:
-        Maximum number of results.
-    metadata_filter:
-        Optional mapping – only memories whose metadata contains all
-        specified keys/values will be considered.
-    store:
-        Explicit store object or *None* for the default.
+    Args:
+        query (str): Search phrase.
+        k (int, optional): Maximum number of results. Defaults to 5.
+        metadata_filter (MutableMapping[str, Any] | None, optional): Metadata filter. Defaults to None.
+        store (MemoryStoreProtocol | None, optional): Store object. Defaults to None.
+
+    Returns:
+        Sequence[Memory]: List of matching memories.
     """
     st = await _resolve_store(store)
-    results = await asyncio.wait_for(
-        st.search_memory(query=query, k=k, metadata_filter=metadata_filter),
-        timeout=ASYNC_TIMEOUT,
-    )
-    logger.debug("Search for '%s' returned %d result(s).", query, len(results))
+    try:
+        results = await asyncio.wait_for(
+            st.search_memory(query=query, k=k, metadata_filter=metadata_filter),
+            timeout=ASYNC_TIMEOUT,
+        )
+        logger.debug("Search for '%s' returned %d result(s).", query, len(results))
+    except Exception as e:
+        logger.error("Search failed: %s", e)
+        raise
     return results
 
 
@@ -225,11 +234,19 @@ async def delete(
     *,
     store: MemoryStoreProtocol | None = None,
 ) -> None:
-    """Delete a memory by ``memory_id`` if it exists."""
-    st = await _resolve_store(store)
-    await asyncio.wait_for(st.delete_memory(memory_id), timeout=ASYNC_TIMEOUT)
-    logger.debug("Memory %s deleted.", memory_id)
+    """Delete a memory by ``memory_id`` if it exists.
 
+    Args:
+        memory_id (str): The memory identifier.
+        store (MemoryStoreProtocol | None, optional): Store object. Defaults to None.
+    """
+    st = await _resolve_store(store)
+    try:
+        await asyncio.wait_for(st.delete_memory(memory_id), timeout=ASYNC_TIMEOUT)
+        logger.debug("Memory %s deleted.", memory_id)
+    except Exception as e:
+        logger.error("Delete failed: %s", e)
+        raise
 
 async def update(
     memory_id: str,
@@ -238,14 +255,27 @@ async def update(
     metadata: MutableMapping[str, Any] | None = None,
     store: MemoryStoreProtocol | None = None,
 ) -> Memory:
-    """Update text and/or metadata of an existing memory and return the new object."""
-    st = await _resolve_store(store)
-    updated = await asyncio.wait_for(
-        st.update_memory(memory_id, text=text, metadata=metadata), timeout=ASYNC_TIMEOUT
-    )
-    logger.debug("Memory %s updated.", memory_id)
-    return updated
+    """Update text and/or metadata of an existing memory and return the new object.
 
+    Args:
+        memory_id (str): The memory identifier.
+        text (str | None, optional): New text. Defaults to None.
+        metadata (MutableMapping[str, Any] | None, optional): New metadata. Defaults to None.
+        store (MemoryStoreProtocol | None, optional): Store object. Defaults to None.
+
+    Returns:
+        Memory: The updated memory object.
+    """
+    st = await _resolve_store(store)
+    try:
+        updated = await asyncio.wait_for(
+            st.update_memory(memory_id, text=text, metadata=metadata), timeout=ASYNC_TIMEOUT
+        )
+        logger.debug("Memory %s updated.", memory_id)
+    except Exception as e:
+        logger.error("Update failed: %s", e)
+        raise
+    return updated
 
 async def reinforce(
     memory_id: str,
@@ -253,42 +283,79 @@ async def reinforce(
     *,
     store: MemoryStoreProtocol | None = None,
 ) -> Memory:
-    """Reinforce the importance of a memory by *amount* and return the updated object."""
+    """Reinforce the importance of a memory by *amount* and return the updated object.
 
+    Args:
+        memory_id (str): The memory identifier.
+        amount (float, optional): Amount to reinforce. Defaults to 0.1.
+        store (MemoryStoreProtocol | None, optional): Store object. Defaults to None.
+
+    Returns:
+        Memory: The reinforced memory object.
+    """
     st = await _resolve_store(store)
-    meta = {"importance_delta": amount, "last_accessed": _dt.datetime.now(_dt.timezone.utc).isoformat()}
-    updated = await asyncio.wait_for(
-        st.update_memory(memory_id, metadata=meta), timeout=ASYNC_TIMEOUT
-    )
-    logger.debug("Memory %s reinforced by %.2f.", memory_id, amount)
+    meta = {
+        "importance_delta": amount,
+        "last_accessed": _dt.datetime.utcnow().replace(tzinfo=_dt.timezone.utc).isoformat(),
+    }
+    try:
+        updated = await asyncio.wait_for(
+            st.update_memory(memory_id, metadata=meta), timeout=ASYNC_TIMEOUT
+        )
+        logger.debug("Memory %s reinforced by %.2f.", memory_id, amount)
+    except Exception as e:
+        logger.error("Reinforce failed: %s", e)
+        raise
     return updated
-
 
 async def list_recent(
     n: int = 20,
     *,
     store: MemoryStoreProtocol | None = None,
 ) -> Sequence[Memory]:
-    """Return *n* most recently added memories in descending chronological order."""
-    st = await _resolve_store(store)
-    recent = await asyncio.wait_for(st.list_recent(n=n), timeout=ASYNC_TIMEOUT)
-    logger.debug("Fetched %d recent memories.", len(recent))
-    return recent
+    """Return *n* most recently added memories in descending chronological order.
 
+    Args:
+        n (int, optional): Number of memories. Defaults to 20.
+        store (MemoryStoreProtocol | None, optional): Store object. Defaults to None.
+
+    Returns:
+        Sequence[Memory]: List of recent memories.
+    """
+    st = await _resolve_store(store)
+    try:
+        recent = await asyncio.wait_for(st.list_recent(n=n), timeout=ASYNC_TIMEOUT)
+        logger.debug("Fetched %d recent memories.", len(recent))
+    except Exception as e:
+        logger.error("List recent failed: %s", e)
+        raise
+    return recent
 
 async def list_best(
     n: int = 5,
     *,
     store: MemoryStoreProtocol | None = None,
 ) -> Sequence[Memory]:
-    """Return *n* most important memories ranked by score."""
+    """Return *n* most important memories ranked by score.
+
+    Args:
+        n (int, optional): Number of top memories. Defaults to 5.
+        store (MemoryStoreProtocol | None, optional): Store object. Defaults to None.
+
+    Returns:
+        Sequence[Memory]: List of best memories.
+    """
     st = await _resolve_store(store)
-    candidates = await asyncio.wait_for(st.list_recent(n=max(n * 5, 20)), timeout=ASYNC_TIMEOUT)
-    scored = sorted(
-        candidates,
-        key=lambda m: (m.importance + m.emotional_intensity + abs(m.valence)),
-        reverse=True,
-    )
+    try:
+        candidates = await asyncio.wait_for(st.list_recent(n=max(n * 5, 20)), timeout=ASYNC_TIMEOUT)
+        scored = sorted(
+            candidates,
+            key=lambda m: (m.importance + m.emotional_intensity + abs(m.valence)),
+            reverse=True,
+        )
+    except Exception as e:
+        logger.error("List best failed: %s", e)
+        raise
     return scored[:n]
   
 
