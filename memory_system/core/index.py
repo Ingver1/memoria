@@ -91,9 +91,9 @@ class FaissHNSWIndex:
         self._warmed_up: bool = False
         log.info("FAISS HNSW index initialised: dim=%d, metric=%s", dim, space)
 
-     # ────────────────────────── Internal ──────────────────────────
+    # ────────────────────────── Internal ──────────────────────────
     def _warm_up(self) -> None:
-     """Run a dummy search to initialize FAISS structures.
+        """Run a dummy search to initialize FAISS structures.
 
         This is called lazily after the first set of vectors is stored so
         that FAISS does not allocate memory or compute graph structures
@@ -154,7 +154,7 @@ class FaissHNSWIndex:
             log.debug("Added %d vectors", len(ids))
             self._cache.clear()
 
-       # Warm up FAISS after inserting the first vectors so that
+        # Warm up FAISS after inserting the first vectors so that
         # internal search structures are initialized lazily only when
         # we actually have data stored.
         self._warm_up()
