@@ -89,17 +89,17 @@ jobs:
 
       - name: Fail if coverage below 90%
         run: |
-          python <<'EOF'
-import sys
-import xml.etree.ElementTree as ET
+         python <<'EOF'
+          import sys
+          import xml.etree.ElementTree as ET
 
-root = ET.parse('coverage.xml').getroot()
-percent = float(root.get('line-rate', 0)) * 100
-print(f"Coverage: {percent:.1f}%")
-if percent < 90:
-    print("Coverage below 90%!"))
-    sys.exit(1)
-EOF
+          root = ET.parse('coverage.xml').getroot()
+          percent = float(root.get('line-rate', 0)) * 100
+          print(f"Coverage: {percent:.1f}%")
+          if percent < 90:
+              print("Coverage below 90%!")
+              sys.exit(1)
+          EOF
         shell: bash
 
       - name: Test summary
