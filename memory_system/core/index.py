@@ -154,7 +154,9 @@ class FaissHNSWIndex:
             log.debug("Added %d vectors", len(ids))
             self._cache.clear()
 
-        # Warm up index after first insert if needed
+       # Warm up FAISS after inserting the first vectors so that
+        # internal search structures are initialized lazily only when
+        # we actually have data stored.
         self._warm_up()
 
     def remove_ids(self, ids: Iterable[str]) -> None:
