@@ -11,7 +11,7 @@ app = FastAPI(lifespan=lifespan_context)
 app.include_router(memory_router, prefix="/api/v1/memory")
 
 
-def test_add_and_get_memory():
+def test_add_and_get_memory() -> None:
     """Round-trip memory through the public API."""
     with TestClient(app) as client:
         # 1. add memory
