@@ -155,7 +155,7 @@ class EnhancedMemoryStore:
         self._ensure_open()
         if user_id:
             return await self._store.search(metadata_filters={"user_id": user_id})
-    return await self._store.search(limit=1000)
+        return await self._store.search(limit=1000)
 
     def _ensure_open(self) -> None:
         if self._closed:
