@@ -89,7 +89,7 @@ jobs:
 
       - name: Fail if coverage below 90%
         run: |
-         python <<'EOF'
+          python <<'EOF'
           import sys
           import xml.etree.ElementTree as ET
 
