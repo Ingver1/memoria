@@ -36,7 +36,7 @@ from memory_system.utils.exceptions import StorageError, ValidationError
 class TestMemoryDataClass:
     """Test Memory data class."""
 
-   def test_store_initialization(self) -> None:
+    def test_store_initialization(self) -> None:
         """Test Memory object creation."""
         memory = Memory(id="test-id", text="test text")
         assert memory.id == "test-id"
