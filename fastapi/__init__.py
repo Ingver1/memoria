@@ -27,6 +27,8 @@ class Request:
 
 
 class FastAPI:
+    """Minimal FastAPI stub for testing and mocks."""
+
     def __init__(
         self,
         *args: Any,
@@ -67,6 +69,27 @@ class FastAPI:
 
         return decorator
 
+    def put(self, path: str, *args: Any, **kwargs: Any) -> Callable[[F], F]:
+        def decorator(func: F) -> F:
+            self.routes.append(("PUT", path, func))
+            return func
+
+        return decorator
+
+    def patch(self, path: str, *args: Any, **kwargs: Any) -> Callable[[F], F]:
+        def decorator(func: F) -> F:
+            self.routes.append(("PATCH", path, func))
+            return func
+
+        return decorator
+
+    def options(self, path: str, *args: Any, **kwargs: Any) -> Callable[[F], F]:
+        def decorator(func: F) -> F:
+            self.routes.append(("OPTIONS", path, func))
+            return func
+
+        return decorator
+
     def delete(self, path: str, *args: Any, **kwargs: Any) -> Callable[[F], F]:
         def decorator(func: F) -> F:
             self.routes.append(("DELETE", path, func))
@@ -82,8 +105,13 @@ class FastAPI:
     def mount(self, path: str, app: Any) -> None:
         self.routes.append(("MOUNT", path, app))
 
+    def __repr__(self) -> str:
+        return f"<FastAPI routes={len(self.routes)} events={list(self.events.keys())}>"
+
 
 class APIRouter:
+    """Minimal APIRouter stub for testing and mocks."""
+
     def __init__(self, *args: Any, prefix: str = "", **kwargs: Any) -> None:
         self.prefix = prefix
         self.routes: list[tuple[str, str, Callable[..., Any]]] = []
@@ -102,6 +130,27 @@ class APIRouter:
 
         return decorator
 
+    def put(self, path: str, *args: Any, **kwargs: Any) -> Callable[[F], F]:
+        def decorator(func: F) -> F:
+            self.routes.append(("PUT", path, func))
+            return func
+
+        return decorator
+
+    def patch(self, path: str, *args: Any, **kwargs: Any) -> Callable[[F], F]:
+        def decorator(func: F) -> F:
+            self.routes.append(("PATCH", path, func))
+            return func
+
+        return decorator
+
+    def options(self, path: str, *args: Any, **kwargs: Any) -> Callable[[F], F]:
+        def decorator(func: F) -> F:
+            self.routes.append(("OPTIONS", path, func))
+            return func
+
+        return decorator
+
     def delete(self, path: str, *args: Any, **kwargs: Any) -> Callable[[F], F]:
         def decorator(func: F) -> F:
             self.routes.append(("DELETE", path, func))
@@ -109,28 +158,50 @@ class APIRouter:
 
         return decorator
 
+    def __repr__(self) -> str:
+        return f"<APIRouter prefix={self.prefix} routes={len(self.routes)}>"
+
 
 class HTTPException(Exception):
+    """Minimal HTTPException stub."""
+
     def __init__(self, status_code: int, detail: str) -> None:
         self.status_code = status_code
         self.detail = detail
 
+    def raise_for_status(self) -> None:
+        raise self
+
+    def __repr__(self) -> str:
+        return f"<HTTPException {self.status_code}: {self.detail}>"
+
 
 def Query(default: Any = None, **_: Any) -> Any:
+    """Stub for FastAPI Query."""
     return default
 
 
 class Depends:
+    """Stub for FastAPI Depends."""
+
     def __init__(self, dependency: Callable[..., Any]) -> None:
         self.dependency = dependency
 
+    def __repr__(self) -> str:
+        return f"<Depends {self.dependency}>"
+
 
 class _Status:
+    HTTP_200_OK = 200
     HTTP_201_CREATED = 201
+    HTTP_204_NO_CONTENT = 204
+    HTTP_400_BAD_REQUEST = 400
+    HTTP_401_UNAUTHORIZED = 401
+    HTTP_403_FORBIDDEN = 403
+    HTTP_404_NOT_FOUND = 404
     HTTP_422_UNPROCESSABLE_ENTITY = 422
     HTTP_500_INTERNAL_SERVER_ERROR = 500
     HTTP_503_SERVICE_UNAVAILABLE = 503
-    HTTP_204_NO_CONTENT = 204
 
 
 status = _Status()
