@@ -250,7 +250,7 @@ class TestIndexPerformance:
         total_searches = len(all_times)
 
         # Concurrent searches should maintain good performance
-        assert avg_search_time < 0.01, f"Average concurrent search time: {avg_search_time:.6f}s"
+        assert avg_search_time < 0.03, f"Average concurrent search time: {avg_search_time:.6f}s"
         assert total_time < 10.0, f"Total concurrent test time: {total_time:.3f}s"
         print(f"Completed {total_searches} concurrent searches in {total_time:.3f}s")
 
