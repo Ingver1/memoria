@@ -24,6 +24,8 @@ class _AsyncLock:
 
 
 class Response:
+    """Minimal httpx.Response stub wrapping FastAPI test response."""
+
     def __init__(self, resp: Any) -> None:
         self._resp = resp
 
@@ -39,15 +41,34 @@ class Response:
         return cast(str, self._resp.text)
 
     @property
+    def content(self) -> bytes:
+        return getattr(self._resp, "content", b"")
+
+    @property
     def headers(self) -> Any:
         return self._resp.headers
+
+    @property
+    def cookies(self) -> Any:
+        return getattr(self._resp, "cookies", {})
 
     def raise_for_status(self) -> None:
         if hasattr(self._resp, "raise_for_status"):
             self._resp.raise_for_status()
-            
+
+    def __repr__(self) -> str:
+        return f"<Response status={self.status_code}>"
+
+
 class AsyncClient:
-    def __init__(self, app: Any | None = None, base_url: str = "http://test", timeout: float | None = None) -> None:
+    """Minimal httpx.AsyncClient stub for FastAPI testing."""
+
+    def __init__(
+        self,
+        app: Any | None = None,
+        base_url: str = "http://test",
+        timeout: float | None = None,
+    ) -> None:
         self._app = app
         self._base_url = base_url
         self._client: Optional[ClientHelper] = None
@@ -89,8 +110,33 @@ class AsyncClient:
             resp = await asyncio.to_thread(self._client.post, url, **kwargs)
         return Response(resp)
 
+    async def put(self, url: str, **kwargs: Any) -> Response:
+        assert self._client is not None
+        async with self._lock:
+            resp = await asyncio.to_thread(self._client.put, url, **kwargs)
+        return Response(resp)
+
+    async def patch(self, url: str, **kwargs: Any) -> Response:
+        assert self._client is not None
+        async with self._lock:
+            resp = await asyncio.to_thread(self._client.patch, url, **kwargs)
+        return Response(resp)
+
+    async def options(self, url: str, **kwargs: Any) -> Response:
+        assert self._client is not None
+        async with self._lock:
+            resp = await asyncio.to_thread(self._client.options, url, **kwargs)
+        return Response(resp)
+
     async def delete(self, url: str, **kwargs: Any) -> Response:
         assert self._client is not None
         async with self._lock:
             resp = await asyncio.to_thread(self._client.delete, url, **kwargs)
         return Response(resp)
+
+    async def close(self) -> None:
+        if self._client:
+            await self.__aexit__(None, None, None)
+
+    def __repr__(self) -> str:
+        return f"<AsyncClient app={self._app!r} base_url={self._base_url}>"
