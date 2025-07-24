@@ -101,6 +101,12 @@ python_version         = "3.12"
 strict                 = true
 ignore_missing_imports = true
 show_error_codes       = true
+exclude                = ["fastapi/.*", "aiosqlite/.*"]
+files                  = ["memory_system"]
+
+[[tool.mypy.overrides]]
+module = ["fastapi.*", "aiosqlite.*"]
+ignore_errors = true
 
 [tool.ruff]
 line-length = 120
