@@ -129,7 +129,7 @@ def _metadata_option(
 
 # ---------------------------------------------------------------------------
 
-@app.command()
+@app.command()  # type: ignore[misc]
 def add(
 text: str = typer.Argument(..., help="Text to remember."),
 importance: float = typer.Option(0.5, help="0-1 importance weighting."),
@@ -162,7 +162,7 @@ show_default="env/localhost",
     asyncio.run(_run_add())
 
 
-@app.command()
+@app.command()  # type: ignore[misc]
 def search(
 query: str = typer.Argument(..., help="Search query."),
 k: int = typer.Option(5, help="Number of results."),
@@ -195,7 +195,7 @@ show_default="env/localhost",
     asyncio.run(_run_search())
 
 
-@app.command()
+@app.command()  # type: ignore[misc]
 def delete(
 mem_id: str = typer.Argument(..., help="Memory ID to delete."),
 url: str = typer.Option(
@@ -216,7 +216,7 @@ show_default="env/localhost",
     asyncio.run(_run_delete())
 
 
-@app.command()
+@app.command()  # type: ignore[misc]
 def import_json(
 file: Path = typer.Argument(
 ..., exists=True, readable=True, help="JSONL file (one memory per line)."
