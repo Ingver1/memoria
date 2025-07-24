@@ -162,4 +162,3 @@ async def get_version() -> Dict[str, Any]:
         "platform": platform.platform(),
         "architecture": platform.architecture()[0],
     }
-
