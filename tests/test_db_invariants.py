@@ -3,6 +3,7 @@ Ensures DB columns obey NOT NULL + dimension constraints after inserts.
 Works with SQLite or SQLCipher.
 """
 import pytest
+import os
 
 import numpy as np
 from memory_system.config.settings import UnifiedSettings
@@ -12,9 +13,16 @@ DIM = UnifiedSettings.for_testing().model.vector_dim
 
 
 @pytest.mark.asyncio
-async def test_db_invariants(tmp_path):
+async def test_db_invariants(tmp_path: 'pytest.TempPathFactory') -> None:
     cfg = UnifiedSettings.for_testing()
-    cfg.storage.database_url = f"sqlite:///{tmp_path/'inv.db'}"
+    db_path = os.path.join(str(tmp_path), "inv.db")
+    # Fix: Use correct attribute for database URL
+    if hasattr(cfg, "database_url"):
+        cfg.database_url = f"sqlite:///{db_path}"
+    elif hasattr(cfg, "storage") and hasattr(cfg.storage, "database_url"):
+        cfg.storage.database_url = f"sqlite:///{db_path}"
+    else:
+        raise AttributeError("UnifiedSettings does not have a database_url or storage.database_url attribute")
     store = EnhancedMemoryStore(cfg)
 
     await store.add_memory(text="inv", embedding=np.random.rand(DIM).tolist())
