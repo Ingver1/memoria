@@ -12,18 +12,20 @@ METRIC_L2: int = 1
 def normalize_L2(vecs: np.ndarray) -> None:
     """In-place L2 normalization. Handles zero vectors and 1D/2D input."""
     arr = np.asarray(vecs, dtype=np.float32)
-    if arr.ndim == 1:
+  if getattr(arr, "ndim", 1) == 1:
         arr = arr.reshape(1, -1)
     raw_norms = np.linalg.norm(arr, axis=1, keepdims=True)
-    # If raw_norms is a scalar (float), convert to 2D array
     if isinstance(raw_norms, float):
         raw_norms = np.array([[raw_norms]], dtype=np.float32)
-    elif isinstance(raw_norms, np.ndarray) and raw_norms.ndim == 1:
+     elif isinstance(raw_norms, np.ndarray) and getattr(raw_norms, "ndim", 1) == 1:
         raw_norms = raw_norms.reshape(-1, 1)
-    for i in range(arr.shape[0]):
+     for i in range(len(arr)):
         norm = raw_norms[i][0] if raw_norms[i][0] != 0 else 1.0
-        arr[i] = arr[i] / norm
-    vecs[:] = arr
+          row = [float(x) / norm for x in arr[i]]
+        arr[i] = row
+    if hasattr(vecs, "__setitem__"):
+        for i in range(len(arr)):
+            vecs[i] = arr[i]
 
 
 def swig_ptr(arr: np.ndarray) -> np.ndarray:
