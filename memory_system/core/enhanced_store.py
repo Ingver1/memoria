@@ -44,8 +44,10 @@ class EnhancedMemoryStore:
         self._store = SQLiteMemoryStore(dsn)
         self._index = FaissHNSWIndex(dim=settings.model.vector_dim)
         self._memory_count = 0
+        self._closed = False
 
     async def get_health(self) -> HealthComponent:
+        self._ensure_open()
         """Get health status."""
         uptime = int(time.time() - self._start_time)
         checks: dict[str, bool] = {}
@@ -74,6 +76,7 @@ class EnhancedMemoryStore:
         )
 
     async def get_stats(self) -> dict[str, Any]:
+        self._ensure_open()
         """Get store statistics."""
         return {
             "total_memories": self._memory_count,
@@ -86,6 +89,7 @@ class EnhancedMemoryStore:
     async def close(self) -> None:
         """Close the store."""
         await self._store.aclose()
+        self._closed = True
 
     # ------------------------------------------------------------------
     # Stubs matching the expected public API used by routes/tests
@@ -104,6 +108,7 @@ class EnhancedMemoryStore:
         updated_at: float | None = None,
     ) -> Memory:
         """Add a memory entry to the database and index."""
+         self._ensure_open()
         ts = created_at if created_at is not None else time.time()
         text_to_store = text
         if self.settings.security.encrypt_at_rest:
@@ -131,6 +136,7 @@ class EnhancedMemoryStore:
         include_embeddings: bool = False,
         ef_search: int | None = None,
     ) -> list[Any]:
+        self._ensure_open()
         ids, _dists = self._index.search(
             np.asarray(vector, dtype=np.float32), k=k, ef_search=ef_search
         )
@@ -146,6 +152,11 @@ class EnhancedMemoryStore:
         return results
 
     async def list_memories(self, user_id: str | None = None) -> list[Memory]:
+        self._ensure_open()
         if user_id:
             return await self._store.search(metadata_filters={"user_id": user_id})
-        return await self._store.search(limit=1000)
+       return await self._store.search(limit=1000)
+
+    def _ensure_open(self) -> None:
+        if self._closed:
+            raise RuntimeError("EnhancedMemoryStore is closed")
