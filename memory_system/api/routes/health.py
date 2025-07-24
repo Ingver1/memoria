@@ -142,7 +142,7 @@ async def metrics_endpoint(settings: Optional[UnifiedSettings] = None) -> Respon
     settings = settings or _settings()
     if asyncio.iscoroutine(settings):
         settings = await settings
-    if not settings.monitoring.enable_metrics:
+    if settings is None or not getattr(settings, "monitoring", None) or not getattr(settings.monitoring, "enable_metrics", False):
         raise HTTPException(status_code=404, detail="Metrics disabled")
     ctype = get_metrics_content_type()
     return Response(
@@ -162,3 +162,4 @@ async def get_version() -> Dict[str, Any]:
         "platform": platform.platform(),
         "architecture": platform.architecture()[0],
     }
+
