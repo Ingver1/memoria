@@ -1,5 +1,6 @@
 import asyncio
 import inspect
+from typing import cast, Any
 
 import pytest
 
@@ -16,7 +17,7 @@ __all__ = [
 ]
 
 
-def pytest_configure(config):
+def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "asyncio: mark async test")
 
 
@@ -26,10 +27,9 @@ def pytest_configure(config):
 LOOP = asyncio.new_event_loop()
 asyncio.set_event_loop(LOOP)
 
+
 @pytest.hookimpl(tryfirst=True)
-
-
-def pytest_pyfunc_call(pyfuncitem):
+def pytest_pyfunc_call(pyfuncitem: "pytest.Function") -> bool | None:
     testfunc = pyfuncitem.obj
     if inspect.iscoroutinefunction(testfunc):
         asyncio.set_event_loop(LOOP)
@@ -41,10 +41,11 @@ def pytest_pyfunc_call(pyfuncitem):
         kwargs = {name: pyfuncitem.funcargs[name] for name in argnames if name in pyfuncitem.funcargs}
         LOOP.run_until_complete(testfunc(**kwargs))
         return True
+    return None  # Ensure all code paths return
 
 
 @pytest.hookimpl(tryfirst=True)
-def pytest_fixture_setup(fixturedef, request):
+def pytest_fixture_setup(fixturedef: "pytest.FixtureDef[Any]", request: "pytest.FixtureRequest") -> object:
     func = fixturedef.func
     if inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func):
         asyncio.set_event_loop(LOOP)
@@ -52,6 +53,7 @@ def pytest_fixture_setup(fixturedef, request):
         params = {name: request.getfixturevalue(name) for name in argnames if name in request.fixturenames}
         if inspect.isasyncgenfunction(func):
             agen = func(**params)
+            # __anext__ returns Awaitable, so it's safe
             value = LOOP.run_until_complete(agen.__anext__())
 
             def finalizer() -> None:
@@ -63,16 +65,20 @@ def pytest_fixture_setup(fixturedef, request):
             request.addfinalizer(finalizer)
             fixturedef.cached_result = (value, 0, None)
             return value
-        result = LOOP.run_until_complete(func(**params))
+        # Ensure func(**params) is Awaitable
+        awaitable = func(**params)
+        if not inspect.isawaitable(awaitable):
+            raise TypeError("Fixture function did not return an awaitable object")
+        result = LOOP.run_until_complete(awaitable)
         fixturedef.cached_result = (result, 0, None)
         return result
+    return None  # Ensure all code paths return
 
 
 @pytest.hookimpl(trylast=True)
-def pytest_unconfigure(config):
+def pytest_unconfigure(config: "pytest.Config") -> None:
     """Close the shared event loop when the test session ends."""
     try:
         LOOP.close()
     finally:
         asyncio.set_event_loop(asyncio.new_event_loop())
-      
