@@ -136,11 +136,14 @@ class SQLiteMemoryStore:
         self._initialised: bool = False
         self._lock = asyncio.Lock()  # protects initialisation & pool resize
         self._created = 0  # number of currently open connections
+        self._closed = False
 
     # ---------------------------------------------------------------------
     # Low‑level connection helpers
     # ---------------------------------------------------------------------
     async def _acquire(self) -> aiosqlite.Connection:
+        if self._closed:
+            raise RuntimeError("SQLiteMemoryStore is closed")
         try:
             return self._pool.get_nowait()
         except asyncio.QueueEmpty:
@@ -186,6 +189,7 @@ class SQLiteMemoryStore:
             conn = await self._pool.get()
             await conn.close()
             self._created = 0
+            self._closed = True
 
     async def close(self) -> None:
         """Compatibility alias for ``aclose`` used in tests."""
