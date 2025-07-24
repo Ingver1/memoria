@@ -149,7 +149,7 @@ class FaissHNSWIndex:
             log.debug("Added %d vectors", len(ids))
             self._cache.clear()
 
-    self._warm_up()
+        self._warm_up()
 
     def remove_ids(self, ids: Iterable[str]) -> None:
         """Remove vectors by string IDs."""
