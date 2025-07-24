@@ -93,7 +93,12 @@ class FaissHNSWIndex:
 
      # ────────────────────────── Internal ──────────────────────────
     def _warm_up(self) -> None:
-        """Run a dummy search to initialize FAISS structures."""
+     """Run a dummy search to initialize FAISS structures.
+
+        This is called lazily after the first set of vectors is stored so
+        that FAISS does not allocate memory or compute graph structures
+        until the index actually contains data.
+        """
         if not self._warmed_up and self.index.ntotal > 0:
             dummy = np.asarray([[0.0] * self.dim], dtype=np.float32)
             if self.space == "cosine":
