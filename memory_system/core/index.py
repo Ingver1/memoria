@@ -1,19 +1,17 @@
 # index.py — FAISS‑based ANN index for Unified Memory System
-#
 # Version: v{__version__}
 
-"""Vector‑similarity index built on top of **FAISS** (*IndexHNSWFlat*) with
-ID mapping, basic statistics, dynamic search tuning and Prometheus hooks.
+"""
+Vector‑similarity index built on top of FAISS (IndexHNSWFlat) with
+ID mapping, statistics, dynamic search tuning, and Prometheus hooks.
 
-```python
-from memory_system.core.index import FaissHNSWIndex
-idx = FaissHNSWIndex(dim=768)
-idx.add_vectors(["id‑1", "id‑2"], np.random.rand(2, 768))
-ids, dist = idx.search(np.random.rand(768), k=5)
-```
+Example usage:
+    from memory_system.core.index import FaissHNSWIndex
+    idx = FaissHNSWIndex(dim=768)
+    idx.add_vectors(["id‑1", "id‑2"], np.random.rand(2, 768))
+    ids, dist = idx.search(np.random.rand(768), k=5)
 
-The class is thread‑safe thanks to a reader/writer lock that allows concurrent
-searches while writes remain exclusive.
+Thread-safe: concurrent searches, exclusive writes.
 """
 
 from __future__ import annotations
@@ -38,22 +36,16 @@ from numpy import ndarray as NDArray
 log = logging.getLogger(__name__)
 
 # ───────────────────── Prometheus collectors ─────────────────────
-
 _VEC_ADDED = prometheus_counter("ums_vectors_added_total", "Vectors added to ANN index")
 _VEC_DELETED = prometheus_counter("ums_vectors_deleted_total", "Vectors deleted from ANN index")
 _QUERY_CNT = prometheus_counter("ums_ann_queries_total", "ANN queries executed")
 _QUERY_ERR = prometheus_counter("ums_ann_query_errors_total", "Errors while querying ANN index")
 
 # ────────────────────────── Exceptions ───────────────────────────
-
-
 class ANNIndexError(StorageError, ValueError):
     """Raised for duplicate IDs, dimension mismatch, or internal FAISS errors."""
 
-
 # ─────────────────────────── Dataclass ────────────────────────────
-
-
 @dataclass(slots=True)
 class IndexStats:
     dim: int
@@ -63,16 +55,13 @@ class IndexStats:
     last_rebuild: float | None = None
     extra: dict[str, int | float] = field(default_factory=dict)
 
-
 # ────────────────────────── Main class ────────────────────────────
-
-
 class FaissHNSWIndex:
-    """High‑level wrapper over *faiss.IndexHNSWFlat* with ID mapping and stats."""
+    """High-level wrapper over faiss.IndexHNSWFlat with ID mapping and stats."""
 
-    DEFAULT_EF_CONSTRUCTION = int(os.getenv("UMS_EF_CONSTRUCTION", "128"))
-    DEFAULT_HNSW_M = int(os.getenv("UMS_HNSW_M", "32"))
-    DEFAULT_EF_SEARCH = int(os.getenv("UMS_EF_SEARCH", "32"))
+    DEFAULT_EF_CONSTRUCTION: int = int(os.getenv("UMS_EF_CONSTRUCTION", "128"))
+    DEFAULT_HNSW_M: int = int(os.getenv("UMS_HNSW_M", "32"))
+    DEFAULT_EF_SEARCH: int = int(os.getenv("UMS_EF_SEARCH", "32"))
 
     def __init__(
         self,
@@ -86,7 +75,7 @@ class FaissHNSWIndex:
         self.space = space
         self._lock = RWLock()
 
-        # Build underlying FAISS index -----------------------------------
+        # Build underlying FAISS index
         metric = faiss.METRIC_INNER_PRODUCT if space == "cosine" else faiss.METRIC_L2
         base = faiss.IndexHNSWFlat(dim, M or self.DEFAULT_HNSW_M, metric)
         base.hnsw.efConstruction = ef_construction or self.DEFAULT_EF_CONSTRUCTION
@@ -96,8 +85,6 @@ class FaissHNSWIndex:
         self.index.hnsw.efSearch = self.ef_search
 
         self._stats = IndexStats(dim=dim)
-        # simple in-memory cache for repeated queries
-        # key = (hash(bytes(vector)), k, ef_search)
         self._cache: dict[tuple[int, int, int], tuple[list[str], list[float]]] = {}
         self._id_map: dict[int, str] = {}
         self._reverse_id_map: dict[str, int] = {}
@@ -106,9 +93,11 @@ class FaissHNSWIndex:
     # ─────────────────────── Helpers ────────────────────────
     @staticmethod
     def _to_float32(arr: NDArray) -> NDArray:
+        """Ensure array is float32 dtype."""
         return arr.astype(np.float32, copy=False)
 
     def _string_to_int(self, s: str) -> int:
+        """Map string ID to int, creating mapping if needed."""
         if s in self._reverse_id_map:
             return self._reverse_id_map[s]
         int_id = len(self._id_map) + 1
@@ -117,6 +106,7 @@ class FaissHNSWIndex:
         return int_id
 
     def _int_to_string(self, i: int) -> str:
+        """Map int ID back to string, or hex if missing."""
         return self._id_map.get(i, hex(int(i)))
 
     # ─────────────────────── Mutators ────────────────────────
@@ -125,9 +115,7 @@ class FaissHNSWIndex:
         if len(ids) != len(vectors):
             raise ANNIndexError("ids and vectors length mismatch")
         if vectors.shape[1] != self.dim:
-            raise ANNIndexError(
-                f"dimension mismatch: expected dim={self.dim}, got {vectors.shape[1]}"
-            )
+            raise ANNIndexError(f"dimension mismatch: expected dim={self.dim}, got {vectors.shape[1]}")
 
         dup = [item for item, cnt in Counter(ids).items() if cnt > 1]
         if dup:
@@ -150,6 +138,7 @@ class FaissHNSWIndex:
             self._cache.clear()
 
     def remove_ids(self, ids: Iterable[str]) -> None:
+        """Remove vectors by string IDs."""
         int_ids = np.array([self._string_to_int(i) for i in ids], dtype="int64")
         selector = faiss.IDSelectorBatch(int_ids.size, faiss.swig_ptr(int_ids))
         with self._lock.writer_lock():
@@ -172,11 +161,10 @@ class FaissHNSWIndex:
         k: int = 5,
         ef_search: int | None = None,
     ) -> tuple[list[str], list[float]]:
+        """Search for k nearest neighbors of a vector."""
         if vector.shape[-1] != self.dim:
-            raise ANNIndexError(
-                f"dimension mismatch: expected dim={self.dim}, got {vector.shape[-1]}"
-            )
-            
+            raise ANNIndexError(f"dimension mismatch: expected dim={self.dim}, got {vector.shape[-1]}")
+
         vec32 = self._to_float32(np.asarray(vector))
         vec1d = vec32.flatten()
         vec_bytes = vec1d.tobytes() if hasattr(vec1d, "tobytes") else struct.pack(
@@ -199,7 +187,7 @@ class FaissHNSWIndex:
         try:
             with self._lock.reader_lock():
                 distances, int_ids = self.index.search(vec, k)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             _QUERY_ERR.inc()
             raise ANNIndexError("FAISS search failed") from exc
 
@@ -220,36 +208,50 @@ class FaissHNSWIndex:
         return ids, dists
 
     # ─────────────────────── Rebuild / IO ────────────────────────
-    def rebuild(self, vectors: NDArray, ids: Sequence[str]) -> None:
-        """Recreate the FAISS index from scratch in a transactional way."""
+    def rebuild(self, vectors: NDArray, ids: Sequence[str]) -> bool:
+        """Recreate the FAISS index from scratch in a transactional way. Returns True if successful."""
         temp = FaissHNSWIndex(self.dim, space=self.space)
-        temp.add_vectors(ids, vectors)
-        with self._lock.writer_lock():
-            self.index = temp.index
-            self._id_map = temp._id_map
-            self._reverse_id_map = temp._reverse_id_map
-            self._stats.total_vectors = len(ids)
-            self._stats.last_rebuild = perf_counter()
-            self._cache.clear()
-            log.info("Index rebuilt with %d vectors", len(ids))
+        try:
+            temp.add_vectors(ids, vectors)
+            with self._lock.writer_lock():
+                self.index = temp.index
+                self._id_map = temp._id_map
+                self._reverse_id_map = temp._reverse_id_map
+                self._stats.total_vectors = len(ids)
+                self._stats.last_rebuild = perf_counter()
+                self._cache.clear()
+                log.info("Index rebuilt with %d vectors", len(ids))
+            return True
+        except Exception as e:
+            log.error(f"Index rebuild failed: {e}")
+            return False
 
     def save(self, path: str) -> None:
-        with self._lock.writer_lock():
-            faiss.write_index(self.index, path)
-            (Path(path).with_suffix(".map.json")).write_text(json.dumps(self._id_map))
-            log.info("Index saved to %s", path)
+        """Save index and ID map to disk. Logs error if fails."""
+        try:
+            with self._lock.writer_lock():
+                faiss.write_index(self.index, path)
+                (Path(path).with_suffix(".map.json")).write_text(json.dumps(self._id_map))
+                log.info("Index saved to %s", path)
+        except Exception as e:
+            log.error(f"Failed to save index: {e}")
 
     def load(self, path: str) -> None:
-        with self._lock.writer_lock():
-            self.index = faiss.read_index(path)
-            map_path = Path(path).with_suffix(".map.json")
-            if map_path.exists():
-                self._id_map = {int(k): v for k, v in json.loads(map_path.read_text()).items()}
-                self._reverse_id_map = {v: int(k) for k, v in self._id_map.items()}
-            self._stats.total_vectors = self.index.ntotal
-            self._cache.clear()
-            log.info("Index loaded from %s", path)
+        """Load index and ID map from disk. Logs error if fails."""
+        try:
+            with self._lock.writer_lock():
+                self.index = faiss.read_index(path)
+                map_path = Path(path).with_suffix(".map.json")
+                if map_path.exists():
+                    self._id_map = {int(k): v for k, v in json.loads(map_path.read_text()).items()}
+                    self._reverse_id_map = {v: int(k) for k, v in self._id_map.items()}
+                self._stats.total_vectors = self.index.ntotal
+                self._cache.clear()
+                log.info("Index loaded from %s", path)
+        except Exception as e:
+            log.error(f"Failed to load index: {e}")
 
     # ─────────────────────── Info ────────────────────────
     def stats(self) -> IndexStats:
+        """Return current index statistics."""
         return self._stats
