@@ -10,7 +10,7 @@ from memory_system.config.settings import UnifiedSettings
 from schemathesis import DataGenerationMethod
 
 
-pytest.fixture
+@pytest.fixture
 def case():
     """Provide a minimal `case` fixture when the real schemathesis plugin is missing."""
 
