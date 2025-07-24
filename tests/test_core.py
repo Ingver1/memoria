@@ -33,7 +33,7 @@ from memory_system.core.vector_store import VectorStore
 from memory_system.utils.exceptions import StorageError, ValidationError
 
 
-pytest.fixture
+@pytest.fixture
 def temp_db_path() -> Generator[Path, None, None]:
     """Provide a temporary SQLite database path."""
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
