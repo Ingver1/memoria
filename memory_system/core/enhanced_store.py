@@ -44,6 +44,7 @@ class EnhancedMemoryStore:
         self._store = SQLiteMemoryStore(dsn)
         self._index = FaissHNSWIndex(dim=settings.model.vector_dim)
         self._memory_count = 0
+        self._closed = False
 
     async def get_health(self) -> HealthComponent:
         """Get health status."""
@@ -75,6 +76,8 @@ class EnhancedMemoryStore:
 
     async def get_stats(self) -> dict[str, Any]:
         """Get store statistics."""
+        if self._closed:
+            raise RuntimeError("store is closed")
         return {
             "total_memories": self._memory_count,
             "index_size": self._index.stats().total_vectors,
@@ -86,6 +89,7 @@ class EnhancedMemoryStore:
     async def close(self) -> None:
         """Close the store."""
         await self._store.aclose()
+        self._closed = True
 
     # ------------------------------------------------------------------
     # Stubs matching the expected public API used by routes/tests
