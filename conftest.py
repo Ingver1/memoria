@@ -9,4 +9,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 # Always load the bundled ``pytest_asyncio`` plugin for async test support
-pytest_plugins = ("pytest_asyncio",)
+pytest_plugins = (
+    "pytest_asyncio",
+    "pytest_cov",
+)
