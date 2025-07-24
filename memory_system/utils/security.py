@@ -268,10 +268,10 @@ class CryptoContext:
             try:
                 from .kms_aws import AWSKMSBackend  # local file to avoid heavy import
 
-                backend: KeyManagementBackend = AWSKMSBackend(
+                backend = AWSKMSBackend(
                     key_id=os.environ["AWS_KMS_KEY_ID"],
                     region=os.getenv("AWS_REGION", "us-east-1"),
-                )
+                )  # type: KeyManagementBackend
             except ImportError:  # pragma: no cover
                 logging.getLogger(__name__).warning(
                     "boto3 missing, falling back to LocalKeyBackend"
