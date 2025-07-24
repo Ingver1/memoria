@@ -9,6 +9,7 @@ import asyncio
 import pytest
 
 import pytest_asyncio
+from typing import AsyncGenerator, Callable, Any
 from memory_system.utils.loop import get_or_create_loop
 
 # Skip this test module if pytest-benchmark is unavailable
@@ -23,7 +24,7 @@ VECTOR = np.random.rand(DIM).astype("float32").tolist()
 
 
 @pytest_asyncio.fixture(scope="session")
-async def bench_store():
+async def bench_store() -> AsyncGenerator[EnhancedMemoryStore, None]:
     s = EnhancedMemoryStore(UnifiedSettings.for_testing())
     for _ in range(1_000):
         await s.add_memory(text="bench", embedding=np.random.rand(DIM).tolist())
@@ -33,9 +34,9 @@ async def bench_store():
 
 @pytest.mark.perf
 @pytest.mark.benchmark
-def test_semantic_search_speed(mem_benchmark, bench_store):
-    async def _run() -> None:
+def test_semantic_search_speed(benchmark: Any, bench_store: EnhancedMemoryStore) -> None:
+    def _run() -> None:
         get_or_create_loop()
-        await bench_store.semantic_search(vector=VECTOR, k=5)
+        asyncio.run(bench_store.semantic_search(vector=VECTOR, k=5))
 
-    mem_benchmark(lambda: asyncio.run(_run()))
+    benchmark(_run)
