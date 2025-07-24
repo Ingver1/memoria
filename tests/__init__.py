@@ -20,7 +20,10 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-pytest_plugins = ("pytest_asyncio",)
+pytest_plugins = (
+    "pytest_asyncio",
+    "pytest_cov",
+)
 
 # Test configuration
 TEST_DB_PATH = Path(tempfile.mkdtemp()) / "test_memory.db"
