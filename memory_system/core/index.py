@@ -177,13 +177,17 @@ class FaissHNSWIndex:
                 f"dimension mismatch: expected dim={self.dim}, got {vector.shape[-1]}"
             )
             
-        vec_flat = self._to_float32(vector).flatten()
-        vec_bytes = struct.pack(f"{len(vec_flat)}f", *[float(x) for x in vec_flat])
+        vec32 = self._to_float32(np.asarray(vector))
+        vec1d = vec32.flatten()
+        vec_bytes = vec1d.tobytes() if hasattr(vec1d, "tobytes") else struct.pack(
+            f"{len(vec1d)}f", *[float(x) for x in vec1d]
+        )
         key = (hash(vec_bytes), k, ef_search or self.ef_search)
-        if key in self._cache:
-            return self._cache[key]
-            
-        vec = vec_flat.reshape(1, -1)
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached
+
+        vec = vec1d.reshape(1, -1)
         if self.space == "cosine":
             faiss.normalize_L2(vec)
 
