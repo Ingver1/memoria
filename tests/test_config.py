@@ -26,7 +26,7 @@ from pydantic import ValidationError
 class TestDatabaseConfig:
     """Test DatabaseConfig validation and functionality."""
 
-    def test_database_config_defaults(self):
+    def test_database_config_defaults(self) -> None:
         """Test default database configuration."""
         config = DatabaseConfig()
         assert config.db_path == Path("data/memory.db")
@@ -34,7 +34,7 @@ class TestDatabaseConfig:
         assert config.cache_path == Path("data/memory.cache")
         assert config.connection_pool_size == 10
 
-    def test_database_config_custom_paths(self):
+    def test_database_config_custom_paths(self) -> None:
         """Test custom database paths."""
         config = DatabaseConfig(
             db_path=Path("/tmp/custom.db"),
@@ -47,7 +47,7 @@ class TestDatabaseConfig:
         assert config.cache_path == Path("/tmp/custom.cache")
         assert config.connection_pool_size == 5
 
-    def test_database_config_immutable(self):
+    def test_database_config_immutable(self) -> None:
         """Test that DatabaseConfig is immutable."""
         config = DatabaseConfig()
         with pytest.raises(ValidationError):
@@ -57,7 +57,7 @@ class TestDatabaseConfig:
 class TestModelConfig:
     """Test ModelConfig validation and functionality."""
 
-    def test_model_config_defaults(self):
+    def test_model_config_defaults(self) -> None:
         """Test default model configuration."""
         config = ModelConfig()
         assert config.model_name == "all-MiniLM-L6-v2"
@@ -67,7 +67,7 @@ class TestModelConfig:
         assert config.hnsw_ef_search == 100
         assert config.vector_dim == 384
 
-    def test_model_config_custom_values(self):
+    def test_model_config_custom_values(self) -> None:
         """Test custom model configuration."""
         config = ModelConfig(
             model_name="custom-model",
@@ -88,7 +88,7 @@ class TestModelConfig:
 class TestSecurityConfig:
     """Test SecurityConfig validation and functionality."""
 
-    def test_security_config_defaults(self):
+    def test_security_config_defaults(self) -> None:
         """Test default security configuration."""
         config = SecurityConfig()
         assert config.encrypt_at_rest is False
@@ -98,7 +98,7 @@ class TestSecurityConfig:
         assert config.rate_limit_per_minute == 1_000
         assert config.api_token == "your-secret-token-change-me"
 
-    def test_security_config_api_token_validation(self):
+    def test_security_config_api_token_validation(self) -> None:
         """Test API token validation."""
         # Valid token
         config = SecurityConfig(api_token="valid-token-12345678")
@@ -109,7 +109,7 @@ class TestSecurityConfig:
             SecurityConfig(api_token="short")
         assert "API token must be at least 8 characters long" in str(exc_info.value)
 
-    def test_security_config_encryption_key_validation(self):
+    def test_security_config_encryption_key_validation(self) -> None:
         """Test encryption key validation."""
         # Valid key
         valid_key = Fernet.generate_key().decode()
@@ -121,7 +121,7 @@ class TestSecurityConfig:
             SecurityConfig(encryption_key="invalid-key")
         assert "Invalid encryption key" in str(exc_info.value)
 
-    def test_security_config_custom_values(self):
+    def test_security_config_custom_values(self) -> None:
         """Test custom security configuration."""
         valid_key = Fernet.generate_key().decode()
         config = SecurityConfig(
@@ -143,7 +143,7 @@ class TestSecurityConfig:
 class TestPerformanceConfig:
     """Test PerformanceConfig validation and functionality."""
 
-    def test_performance_config_defaults(self):
+    def test_performance_config_defaults(self) -> None:
         """Test default performance configuration."""
         config = PerformanceConfig()
         assert config.max_workers == 4
@@ -151,7 +151,7 @@ class TestPerformanceConfig:
         assert config.cache_ttl_seconds == 300
         assert config.rebuild_interval_seconds == 3600
 
-    def test_performance_config_max_workers_validation(self):
+    def test_performance_config_max_workers_validation(self) -> None:
         """Test max_workers validation."""
         # Valid values
         config = PerformanceConfig(max_workers=8)
@@ -166,7 +166,7 @@ class TestPerformanceConfig:
             PerformanceConfig(max_workers=50)
         assert "max_workers must be between 1 and 32" in str(exc_info.value)
 
-    def test_performance_config_custom_values(self):
+    def test_performance_config_custom_values(self) -> None:
         """Test custom performance configuration."""
         config = PerformanceConfig(
             max_workers=8, cache_size=2000, cache_ttl_seconds=600, rebuild_interval_seconds=7200
@@ -180,7 +180,7 @@ class TestPerformanceConfig:
 class TestReliabilityConfig:
     """Test ReliabilityConfig validation and functionality."""
 
-    def test_reliability_config_defaults(self):
+    def test_reliability_config_defaults(self) -> None:
         """Test default reliability configuration."""
         config = ReliabilityConfig()
         assert config.max_retries == 3
@@ -188,7 +188,7 @@ class TestReliabilityConfig:
         assert config.backup_enabled is True
         assert config.backup_interval_hours == 24
 
-    def test_reliability_config_custom_values(self):
+    def test_reliability_config_custom_values(self) -> None:
         """Test custom reliability configuration."""
         config = ReliabilityConfig(
             max_retries=5, retry_delay_seconds=2.5, backup_enabled=False, backup_interval_hours=48
@@ -202,7 +202,7 @@ class TestReliabilityConfig:
 class TestAPIConfig:
     """Test APIConfig validation and functionality."""
 
-    def test_api_config_defaults(self):
+    def test_api_config_defaults(self) -> None:
         """Test default API configuration."""
         config = APIConfig()
         assert config.host == "0.0.0.0"
@@ -211,7 +211,7 @@ class TestAPIConfig:
         assert config.enable_api is True
         assert config.cors_origins == ["*"]
 
-    def test_api_config_port_validation(self):
+    def test_api_config_port_validation(self) -> None:
         """Test port validation."""
         # Valid port
         config = APIConfig(port=8080)
@@ -226,7 +226,7 @@ class TestAPIConfig:
             APIConfig(port=70000)
         assert "port must be between 1024 and 65535" in str(exc_info.value)
 
-    def test_api_config_custom_values(self):
+    def test_api_config_custom_values(self) -> None:
         """Test custom API configuration."""
         config = APIConfig(
             host="127.0.0.1",
@@ -245,7 +245,7 @@ class TestAPIConfig:
 class TestMonitoringConfig:
     """Test MonitoringConfig validation and functionality."""
 
-    def test_monitoring_config_defaults(self):
+    def test_monitoring_config_defaults(self) -> None:
         """Test default monitoring configuration."""
         config = MonitoringConfig()
         assert config.enable_metrics is True
@@ -254,7 +254,7 @@ class TestMonitoringConfig:
         assert config.health_check_interval == 30
         assert config.log_level == "INFO"
 
-    def test_monitoring_config_prom_port_validation(self):
+    def test_monitoring_config_prom_port_validation(self) -> None:
         """Test prometheus port validation."""
         # Valid port
         config = MonitoringConfig(prom_port=9090)
@@ -269,7 +269,7 @@ class TestMonitoringConfig:
             MonitoringConfig(prom_port=70000)
         assert "prom_port must be between 1024 and 65535" in str(exc_info.value)
 
-    def test_monitoring_config_custom_values(self):
+    def test_monitoring_config_custom_values(self) -> None:
         """Test custom monitoring configuration."""
         config = MonitoringConfig(
             enable_metrics=False,
@@ -288,7 +288,7 @@ class TestMonitoringConfig:
 class TestUnifiedSettings:
     """Test UnifiedSettings integration and functionality."""
 
-    def test_unified_settings_defaults(self):
+    def test_unified_settings_defaults(self) -> None:
         """Test default unified settings."""
         settings = UnifiedSettings()
         assert settings.version == __version__
@@ -301,7 +301,7 @@ class TestUnifiedSettings:
         assert isinstance(settings.api, APIConfig)
         assert isinstance(settings.monitoring, MonitoringConfig)
 
-    def test_unified_settings_directory_creation(self):
+    def test_unified_settings_directory_creation(self) -> None:
         """Test that directories are created automatically."""
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "db" / "test.db"
@@ -316,7 +316,7 @@ class TestUnifiedSettings:
             assert vec_path.parent.exists()
             assert cache_path.parent.exists()
 
-    def test_unified_settings_encryption_key_generation(self):
+    def test_unified_settings_encryption_key_generation(self) -> None:
         """Test automatic encryption key generation."""
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "test.db"
@@ -335,7 +335,7 @@ class TestUnifiedSettings:
             # Test that the generated key is valid
             Fernet(settings.security.encryption_key.encode())
 
-    def test_unified_settings_for_testing(self):
+    def test_unified_settings_for_testing(self) -> None:
         """Test testing preset configuration."""
         settings = UnifiedSettings.for_testing()
         assert settings.performance.max_workers == 2
@@ -347,7 +347,7 @@ class TestUnifiedSettings:
         assert settings.security.api_token == "test-token-12345678"
         assert settings.security.rate_limit_per_minute == 10_000
 
-    def test_unified_settings_for_production(self):
+    def test_unified_settings_for_production(self) -> None:
         """Test production preset configuration."""
         settings = UnifiedSettings.for_production()
         assert settings.database.connection_pool_size == 20
@@ -359,7 +359,7 @@ class TestUnifiedSettings:
         assert settings.monitoring.enable_metrics is True
         assert settings.monitoring.log_level == "INFO"
 
-    def test_unified_settings_for_development(self):
+    def test_unified_settings_for_development(self) -> None:
         """Test development preset configuration."""
         settings = UnifiedSettings.for_development()
         assert settings.database.connection_pool_size == 5
@@ -370,14 +370,14 @@ class TestUnifiedSettings:
         assert settings.monitoring.health_check_interval == 10
         assert settings.api.enable_cors is True
 
-    def test_unified_settings_get_database_url(self):
+    def test_unified_settings_get_database_url(self) -> None:
         """Test database URL generation."""
         settings = UnifiedSettings()
         url = settings.get_database_url()
         assert url.startswith("sqlite:///")
         assert str(settings.database.db_path) in url
 
-    def test_unified_settings_validate_production_ready(self):
+    def test_unified_settings_validate_production_ready(self) -> None:
         """Test production readiness validation."""
         # Default settings should have issues
         settings = UnifiedSettings()
@@ -391,7 +391,7 @@ class TestUnifiedSettings:
         issues = settings.validate_production_ready()
         assert len(issues) == 0
 
-    def test_unified_settings_get_config_summary(self):
+    def test_unified_settings_get_config_summary(self) -> None:
         """Test configuration summary generation."""
         settings = UnifiedSettings()
         summary = settings.get_config_summary()
@@ -412,7 +412,7 @@ class TestUnifiedSettings:
         assert summary["security"]["filter_pii"] is True
         assert summary["security"]["has_key"] is False  # No key set by default
 
-    def test_unified_settings_save_and_load_from_file(self):
+    def test_unified_settings_save_and_load_from_file(self) -> None:
         """Test saving and loading configuration from file."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             config_path = Path(f.name)
@@ -442,30 +442,30 @@ class TestUnifiedSettings:
 class TestGetSettings:
     """Test get_settings factory function."""
 
-    def test_get_settings_default(self):
+    def test_get_settings_default(self) -> None:
         """Test get_settings with default environment."""
         settings = get_settings()
         assert isinstance(settings, UnifiedSettings)
 
-    def test_get_settings_development(self):
+    def test_get_settings_development(self) -> None:
         """Test get_settings with development environment."""
         settings = get_settings("development")
         assert settings.monitoring.log_level == "DEBUG"
         assert settings.performance.max_workers == 2
 
-    def test_get_settings_production(self):
+    def test_get_settings_production(self) -> None:
         """Test get_settings with production environment."""
         settings = get_settings("production")
         assert settings.performance.max_workers == 8
         assert settings.security.encrypt_at_rest is True
 
-    def test_get_settings_testing(self):
+    def test_get_settings_testing(self) -> None:
         """Test get_settings with testing environment."""
         settings = get_settings("testing")
         assert settings.api.port == 0
         assert settings.monitoring.enable_metrics is False
 
-    def test_get_settings_unknown_environment(self):
+    def test_get_settings_unknown_environment(self) -> None:
         """Test get_settings with unknown environment."""
         settings = get_settings("unknown")
         assert isinstance(settings, UnifiedSettings)
@@ -476,7 +476,7 @@ class TestGetSettings:
 class TestEnvironmentVariables:
     """Test environment variable integration."""
 
-    def test_settings_from_environment_variables(self, monkeypatch):
+    def test_settings_from_environment_variables(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that settings are loaded from environment variables."""
         monkeypatch.setenv("DATABASE__DB_PATH", "/tmp/test.db")
         monkeypatch.setenv("API__PORT", "9000")
@@ -491,7 +491,7 @@ class TestEnvironmentVariables:
         assert settings.performance.max_workers == 16
         assert settings.monitoring.log_level == "ERROR"
 
-    def test_settings_from_dotenv_file(self, monkeypatch):
+    def test_settings_from_dotenv_file(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that settings are loaded from .env file."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".env", delete=False) as f:
             f.write("API__HOST=192.168.1.100\n")
@@ -512,4 +512,4 @@ class TestEnvironmentVariables:
             assert settings.security.filter_pii is False
             assert settings.performance.cache_size == 5000
         finally:
-            (os.unlink(env_path),)
+            os.unlink(env_path)
