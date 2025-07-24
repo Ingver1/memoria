@@ -4,54 +4,51 @@
 
 ---
 
-## ✨ What’s New (July 2025)
+## 🚀 Why UMS?
 
-> **MemOS vs UMS**  
-> A flurry of excitement followed the public preview of **MemOS 1.0 “Stellar”** – the self-described *“memory operating system”* for large language models.<br>
-> UMS takes a different stance: instead of a full OS-level scheduler, it delivers a slim, auditable service that you can embed today.
+UMS is a plug-and-play semantic memory service for LLM agents. It’s small, fast, secure, and production-ready. If you want a memory backend that “just works” and is easy to audit, UMS is for you.
 
-|                        | **UMS (v1.0)** | **MemOS (1.0 Preview\*)** |
-|------------------------|----------------|---------------------------|
-| Install size           | ~180 MB Docker | 2+ GB multi-service stack |
-| Storage backend        | SQLite + FAISS | Custom “MemCube” shards   |
-| Encryption-at-rest     | ✅ SQLCipher   | ❌ roadmap Q4 2025        |
-| Test coverage (CI)     | 100 % unit/integration | unknown |
-| Deployment            | `pip`, Docker, serverless | k8s Operator (beta) |
-| Hardware requirements  | 1 CPU / 1 GB RAM | 8 CPUs / 16 GB RAM (rec.) |
-| License                | Apache-2.0     | Clause-7 research license |
-| Status                 | Stable / Prod  | Preview / Research        |
+---
 
-<sub>\*Sources: arXiv 2507.03724, VentureBeat 08-Jul-2025, MemTensor/MemOS release notes.</sub>
+## ✨ Highlights (July 2025)
 
-UMS = **small core, big confidence**.  
-If you need a plug-and-play semantic memory today, keep reading.
+| Feature               | UMS (v1.0)           | MemOS (Preview)         |
+|-----------------------|----------------------|-------------------------|
+| Install size          | ~180 MB Docker       | 2+ GB multi-service     |
+| Storage backend       | SQLite + FAISS       | Custom “MemCube”        |
+| Encryption-at-rest    | ✅ SQLCipher         | ❌ Coming Q4 2025      |
+| Test coverage         | 100% unit/integration| Unknown                 |
+| Deployment            | pip, Docker, serverless | k8s Operator (beta)  |
+| Hardware requirements | 1 CPU / 1 GB RAM     | 8 CPUs / 16 GB RAM      |
+| License               | Apache-2.0           | Clause-7 research       |
+| Status                | Stable / Prod        | Preview / Research      |
+
+<sub>Sources: arXiv 2507.03724, VentureBeat 08-Jul-2025, MemTensor/MemOS release notes.</sub>
 
 ---
 
 ## 🔑 Key Features
 
-| Area | Highlights |
-|------|-----------|
-| **Architecture** | Async FastAPI + FAISS HNSW with dynamic `ef_search` tuning |
-| **Security** | SQLCipher encryption, API-token auth, rate limits |
-| **Observability** | `/metrics` (Prometheus), `/health` (deep), structured logs |
-| **Quality** | 100 % unit + property-based + fuzz + performance tests |
-| **CI/CD** | Fast smoke suite on each push, full perf suite nightly |
-| **Ease of use** | `pip install memoria1` or one-liner Docker run |
+- **Async FastAPI + FAISS HNSW**: blazing fast semantic search
+- **SQLCipher encryption**: secure at rest
+- **API-token auth & rate limits**: secure in transit
+- **Prometheus metrics & health checks**: easy monitoring
+- **100% test coverage**: unit, property, fuzz, performance
+- **Simple install**: `pip install memoria1` or Docker one-liner
 
 ---
 
-## 🚀 Quick Start
+## 🏁 Quick Start
 
 ```bash
 pip install memoria1        # production
 pip install memoria1[dev]   # +tests & tooling
-pip install -e .[dev]   # editable install for local development
-# or, in a cloned repo, pip install -r requirements_dev.txt for perf tests
+pip install -e .[dev]       # editable for local dev
 uvicorn memory_system.api.app:create_app --reload
+```
 
-Minimal client
-
+**Minimal client:**
+```python
 from memoria1 import EnhancedMemoryStore, UnifiedSettings
 import numpy as np, asyncio
 
@@ -64,106 +61,59 @@ async def demo():
     print(hits)
 
 asyncio.run(demo())
-
-### Offline embedding
-
-Create `embedder.py` and add:
-```python
-from sentence_transformers import SentenceTransformer
-import numpy as np
-import inspect
-
-_model = SentenceTransformer("all-MiniLM-L6-v2")
-
-def embed(text: str | list[str]) -> np.ndarray:
-    if isinstance(text, str):
-        text = [text]
-    if "normalize_embeddings" in inspect.signature(_model.encode).parameters:
-        vecs = _model.encode(text, normalize_embeddings=True)
-    else:
-        vecs = _model.encode(text)
-        vecs = np.asarray(vecs, dtype=np.float32)
-        vecs = vecs / np.linalg.norm(vecs, axis=1, keepdims=True)
-    return vecs[0] if len(vecs) == 1 else vecs
 ```
 
-Use it with Memoria:
-```python
-from memoria1 import EnhancedMemoryStore, UnifiedSettings
-from embedder import embed
+---
 
-settings = UnifiedSettings.for_testing()
-settings.embed_func = embed
-store = EnhancedMemoryStore(settings)
-```
+## 🧪 Testing Matrix
 
-Now embeddings are generated locally without any external API.         
+| Suite      | Command                                      | Avg time |
+|------------|----------------------------------------------|----------|
+| Smoke      | pytest -q -m "not perf"                      | 8 s      |
+| Property   | pytest -q -m property                        | 8 s      |
+| Perf/Bench | pytest -q tests/test_performance.py --benchmark-only | 30 s |
+| Load       | locust -f load_tests/locustfile.py            | user     |
+| API fuzz   | pytest tests/test_api_fuzz.py                 | 4 s      |
 
 ---
 
-🧪 Testing Matrix
+## ⚙️ Configuration
 
-Suite   Command Avg time
+| Env var                  | Default                | Description           |
+|--------------------------|------------------------|-----------------------|
+| AI_DATABASE__URL         | sqlite:///./data/memory.db | DB path / DSN     |
+| AI_SECURITY__ENCRYPT_AT_REST | false              | Enable SQLCipher      |
+| AI_MODEL__VECTOR_DIM     | 384                    | Embedding dimension   |
+| AI_PERF__MAX_WORKERS     | 4                      | Async workers         |
+| AI_MONITORING__ENABLE_METRICS | false             | Expose /metrics       |
 
-Smoke   pytest -q -m "not perf" 8 s
-Property  pytest -q -m property  8 s
-Perf / Bench    pytest -q tests/test_performance.py --benchmark-only       30 s
-Load (Locust)   locust -f load_tests/locustfile.py      user-defined
-API fuzz        pytest tests/test_api_fuzz.py   4 s
-
-
-The smoke suite runs on every push; perf + load run nightly via GitHub Actions cron.
-
+Copy `.env.example` → `.env` and tweak values.
 
 ---
 
-⚙️ Configuration
+## 🛡 Security Model
 
-Env var	Default	Description
-
-AI_DATABASE__URL	sqlite:///./data/memory.db	DB path / DSN
-AI_SECURITY__ENCRYPT_AT_REST	false	Enable SQLCipher
-AI_MODEL__VECTOR_DIM	384	Embedding dimension
-AI_PERF__MAX_WORKERS	4	Async workers
-AI_MONITORING__ENABLE_METRICS	false	Expose /metrics
-
-
-Copy .env.example → .env and tweak values.
-
+- **Disk**: AES-256-GCM via SQLCipher (pysqlcipher3)
+- **Transit**: HTTPS/TLS recommended; API-token checked on every request
+- **Fault tolerance**: If FAISS index is missing/corrupted, `/health` returns 503 and write paths are blocked until recovery
 
 ---
 
-🛡  Security Model
+## 🗺 Roadmap
 
-Disk – AES-256-GCM via SQLCipher (pysqlcipher3).
-
-Transit – HTTPS/TLS recommended; API-token checked on every request.
-
-Fault tolerance – if FAISS index is missing/corrupted, /health returns 503 and write paths are blocked until recovery.
-
-
-
----
-
-🗺  Roadmap
-
-1. Hot-swap backends – Qdrant & DuckDB extensions.
-
-
-2. Hierarchical summarisation – automatic memory compaction.
-
-
-3. Streaming ingestion – SSE / WebSocket pipeline.
-
-
+1. Hot-swap backends: Qdrant & DuckDB extensions
+2. Hierarchical summarisation: automatic memory compaction
+3. Streaming ingestion: SSE / WebSocket pipeline
 
 Pull Requests welcome!
 
-
 ---
 
-📜 License
+## 📜 License
 
 Apache License 2.0 – free for commercial & research use.
+
+© 2025 Evgeny Leshchenko, with assistance from ChatGPT & Claude.
+h use.
 
 © 2025 Evgeny Leshchenko, with assistance from ChatGPT & Claude.
