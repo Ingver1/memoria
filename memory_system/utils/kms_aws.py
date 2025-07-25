@@ -1,5 +1,6 @@
 from .security import KeyManagementBackend, ManagedKey
 
+
 class AWSKMSBackend(KeyManagementBackend):
     def __init__(self, key_id: str, region: str) -> None:
         pass
