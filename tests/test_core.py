@@ -232,15 +232,7 @@ class TestEnhancedMemoryStore:
         """Test stats retrieval."""
         stats = await store.get_stats()
         assert isinstance(stats, dict)
-        assert "total_memories" in stats
-   def store(self, test_settings: UnifiedSettings) -> Iterator[EnhancedMemoryStore]:
-        """Create EnhancedMemoryStore instance and ensure closure."""
-        store = EnhancedMemoryStore(test_settings)
-        try:
-            yield store
-        finally:
-            asyncio.run(store.close())
-            
+        assert "total_memories" in stats  
         assert "index_size" in stats
         assert "cache_stats" in stats
         assert "buffer_size" in stats
@@ -269,10 +261,11 @@ class TestGetStore:
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
             path = Path(f.name)
 
-        try:
-            store = await get_store(path)
+        store = await get_store(path)
+        try:  
             assert store._path == path
         finally:
+            await store.close()
             path.unlink(missing_ok=True)
 
 
@@ -595,15 +588,18 @@ class TestFaissHNSWIndex:
         vectors = np.random.rand(3, 384).astype(np.float32)
         index.add_vectors(ids, vectors)
 
-        with tempfile.NamedTemporaryFile(suffix=".index") as f:
-            index.save(f.name)
+        with tempfile.NamedTemporaryFile(suffix=".index", delete=False) as f:
+            path = Path(f.name)
 
-            # Create new index and load
+        try:
+            index.save(str(path))
             new_index = FaissHNSWIndex(dim=384)
-            new_index.load(f.name)
-
+            new_index.load(str(path))
             stats = new_index.stats()
             assert stats.total_vectors == 3
+                    finally:
+            path.unlink(missing_ok=True)
+            path.with_suffix(".map.json").unlink(missing_ok=True)
 
 
 class TestVectorStore:
@@ -616,9 +612,13 @@ class TestVectorStore:
             yield Path(tmpdir) / "test_vectors"
 
     @pytest.fixture
-    def store(self, temp_store_path: Path) -> VectorStore:
-        """Create VectorStore instance."""
-        return VectorStore(temp_store_path, dim=384)
+    def store(self, temp_store_path: Path) -> Iterator[VectorStore]:
+        """Create VectorStore instance and ensure closure."""
+        store = VectorStore(temp_store_path, dim=384)
+        try:
+            yield store
+        finally:
+            store.close()
 
     def test_store_initialization(self, store: VectorStore, temp_store_path: Path) -> None:
         """Test store initialization."""
@@ -802,23 +802,19 @@ class TestCoreIntegration:
     def test_index_and_vector_store_integration(self) -> None:
         """Test integration between index and vector store."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Create vector store
             store_path = Path(tmpdir) / "integration_vectors"
             vector_store = VectorStore(store_path, dim=384)
-            # Create index
             index = FaissHNSWIndex(dim=384)
             try:
                 vector_ids = ["vec1", "vec2", "vec3"]
                 vectors = np.random.rand(3, 384).astype(np.float32)
-                # Add to vector store
                 for i, vector_id in enumerate(vector_ids):
                     vector_store.add_vector(vector_id, vectors[i])
-                # Add to index
                 index.add_vectors(vector_ids, vectors)
                 stats = index.stats()
                 assert stats.total_vectors == 3
             finally:
-                pass
+                vector_store.close()
 
     @pytest.mark.asyncio
     async def test_error_handling_integration(self, test_settings: UnifiedSettings) -> None:
