@@ -1,6 +1,7 @@
 """Comprehensive tests for core module."""
 
 import asyncio
+import sqlite3
 import struct
 import tempfile
 import time
@@ -9,7 +10,6 @@ from typing import Generator, Iterator
 from unittest.mock import patch
 
 import pytest
-import sqlite3
 
 import numpy as np
 from memory_system.config.settings import UnifiedSettings
