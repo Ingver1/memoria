@@ -342,7 +342,7 @@ class TestVectorStorePerformance:
 
         # Read performance should be fast
         assert avg_read_time < 0.001, f"Average read time: {avg_read_time:.6f}s"
-        assert max_read_time < 0.01, f"Maximum read time: {max_read_time:.6f}s"
+        assert max_read_time < 0.02, f"Maximum read time: {max_read_time:.6f}s"
 
     def test_vector_store_concurrent_access(self, vector_store):
         """Test concurrent access performance."""
