@@ -3,6 +3,7 @@ from __future__ import annotations
 import builtins as _builtins
 from types import SimpleNamespace
 from typing import Iterable, cast
+
 import numpy as np
 
 METRIC_INNER_PRODUCT: int = 0
