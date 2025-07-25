@@ -9,6 +9,7 @@ from typing import Generator, Iterator
 from unittest.mock import patch
 
 import pytest
+import sqlite3
 
 import numpy as np
 from memory_system.config.settings import UnifiedSettings
@@ -597,7 +598,7 @@ class TestFaissHNSWIndex:
             new_index.load(str(path))
             stats = new_index.stats()
             assert stats.total_vectors == 3
-                    finally:
+        finally:
             path.unlink(missing_ok=True)
             path.with_suffix(".map.json").unlink(missing_ok=True)
 
@@ -618,7 +619,11 @@ class TestVectorStore:
         try:
             yield store
         finally:
-            store.close()
+            try:
+                store.close()
+            except sqlite3.ProgrammingError:
+                # allow double-closing in tests
+                pass
 
     def test_store_initialization(self, store: VectorStore, temp_store_path: Path) -> None:
         """Test store initialization."""
