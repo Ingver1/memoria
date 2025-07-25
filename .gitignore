@@ -2,3 +2,4 @@ __pycache__/
 *.pyc
 *.pyo
 ruff_errors.txt
+ruff.log
