@@ -5,7 +5,7 @@ import struct
 import tempfile
 import time
 from pathlib import Path
-from typing import Generator
+from typing import Generator, Iterator
 from unittest.mock import patch
 
 import pytest
@@ -42,9 +42,13 @@ def temp_db_path() -> Generator[Path, None, None]:
 
 
 @pytest.fixture
-def store(temp_db_path: Path) -> SQLiteMemoryStore:
-    """Create a SQLiteMemoryStore for basic tests."""
-    return SQLiteMemoryStore(temp_db_path)
+def store(temp_db_path: Path) -> Iterator[SQLiteMemoryStore]:
+    """Create a SQLiteMemoryStore for basic tests and close afterwards."""
+    store = SQLiteMemoryStore(temp_db_path)
+    try:
+        yield store
+    finally:
+        asyncio.run(store.close())
 
 
 class TestMemoryDataClass:
@@ -110,9 +114,13 @@ class TestSQLiteMemoryStore:
         Path(f.name).unlink(missing_ok=True)
 
     @pytest.fixture
-    def store(self, temp_db_path: Path) -> SQLiteMemoryStore:
-        """Create SQLiteMemoryStore instance."""
-        return SQLiteMemoryStore(temp_db_path)
+    def store(self, temp_db_path: Path) -> Iterator[SQLiteMemoryStore]:
+        """Create SQLiteMemoryStore instance and ensure closure."""
+        store = SQLiteMemoryStore(temp_db_path)
+        try:
+            yield store
+        finally:
+            asyncio.run(store.close())
 
     def test_store_initialization(self, store: SQLiteMemoryStore, temp_db_path: Path) -> None:
         """Test store initialization."""
@@ -195,9 +203,13 @@ class TestEnhancedMemoryStore:
         return UnifiedSettings.for_testing()
 
     @pytest.fixture
-    def store(self, test_settings: UnifiedSettings) -> EnhancedMemoryStore:
-        """Create EnhancedMemoryStore instance."""
-        return EnhancedMemoryStore(test_settings)
+    def store(self, test_settings: UnifiedSettings) -> Iterator[EnhancedMemoryStore]:
+        """Create EnhancedMemoryStore instance and ensure closure."""
+        store = EnhancedMemoryStore(test_settings)
+        try:
+            yield store
+        finally:
+            asyncio.run(store.close())
 
     def test_store_initialization(self, store: EnhancedMemoryStore, test_settings: UnifiedSettings) -> None:
         """Test store initialization."""
@@ -221,6 +233,14 @@ class TestEnhancedMemoryStore:
         stats = await store.get_stats()
         assert isinstance(stats, dict)
         assert "total_memories" in stats
+   def store(self, test_settings: UnifiedSettings) -> Iterator[EnhancedMemoryStore]:
+        """Create EnhancedMemoryStore instance and ensure closure."""
+        store = EnhancedMemoryStore(test_settings)
+        try:
+            yield store
+        finally:
+            asyncio.run(store.close())
+            
         assert "index_size" in stats
         assert "cache_stats" in stats
         assert "buffer_size" in stats
