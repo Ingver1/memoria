@@ -1,4 +1,6 @@
 from typing import Callable
+
+
 class DataGenerationMethod:
     fuzzed: str = 'fuzzed'
 
