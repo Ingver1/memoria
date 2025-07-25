@@ -247,25 +247,25 @@ class VectorStore:
 
     # ------------------------------------------------------------------
     def _validate_vector(self, vector: _Seq[float] | np.ndarray) -> np.ndarray:
-        def _f32(val: float) -> float:
-            return float(_struct.unpack("f", _struct.pack("f", float(val)))[0])
-
+        """Validate ``vector`` and convert it to ``np.float32`` array."""
+      
         if isinstance(vector, np.ndarray):
-            if getattr(vector, "dtype", np.float32) is not np.float32:
+            if vector.dtype is not np.float32:
                 raise ValidationError("vector dtype must be float32")
             if vector.ndim != 1:
                 raise ValidationError("vector must be 1-D")
-            arr_list = [_f32(x) for x in vector]
+            arr = vector.astype(np.float32, copy=False)
         else:
-            for x in vector:
-                if isinstance(x, (list, tuple, np.ndarray)):
-                    raise ValidationError("vector must be 1-D")
-            arr_list = [_f32(x) for x in vector]
+            arr = np.asarray(vector, dtype=np.float32)
+            if arr.ndim != 1:
+                raise ValidationError("vector must be 1-D")
+
         if self._dim == 0:
-            self._dim = len(arr_list)
-        if len(arr_list) != self._dim:
+            self._dim = arr.shape[0]
+        if arr.shape[0] != self._dim:
             raise ValidationError(f"expected dim {self._dim}")
-        return np.asarray(arr_list, dtype=np.float32)
+
+        return arr
 
     def add_vector(self, vector_id: str, vector: _Seq[float] | np.ndarray) -> None:
         with self._db_lock:
