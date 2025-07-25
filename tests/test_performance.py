@@ -20,6 +20,45 @@ from memory_system.utils.security import (
     EnhancedPIIFilter,
 )
 
+# ---------------------------------------------------------------------------
+# Performance thresholds (in milliseconds)
+# ---------------------------------------------------------------------------
+# These defaults mirror the previously hard-coded values. They can be
+# overridden via environment variables when running the tests to accommodate
+# slower or faster machines.
+
+MAX_EMBEDDING_TIME_MS = float(os.getenv("MAX_EMBEDDING_TIME_MS", "100"))
+MAX_BATCH_PER_TEXT_MS = float(os.getenv("MAX_BATCH_PER_TEXT_MS", "50"))
+MAX_BATCH_TOTAL_MS = float(os.getenv("MAX_BATCH_TOTAL_MS", "5000"))
+MAX_CONCURRENT_PER_TASK_MS = float(os.getenv("MAX_CONCURRENT_PER_TASK_MS", "200"))
+MAX_CONCURRENT_TOTAL_MS = float(os.getenv("MAX_CONCURRENT_TOTAL_MS", "10000"))
+EMBEDDING_CACHE_FACTOR = float(os.getenv("EMBEDDING_CACHE_FACTOR", "0.5"))
+MAX_EMBEDDING_MEMORY_MB = float(os.getenv("MAX_EMBEDDING_MEMORY_MB", "100"))
+
+MAX_INDEX_AVG_SEARCH_MS = float(os.getenv("MAX_INDEX_AVG_SEARCH_MS", "5"))
+MAX_INDEX_MAX_SEARCH_MS = float(os.getenv("MAX_INDEX_MAX_SEARCH_MS", "20"))
+MAX_INDEX_BUILD_PER_VECTOR_MS = float(os.getenv("MAX_INDEX_BUILD_PER_VECTOR_MS", "10"))
+MAX_INDEX_CONCURRENT_AVG_MS = float(os.getenv("MAX_INDEX_CONCURRENT_AVG_MS", "30"))
+MAX_INDEX_CONCURRENT_TOTAL_MS = float(os.getenv("MAX_INDEX_CONCURRENT_TOTAL_MS", "10000"))
+MAX_INDEX_MEMORY_KB = float(os.getenv("MAX_INDEX_MEMORY_KB", "10"))
+
+MAX_WRITE_PER_VECTOR_MS = float(os.getenv("MAX_WRITE_PER_VECTOR_MS", "30"))
+MAX_FLUSH_TIME_MS = float(os.getenv("MAX_FLUSH_TIME_MS", "5000"))
+MAX_READ_AVG_MS = float(os.getenv("MAX_READ_AVG_MS", "1"))
+MAX_READ_MAX_MS = float(os.getenv("MAX_READ_MAX_MS", "20"))
+MAX_WRITE_CONCURRENT_TOTAL_MS = float(os.getenv("MAX_WRITE_CONCURRENT_TOTAL_MS", "10000"))
+MAX_READ_CONCURRENT_TOTAL_MS = float(os.getenv("MAX_READ_CONCURRENT_TOTAL_MS", "10000"))
+
+MAX_CACHE_GET_AVG_MS = float(os.getenv("MAX_CACHE_GET_AVG_MS", "0.1"))
+MAX_CACHE_GET_MAX_MS = float(os.getenv("MAX_CACHE_GET_MAX_MS", "1"))
+MAX_CACHE_PUT_AVG_MS = float(os.getenv("MAX_CACHE_PUT_AVG_MS", "0.1"))
+MAX_CACHE_PUT_MAX_MS = float(os.getenv("MAX_CACHE_PUT_MAX_MS", "5"))
+MIN_CACHE_OPS_PER_SEC = float(os.getenv("MIN_CACHE_OPS_PER_SEC", "1000"))
+MAX_CACHE_CONCURRENT_TOTAL_MS = float(os.getenv("MAX_CACHE_CONCURRENT_TOTAL_MS", "5000"))
+
+MAX_PII_DETECT_MS = float(os.getenv("MAX_PII_DETECT_MS", "10"))
+MAX_PII_REDACT_MS = float(os.getenv("MAX_PII_REDACT_MS", "10"))
+
 
 @pytest.mark.asyncio
 @pytest.mark.performance
@@ -52,8 +91,10 @@ class TestEmbeddingPerformance:
         total_time = end_time - start_time
         avg_time = total_time / 10
 
-        # Should average less than 100ms per embedding (with caching)
-        assert avg_time < 0.1, f"Average embedding time: {avg_time:.3f}s"
+        # Should average less than MAX_EMBEDDING_TIME_MS per embedding
+        assert avg_time * 1000 < MAX_EMBEDDING_TIME_MS, (
+            f"Average embedding time: {avg_time:.3f}s"
+        )
 
     @pytest.mark.slow
     async def test_batch_embedding_performance(self, embedding_service):
@@ -74,8 +115,12 @@ class TestEmbeddingPerformance:
         assert embeddings.shape[1] == 384
 
         # Batch processing should be faster per text
-        assert per_text_time < 0.05, f"Per-text time in batch: {per_text_time:.3f}s"
-        assert batch_time < 5.0, f"Total batch time: {batch_time:.3f}s"
+        assert per_text_time * 1000 < MAX_BATCH_PER_TEXT_MS, (
+            f"Per-text time in batch: {per_text_time:.3f}s"
+        )
+        assert batch_time * 1000 < MAX_BATCH_TOTAL_MS, (
+            f"Total batch time: {batch_time:.3f}s"
+        )
 
     @pytest.mark.slow
     async def test_concurrent_embedding_performance(self, embedding_service):
@@ -103,8 +148,12 @@ class TestEmbeddingPerformance:
             assert embedding.shape[1] == 384
 
         # Should handle concurrent requests efficiently
-        assert per_task_time < 0.2, f"Per-task concurrent time: {per_task_time:.3f}s"
-        assert concurrent_time < 10.0, f"Total concurrent time: {concurrent_time:.3f}s"
+        assert per_task_time * 1000 < MAX_CONCURRENT_PER_TASK_MS, (
+            f"Per-task concurrent time: {per_task_time:.3f}s"
+        )
+        assert concurrent_time * 1000 < MAX_CONCURRENT_TOTAL_MS, (
+            f"Total concurrent time: {concurrent_time:.3f}s"
+        )
 
     async def test_embedding_cache_performance(self, embedding_service):
         """Test performance improvement from caching."""
@@ -128,7 +177,7 @@ class TestEmbeddingPerformance:
         # some platforms causing flaky failures.  We still want to
         # ensure caching has a real benefit so require at least a
         # twofold improvement.
-        assert second_time < first_time * 0.5, (
+        assert second_time < first_time * EMBEDDING_CACHE_FACTOR, (
             f"Cache hit time: {second_time:.3f}s vs first time: {first_time:.3f}s"
         )
 
@@ -149,7 +198,9 @@ class TestEmbeddingPerformance:
         memory_increase = (final_memory - initial_memory) / (1024 * 1024)  # MB
 
         # Memory increase should be reasonable
-        assert memory_increase < 100, f"Memory increased by {memory_increase:.2f}MB"
+        assert memory_increase < MAX_EMBEDDING_MEMORY_MB, (
+            f"Memory increased by {memory_increase:.2f}MB"
+        )
 
 
 @pytest.mark.performance
@@ -195,8 +246,12 @@ class TestIndexPerformance:
         max_search_time = max(search_times)
 
         # Search should be reasonably fast
-        assert avg_search_time < 0.005, f"Average search time: {avg_search_time:.6f}s"
-        assert max_search_time < 0.02, f"Maximum search time: {max_search_time:.6f}s"
+        assert avg_search_time * 1000 < MAX_INDEX_AVG_SEARCH_MS, (
+            f"Average search time: {avg_search_time:.6f}s"
+        )
+        assert max_search_time * 1000 < MAX_INDEX_MAX_SEARCH_MS, (
+            f"Maximum search time: {max_search_time:.6f}s"
+        )
         
     def test_index_build_performance(self):
         """Test index build performance."""
@@ -216,7 +271,9 @@ class TestIndexPerformance:
             per_vector_time = build_time / batch_size
 
             # Build time should scale reasonably
-            assert per_vector_time < 0.01, f"Per-vector build time: {per_vector_time:.6f}s"
+            assert per_vector_time * 1000 < MAX_INDEX_BUILD_PER_VECTOR_MS, (
+                f"Per-vector build time: {per_vector_time:.6f}s"
+            )
 
     def test_index_concurrent_search(self, large_index):
         """Test concurrent search performance."""
@@ -254,8 +311,12 @@ class TestIndexPerformance:
         total_searches = len(all_times)
 
         # Concurrent searches should maintain good performance
-        assert avg_search_time < 0.03, f"Average concurrent search time: {avg_search_time:.6f}s"
-        assert total_time < 10.0, f"Total concurrent test time: {total_time:.3f}s"
+        assert avg_search_time * 1000 < MAX_INDEX_CONCURRENT_AVG_MS, (
+            f"Average concurrent search time: {avg_search_time:.6f}s"
+        )
+        assert total_time * 1000 < MAX_INDEX_CONCURRENT_TOTAL_MS, (
+            f"Total concurrent test time: {total_time:.3f}s"
+        )
         print(f"Completed {total_searches} concurrent searches in {total_time:.3f}s")
 
     def test_index_memory_efficiency(self):
@@ -277,7 +338,9 @@ class TestIndexPerformance:
         memory_per_vector = memory_increase / num_vectors * 1024  # KB per vector
 
         # Memory usage should be reasonable
-        assert memory_per_vector < 10, f"Memory per vector: {memory_per_vector:.2f}KB"
+        assert memory_per_vector < MAX_INDEX_MEMORY_KB, (
+            f"Memory per vector: {memory_per_vector:.2f}KB"
+        )
         print(f"Index memory usage: {memory_increase:.2f}MB for {num_vectors} vectors")
 
 
@@ -307,14 +370,18 @@ class TestVectorStorePerformance:
         per_vector_time = write_time / num_vectors
 
         # Write performance should be reasonable
-        assert per_vector_time < 0.03, f"Per-vector write time: {per_vector_time:.6f}s"
+        assert per_vector_time * 1000 < MAX_WRITE_PER_VECTOR_MS, (
+            f"Per-vector write time: {per_vector_time:.6f}s"
+        )
 
         # Test flush performance
         start_time = time.perf_counter()
         asyncio.run(vector_store.flush())
         flush_time = time.perf_counter() - start_time
         
-        assert flush_time < 5.0, f"Flush time: {flush_time:.3f}s"
+        assert flush_time * 1000 < MAX_FLUSH_TIME_MS, (
+            f"Flush time: {flush_time:.3f}s"
+        )
 
     def test_vector_store_read_performance(self, vector_store):
         """Test vector store read performance."""
@@ -341,8 +408,12 @@ class TestVectorStorePerformance:
         max_read_time = max(read_times)
 
         # Read performance should be fast
-        assert avg_read_time < 0.001, f"Average read time: {avg_read_time:.6f}s"
-        assert max_read_time < 0.02, f"Maximum read time: {max_read_time:.6f}s"
+        assert avg_read_time * 1000 < MAX_READ_AVG_MS, (
+            f"Average read time: {avg_read_time:.6f}s"
+        )
+        assert max_read_time * 1000 < MAX_READ_MAX_MS, (
+            f"Maximum read time: {max_read_time:.6f}s"
+        )
 
     def test_vector_store_concurrent_access(self, vector_store):
         """Test concurrent access performance."""
@@ -377,7 +448,9 @@ class TestVectorStorePerformance:
                 future.result()
             write_time = time.perf_counter() - start_time
 
-        assert write_time < 10.0, f"Concurrent write time: {write_time:.3f}s"
+        assert write_time * 1000 < MAX_WRITE_CONCURRENT_TOTAL_MS, (
+            f"Concurrent write time: {write_time:.3f}s"
+        )
 
         # Test concurrent reads
         with ThreadPoolExecutor(max_workers=3) as executor:
@@ -387,7 +460,9 @@ class TestVectorStorePerformance:
                 future.result()
             read_time = time.perf_counter() - start_time
 
-        assert read_time < 10.0, f"Concurrent read time: {read_time:.3f}s"
+        assert read_time * 1000 < MAX_READ_CONCURRENT_TOTAL_MS, (
+            f"Concurrent read time: {read_time:.3f}s"
+        )
 
 
 @pytest.mark.performance
@@ -419,8 +494,12 @@ class TestCachePerformance:
         max_get_time = max(get_times)
 
         # Cache access should be very fast
-        assert avg_get_time < 0.0001, f"Average get time: {avg_get_time:.8f}s"
-        assert max_get_time < 0.001, f"Maximum get time: {max_get_time:.6f}s"
+        assert avg_get_time * 1000 < MAX_CACHE_GET_AVG_MS, (
+            f"Average get time: {avg_get_time:.8f}s"
+        )
+        assert max_get_time * 1000 < MAX_CACHE_GET_MAX_MS, (
+            f"Maximum get time: {max_get_time:.6f}s"
+        )
 
     def test_cache_put_performance(self):
         """Test cache put performance."""
@@ -441,8 +520,12 @@ class TestCachePerformance:
         max_put_time = max(put_times)
 
         # Cache put should be fast
-        assert avg_put_time < 0.0001, f"Average put time: {avg_put_time:.8f}s"
-        assert max_put_time < 0.005, f"Maximum put time: {max_put_time:.6f}s"
+        assert avg_put_time * 1000 < MAX_CACHE_PUT_AVG_MS, (
+            f"Average put time: {avg_put_time:.8f}s"
+        )
+        assert max_put_time * 1000 < MAX_CACHE_PUT_MAX_MS, (
+            f"Maximum put time: {max_put_time:.6f}s"
+        )
 
     def test_cache_concurrent_performance(self):
         """Test cache performance under concurrent access."""
@@ -472,8 +555,12 @@ class TestCachePerformance:
         operations_per_second = (num_workers * 100 * 2) / total_time  # 2 ops per iteration
 
         # Should handle many concurrent operations
-        assert operations_per_second > 1000, f"Operations per second: {operations_per_second:.0f}"
-        assert total_time < 5.0, f"Total concurrent time: {total_time:.3f}s"
+        assert operations_per_second > MIN_CACHE_OPS_PER_SEC, (
+            f"Operations per second: {operations_per_second:.0f}"
+        )
+        assert total_time * 1000 < MAX_CACHE_CONCURRENT_TOTAL_MS, (
+            f"Total concurrent time: {total_time:.3f}s"
+        )
 
 
 @pytest.mark.performance
@@ -499,7 +586,9 @@ class TestSecurityPerformance:
         detection_time = time.perf_counter() - start_time
         per_text_time = detection_time / len(test_texts)
 
-        assert per_text_time < 0.01, f"Per-text detection time: {per_text_time:.6f}s"
+        assert per_text_time * 1000 < MAX_PII_DETECT_MS, (
+            f"Per-text detection time: {per_text_time:.6f}s"
+        )
 
         # Test redaction performance
         start_time = time.perf_counter()
@@ -511,7 +600,9 @@ class TestSecurityPerformance:
         redaction_time = time.perf_counter() - start_time
         per_text_time = redaction_time / len(test_texts)
 
-        assert per_text_time < 0.01, f"Per-text redaction time: {per_text_time:.6f}s"
+        assert per_text_time * 1000 < MAX_PII_REDACT_MS, (
+            f"Per-text redaction time: {per_text_time:.6f}s"
+        )
 
     def test_encryption_performance(self):
         """Test encryption performance."""
