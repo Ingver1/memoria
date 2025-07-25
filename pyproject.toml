@@ -89,6 +89,9 @@ ai-mem = "memory_system.cli:app"
 where   = ["."]
 exclude = ["tests*", "examples*"]
 
+[tool.setuptools]
+py-modules = ["sitecustomize"]
+
 [tool.setuptools.dynamic]
 version = {attr = "memory_system.__version__"}
 
