@@ -20,6 +20,7 @@ Notes
 from __future__ import annotations
 
 import asyncio
+import copy
 import datetime as _dt
 import logging
 import uuid
@@ -31,7 +32,6 @@ from collections.abc import MutableMapping, Sequence
 # local
 from dataclasses import dataclass
 from typing import Any, Protocol
-import copy
 
 
 @dataclass(slots=True)
