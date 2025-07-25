@@ -185,7 +185,7 @@ class TestEmbeddingPerformance:
     async def test_embedding_memory_usage(self, embedding_service):
         """Test memory usage during embedding operations."""
 
-        process = psutil.Process(os.getpid()start_time = time.perf_counter()
+        process = psutil.Process(os.getpid())
         initial_memory = process.memory_info().rss
 
         # Generate many embeddings
