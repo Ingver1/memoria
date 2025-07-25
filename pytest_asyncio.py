@@ -1,6 +1,7 @@
 import asyncio
 import inspect
 from typing import Any, cast
+
 import pytest
 
 # Export a fixture decorator compatible with the standard ``pytest-asyncio``
