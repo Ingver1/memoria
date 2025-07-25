@@ -43,12 +43,12 @@ class TestEmbeddingPerformance:
         await embedding_service.encode(text)
 
         # Measure performance
-        start_time = time.time()
+        start_time = time.perf_counter()
         for _ in range(10):
             embedding = await embedding_service.encode(text)
             assert embedding.shape[1] == 384
 
-        end_time = time.time()
+        end_time = time.perf_counter()
         total_time = end_time - start_time
         avg_time = total_time / 10
 
@@ -63,9 +63,9 @@ class TestEmbeddingPerformance:
         ]
 
         # Measure batch performance
-        start_time = time.time()
+        start_time = time.perf_counter()
         embeddings = await embedding_service.encode(texts)
-        end_time = time.time()
+        end_time = time.perf_counter()
 
         batch_time = end_time - start_time
         per_text_time = batch_time / len(texts)
@@ -90,9 +90,9 @@ class TestEmbeddingPerformance:
         tasks = [embed_text(i) for i in range(num_tasks)]
 
         # Measure concurrent performance
-        start_time = time.time()
+        start_time = time.perf_counter()
         results = await asyncio.gather(*tasks)
-        end_time = time.time()
+        end_time = time.perf_counter()
 
         concurrent_time = end_time - start_time
         per_task_time = concurrent_time / num_tasks
@@ -111,14 +111,14 @@ class TestEmbeddingPerformance:
         text = "This text will be cached for performance testing."
 
         # First embedding (cache miss)
-        start_time = time.time()
+        start_time = time.perf_counter()
         embedding1 = await embedding_service.encode(text)
-        first_time = time.time() - start_time
+        first_time = time.perf_counter() - start_time
 
         # Second embedding (cache hit)
-        start_time = time.time()
+        start_time = time.perf_counter()
         embedding2 = await embedding_service.encode(text)
-        second_time = time.time() - start_time
+        second_time = time.perf_counter() - start_time
 
         # Results should be identical
         np.testing.assert_array_equal(embedding1, embedding2)
@@ -136,7 +136,7 @@ class TestEmbeddingPerformance:
     async def test_embedding_memory_usage(self, embedding_service):
         """Test memory usage during embedding operations."""
 
-        process = psutil.Process(os.getpid())
+        process = psutil.Process(os.getpid()start_time = time.perf_counter()
         initial_memory = process.memory_info().rss
 
         # Generate many embeddings
@@ -166,10 +166,10 @@ class TestIndexPerformance:
         vector_ids = [f"vec_{i}" for i in range(num_vectors)]
         vectors = np.random.rand(num_vectors, 384).astype(np.float32)
 
-        start_time = time.time()
+        start_time = time.perf_counter()
         index.add_vectors(vector_ids, vectors)
-        build_time = time.time() - start_time
-
+        build_time = time.perf_counter() - start_time
+        
         print(f"Index build time for {num_vectors} vectors: {build_time:.3f}s")
         return index
 
@@ -183,9 +183,9 @@ class TestIndexPerformance:
         # Measure search performance
         search_times = []
         for _ in range(100):
-            start_time = time.time()
+            start_time = time.perf_counter()
             result_ids, distances = large_index.search(query_vector, k=10)
-            search_time = time.time() - start_time
+            search_time = time.perf_counter() - start_time
             search_times.append(search_time)
 
             assert len(result_ids) <= 10
@@ -209,9 +209,9 @@ class TestIndexPerformance:
             vector_ids = [f"batch_{batch_size}_vec_{i}" for i in range(batch_size)]
             vectors = np.random.rand(batch_size, 384).astype(np.float32)
 
-            start_time = time.time()
+            start_time = time.perf_counter()
             index.add_vectors(vector_ids, vectors)
-            build_time = time.time() - start_time
+            build_time = time.perf_counter() - start_time
 
             per_vector_time = build_time / batch_size
 
@@ -227,9 +227,9 @@ class TestIndexPerformance:
             results = []
 
             for _ in range(20):
-                start_time = time.time()
+                start_time = time.perf_counter()
                 result_ids, distances = large_index.search(query_vector, k=5)
-                search_time = time.time() - start_time
+                search_time = time.perf_counter() - start_time
                 results.append(search_time)
 
                 assert len(result_ids) <= 5
@@ -240,10 +240,10 @@ class TestIndexPerformance:
         # Run concurrent searches
         num_workers = 4
         with ThreadPoolExecutor(max_workers=num_workers) as executor:
-            start_time = time.time()
+            start_time = time.perf_counter()
             futures = [executor.submit(search_worker, i) for i in range(num_workers)]
             results = [future.result() for future in futures]
-            total_time = time.time() - start_time
+            total_time = time.perf_counter() - start_time
 
         # Analyze results
         all_times = []
@@ -298,22 +298,22 @@ class TestVectorStorePerformance:
         vectors = np.random.rand(num_vectors, 384).astype(np.float32)
 
         # Test individual writes
-        start_time = time.time()
+        start_time = time.perf_counter()
         for i in range(num_vectors):
             vector_id = f"perf_vec_{i}"
             vector_store.add_vector(vector_id, vectors[i])
 
-        write_time = time.time() - start_time
+        write_time = time.perf_counter() - start_time
         per_vector_time = write_time / num_vectors
 
         # Write performance should be reasonable
         assert per_vector_time < 0.03, f"Per-vector write time: {per_vector_time:.6f}s"
 
         # Test flush performance
-        start_time = time.time()
+        start_time = time.perf_counter()
         asyncio.run(vector_store.flush())
-        flush_time = time.time() - start_time
-
+        flush_time = time.perf_counter() - start_time
+        
         assert flush_time < 5.0, f"Flush time: {flush_time:.3f}s"
 
     def test_vector_store_read_performance(self, vector_store):
@@ -330,9 +330,9 @@ class TestVectorStorePerformance:
         # Test read performance
         read_times = []
         for vector_id in vector_ids:
-            start_time = time.time()
+            start_time = time.perf_counter()
             retrieved = vector_store.get_vector(vector_id)
-            read_time = time.time() - start_time
+            read_time = time.perf_counter() - start_time
             read_times.append(read_time)
 
             assert retrieved.shape == (384,)
@@ -371,21 +371,21 @@ class TestVectorStorePerformance:
 
         # Test concurrent writes
         with ThreadPoolExecutor(max_workers=3) as executor:
-            start_time = time.time()
+            start_time = time.perf_counter()
             write_futures = [executor.submit(write_worker, i) for i in range(3)]
             for future in write_futures:
                 future.result()
-            write_time = time.time() - start_time
+            write_time = time.perf_counter() - start_time
 
         assert write_time < 10.0, f"Concurrent write time: {write_time:.3f}s"
 
         # Test concurrent reads
         with ThreadPoolExecutor(max_workers=3) as executor:
-            start_time = time.time()
+            start_time = time.perf_counter()
             read_futures = [executor.submit(read_worker, i) for i in range(3)]
             for future in read_futures:
                 future.result()
-            read_time = time.time() - start_time
+            read_time = time.perf_counter() - start_time
 
         assert read_time < 10.0, f"Concurrent read time: {read_time:.3f}s"
 
@@ -408,9 +408,9 @@ class TestCachePerformance:
         get_times = []
         for i in range(500):
             key = f"key_{i}"
-            start_time = time.time()
+            start_time = time.perf_counter()
             value = cache.get(key)
-            get_time = time.time() - start_time
+            get_time = time.perf_counter() - start_time
             get_times.append(get_time)
 
             assert value is not None
@@ -432,9 +432,9 @@ class TestCachePerformance:
             key = f"key_{i}"
             value = f"value_{i}" * 10  # Some bulk data
 
-            start_time = time.time()
+            start_time = time.perf_counter()
             cache.put(key, value)
-            put_time = time.time() - start_time
+            put_time = time.perf_counter() - start_time
             put_times.append(put_time)
 
         avg_put_time = sum(put_times) / len(put_times)
@@ -491,24 +491,24 @@ class TestSecurityPerformance:
         ]
 
         # Test detection performance
-        start_time = time.time()
+        start_time = time.perf_counter()
         for text in test_texts:
             detections = pii_filter.detect(text)
             assert len(detections) >= 2  # email and phone
 
-        detection_time = time.time() - start_time
+        detection_time = time.perf_counter() - start_time
         per_text_time = detection_time / len(test_texts)
 
         assert per_text_time < 0.01, f"Per-text detection time: {per_text_time:.6f}s"
 
         # Test redaction performance
-        start_time = time.time()
+        start_time = time.perf_counter()
         for text in test_texts:
             redacted, found_pii, pii_types = pii_filter.redact(text)
             assert found_pii is True
             assert len(pii_types) >= 2
 
-        redaction_time = time.time() - start_time
+        redaction_time = time.perf_counter() - start_time
         per_text_time = redaction_time / len(test_texts)
 
         assert per_text_time < 0.01, f"Per-text redaction time: {per_text_time:.6f}s"
