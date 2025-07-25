@@ -5,11 +5,11 @@ with the stored baseline. pytest-benchmark handles the comparison, and
 pytest_asyncio is used for async fixtures.
 """
 import asyncio
+from typing import Any, AsyncGenerator, Callable
 
 import pytest
 
 import pytest_asyncio
-from typing import AsyncGenerator, Callable, Any
 from memory_system.utils.loop import get_or_create_loop
 
 # Skip this test module if pytest-benchmark is unavailable
