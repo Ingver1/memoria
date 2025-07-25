@@ -9,8 +9,8 @@ from typing import Generator
 from unittest.mock import patch
 
 import pytest
-import numpy as np
 
+import numpy as np
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.embedding import (
     EmbeddingError,
