@@ -276,8 +276,10 @@ class VectorStore:
             offset = self._file.tell()
             buf = _array.array("f", [float(x) for x in arr])
             self._file.write(buf.tobytes())
-            self._conn.execute("INSERT INTO vectors (id, offset) VALUES (?, ?)", (vector_id, offset))
-            self._conn.commit()
+            self._conn.execute(
+                "INSERT INTO vectors (id, offset) VALUES (?, ?)",
+                (vector_id, offset),
+            )
 
     def get_vector(self, vector_id: str) -> np.ndarray:
         """Return the stored vector for ``vector_id``."""
@@ -300,7 +302,6 @@ class VectorStore:
             cur = self._conn.execute("DELETE FROM vectors WHERE id=?", (vector_id,))
             if cur.rowcount == 0:
                 raise StorageError("Vector not found")
-            self._conn.commit()
 
     def list_ids(self) -> list[str]:
         with self._db_lock:
