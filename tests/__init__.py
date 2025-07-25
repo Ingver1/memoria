@@ -12,6 +12,10 @@ Unified Memory System including:
 from __future__ import annotations
 
 import os
+
+# Disable auto-discovery of external pytest plugins so our bundled stub
+# plugins are used regardless of what is installed in the environment.
+os.environ.setdefault("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
 import sys
 import tempfile
 from pathlib import Path
