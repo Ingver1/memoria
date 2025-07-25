@@ -2,12 +2,12 @@
 
 import asyncio
 import time
+from typing import AsyncGenerator
 
 import pytest
 
 import httpx
 import pytest_asyncio
-from typing import AsyncGenerator
 from fastapi import FastAPI, Request
 from fastapi.testclient import ClientHelper
 from memory_system import __version__
