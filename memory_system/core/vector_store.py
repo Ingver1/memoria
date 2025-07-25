@@ -128,7 +128,7 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
             await self._loop.run_in_executor(
                 None, self._index.add_with_ids, _to_faiss_array(vectors), _to_faiss_ids(ids)
             )
-            for _id, meta in zip(ids, metadata):
+            for _id, meta in zip(ids, metadata, strict=False):
                 self._metadata[_id] = meta
         return ids
 
@@ -137,7 +137,7 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
             D, indices = self._index.search(_to_faiss_array([vector]), k)
         matches: list[tuple[str, float]] = []
         # Remove 'strict=False' for compatibility with Python <3.10
-        for idx, dist in zip(indices[0], D[0]):
+        for idx, dist in zip(indices[0], D[0], strict=False):
             if idx == -1:
                 continue
             _id = _from_faiss_id(idx)
