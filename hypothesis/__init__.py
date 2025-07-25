@@ -1,7 +1,7 @@
 import functools
 import inspect
 import random
-from typing import Callable, Any
+from typing import Any, Callable
 
 from . import strategies
 
@@ -62,7 +62,7 @@ def settings(**kwargs: Any) -> Callable[..., object]:
             self.__dict__.update(kw)
     def decorator(func: Callable[..., object]) -> Callable[..., object]:
         # Use setattr to avoid mypy error
-        setattr(func, "_settings", Config(**kwargs))
+        func._settings = Config(**kwargs)
         return func
     return decorator
 
