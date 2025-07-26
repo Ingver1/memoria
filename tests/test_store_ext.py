@@ -8,7 +8,7 @@ from memory_system.core.store import Memory, SQLiteMemoryStore
 
 
 @pytest.fixture
-def store(tmp_path):
+def store(tmp_path: Path) -> SQLiteMemoryStore:
     db_file = tmp_path / "mem.db"
     return SQLiteMemoryStore(db_file.as_posix())
 
@@ -18,7 +18,7 @@ async def _count(store: SQLiteMemoryStore) -> int:
     return len(rows)
 
 
-def test_memory_new_validation_ok():
+def test_memory_new_validation_ok() -> None:
     mem = Memory.new(
         "hi",
         importance=1.0,
@@ -41,14 +41,14 @@ def test_memory_new_validation_ok():
         ("emotional_intensity", -0.1),
     ],
 )
-def test_memory_new_validation_error(field, value):
+def test_memory_new_validation_error(field: str, value: float) -> None:
     kwargs = {field: value}
     with pytest.raises(ValueError):
         Memory.new("x", **kwargs)
 
 
 @pytest.mark.asyncio
-async def test_row_to_memory_roundtrip(store):
+async def test_row_to_memory_roundtrip(store: SQLiteMemoryStore) -> None:
     mem = Memory.new("hello", metadata={"foo": 1}, importance=0.5, valence=0.2)
     await store.add(mem)
 
@@ -57,7 +57,7 @@ async def test_row_to_memory_roundtrip(store):
 
 
 @pytest.mark.asyncio
-async def test_insert_failure_atomic(store):
+async def test_insert_failure_atomic(store: SQLiteMemoryStore) -> None:
     mem1 = Memory.new("one")
     await store.add(mem1)
 
@@ -73,7 +73,7 @@ async def test_insert_failure_atomic(store):
 
 
 @pytest.mark.asyncio
-async def test_concurrent_add_and_search(store):
+async def test_concurrent_add_and_search(store: SQLiteMemoryStore) -> None:
     tasks = [store.add(Memory.new(f"t{i}")) for i in range(10)]
     await asyncio.gather(*tasks)
 
@@ -84,7 +84,7 @@ async def test_concurrent_add_and_search(store):
 
 
 @pytest.mark.asyncio
-async def test_json_error_handling(store):
+async def test_json_error_handling(store: SQLiteMemoryStore) -> None:
     bad = Memory.new("bad", metadata={"a": object()})
     with pytest.raises(TypeError):
         await store.add(bad)
