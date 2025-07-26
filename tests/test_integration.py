@@ -5,6 +5,7 @@ import json
 import tempfile
 import time
 from pathlib import Path
+from typing import AsyncGenerator, Any, Dict
 
 import pytest
 
@@ -25,7 +26,7 @@ class TestEndToEndMemoryWorkflow:
     """Test complete end-to-end memory management workflow."""
 
     @pytest_asyncio.fixture
-    async def full_system(self):
+    async def full_system(self) -> AsyncGenerator[Dict[str, Any], None]:
         """Create a complete system setup."""
         settings = UnifiedSettings.for_testing()
 
@@ -52,7 +53,7 @@ class TestEndToEndMemoryWorkflow:
             vector_store.close()
 
     @pytest.mark.asyncio
-    async def test_complete_memory_lifecycle(self, full_system):
+    async def test_complete_memory_lifecycle(self, full_system: Dict[str, Any]) -> None:
         """Test complete memory lifecycle from creation to search."""
         components = full_system
         embedding_service = components["embedding_service"]
@@ -127,7 +128,7 @@ class TestEndToEndMemoryWorkflow:
             assert isinstance(top_memory["text"], str)
 
     @pytest.mark.asyncio
-    async def test_memory_search_precision(self, full_system):
+    async def test_memory_search_precision(self, full_system: Dict[str, Any]) -> None:
         """Test search precision and recall."""
         components = full_system
         embedding_service = components["embedding_service"]
@@ -196,7 +197,7 @@ class TestEndToEndMemoryWorkflow:
             assert precision >= 0
 
     @pytest.mark.asyncio
-    async def test_memory_persistence(self, full_system):
+    async def test_memory_persistence(self, full_system: Dict[str, Any]) -> None:
         """Test memory persistence across system restarts."""
         components = full_system
         embedding_service = components["embedding_service"]
@@ -248,16 +249,16 @@ class TestEndToEndMemoryWorkflow:
             Path(index_path).unlink(missing_ok=True)
 
     @pytest.mark.asyncio
-    async def test_concurrent_memory_operations(self, full_system):
+    async def test_concurrent_memory_operations(self, full_system: Dict[str, Any]) -> None:
         """Test concurrent memory operations."""
         components = full_system
         embedding_service = components["embedding_service"]
         vector_store = components["vector_store"]
         index = components["index"]
 
-        async def add_memories(batch_id: int, count: int):
+        async def add_memories(batch_id: int, count: int) -> list[dict[str, Any]]:
             """Add a batch of memories concurrently."""
-            batch_memories = []
+            batch_memories: list[dict[str, Any]] = []
             for i in range(count):
                 memory = {
                     "id": f"concurrent_{batch_id}_{i}",
@@ -305,7 +306,7 @@ class TestEndToEndMemoryWorkflow:
         assert index_stats.total_vectors == len(all_memories)
 
         # Test concurrent searches
-        async def search_memories(query_text: str):
+        async def search_memories(query_text: str) -> Any:
             """Perform concurrent searches."""
             query_embedding = await embedding_service.encode(query_text)
             result_ids, distances = index.search(query_embedding.flatten(), k=3)
@@ -330,22 +331,22 @@ class TestAPIIntegration:
     """Test API integration with core components."""
 
     @pytest.fixture
-    def test_app(self):
+    def test_app(self) -> Any:
         """Create test FastAPI app."""
         return create_app()
 
     @pytest.fixture
-    def client(self, test_app):
+    def client(self, test_app: Any) -> ClientHelper:
         """Create test client."""
         return ClientHelper(test_app)
 
     @pytest_asyncio.fixture
-    async def async_client(self, test_app):
+    async def async_client(self, test_app: Any) -> AsyncGenerator[httpx.AsyncClient, None]:
         """Create async test client."""
         async with httpx.AsyncClient(app=test_app, base_url="http://test") as client:
             yield client
 
-    def test_api_health_integration(self, client):
+    def test_api_health_integration(self, client: ClientHelper) -> None:
         """Test API health endpoint integration."""
         response = client.get("/api/v1/health")
         assert response.status_code == 200
@@ -362,7 +363,7 @@ class TestAPIIntegration:
         for check in expected_checks:
             assert check in data["checks"]
 
-    def test_api_stats_integration(self, client):
+    def test_api_stats_integration(self, client: ClientHelper) -> None:
         """Test API stats endpoint integration."""
         response = client.get("/api/v1/stats")
         assert response.status_code == 200
@@ -378,7 +379,7 @@ class TestAPIIntegration:
         assert isinstance(data["api_stats"], dict)
 
     @pytest.mark.asyncio
-    async def test_api_concurrent_requests(self, async_client):
+    async def test_api_concurrent_requests(self, async_client: httpx.AsyncClient) -> None:
         """Test concurrent API requests."""
         # Make multiple concurrent requests
         tasks = []
@@ -394,7 +395,7 @@ class TestAPIIntegration:
             data = response.json()
             assert data["version"] == __version__
             
-    def test_api_error_handling_integration(self, client):
+    def test_api_error_handling_integration(self, client: ClientHelper) -> None:
         """Test API error handling integration."""
         # Test 404 error
         response = client.get("/api/v1/nonexistent")
@@ -405,7 +406,7 @@ class TestAPIIntegration:
         assert response.status_code == 405
         assert response.headers.get("content-type") == "application/json"
 
-    def test_api_middleware_integration(self, client):
+    def test_api_middleware_integration(self, client: ClientHelper) -> None:
         """Test API middleware integration."""
         # Test that middleware is working
         response = client.get("/api/v1/health")
@@ -423,7 +424,7 @@ class TestAPIIntegration:
 class TestSecurityIntegration:
     """Test security integration across components."""
 
-    def test_pii_filtering_integration(self):
+    def test_pii_filtering_integration(self) -> None:
         """Test PII filtering across the system."""
         pii_filter = EnhancedPIIFilter()
 
@@ -450,7 +451,7 @@ class TestSecurityIntegration:
                 for value in detected_values:
                     assert value not in redacted
 
-    def test_encryption_integration(self):
+    def test_encryption_integration(self) -> None:
         """Test encryption integration."""
         encryption_manager = EncryptionManager()
 
@@ -472,7 +473,7 @@ class TestSecurityIntegration:
             _decrypted = encryption_manager.decrypt(encrypted)
             assert _decrypted == data
 
-    def test_pii_and_encryption_integration(self):
+    def test_pii_and_encryption_integration(self) -> None:
         """Test PII filtering with encryption."""
         pii_filter = EnhancedPIIFilter()
         encryption_manager = EncryptionManager()
@@ -499,7 +500,7 @@ class TestSecurityIntegration:
         assert "[EMAIL_REDACTED]" in decrypted
         assert "[CREDIT_CARD_REDACTED]" in decrypted
 
-    def test_security_performance_integration(self):
+    def test_security_performance_integration(self) -> None:
         """Test security operations performance."""
         pii_filter = EnhancedPIIFilter()
         encryption_manager = EncryptionManager()
