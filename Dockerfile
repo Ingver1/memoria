@@ -57,4 +57,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=20s CMD \
   curl -f http://localhost:8000/health/live || exit 1
 
-ENTRYPOINT ["uvicorn", "memory_system.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT ["uvicorn", "memory_system.api.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
