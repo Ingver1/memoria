@@ -5,7 +5,7 @@ import json
 import tempfile
 import time
 from pathlib import Path
-from typing import AsyncGenerator, Any, Dict
+from typing import Any, AsyncGenerator, Dict
 
 import pytest
 
