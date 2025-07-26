@@ -3,9 +3,10 @@ Evaluates semantic_search precision@k with simple synthetic neighbours.
 Goal: at least 0.8 precision when querying near-identical vectors.
 """
 import random
+from pathlib import Path
+from typing import List, Union
 
 import pytest
-
 import numpy as np
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.enhanced_store import EnhancedMemoryStore
@@ -13,12 +14,12 @@ from memory_system.core.enhanced_store import EnhancedMemoryStore
 DIM = UnifiedSettings.for_testing().model.vector_dim
 
 
-def near(vec, eps=0.0):
+def near(vec: List[float], eps: float = 0.0) -> List[float]:
     return [float(x) + random.uniform(-eps, eps) for x in vec]
 
 
 @pytest.mark.asyncio
-async def test_precision_at_k(tmp_path):
+async def test_precision_at_k(tmp_path: Path) -> None:
     cfg = UnifiedSettings.for_testing()
     store = EnhancedMemoryStore(cfg)
 
