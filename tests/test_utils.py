@@ -3,6 +3,7 @@
 import re
 import secrets
 import time
+from typing import Any, Dict, List, Optional
 
 import pytest
 
@@ -12,25 +13,25 @@ from memory_system.utils.security import (
     PasswordManager,
     PIIPatterns,
     SecureTokenManager,
-    SecurityError,
 )
+from memory_system.utils.security.errors import SecurityError
 
 
 class TestSmartCache:
     """Test SmartCache functionality."""
 
     @pytest.fixture
-    def cache(self):
+    def cache(self) -> SmartCache:
         """Create SmartCache instance."""
         return SmartCache(max_size=100, ttl=300)
 
-    def test_cache_initialization(self, cache):
+    def test_cache_initialization(self, cache: SmartCache) -> None:
         """Test cache initialization."""
         assert cache.max_size == 100
         assert cache.ttl == 300
         assert cache._data == {}
 
-    def test_cache_get_put(self, cache):
+    def test_cache_get_put(self, cache: SmartCache) -> None:
         """Test basic get/put operations."""
         key = "test_key"
         value = "test_value"
@@ -42,7 +43,7 @@ class TestSmartCache:
         cache.put(key, value)
         assert cache.get(key) == value
 
-    def test_cache_overwrite(self, cache):
+    def test_cache_overwrite(self, cache: SmartCache) -> None:
         """Test overwriting existing key."""
         key = "test_key"
         value1 = "value1"
@@ -54,7 +55,7 @@ class TestSmartCache:
         cache.put(key, value2)
         assert cache.get(key) == value2
 
-    def test_cache_different_types(self, cache):
+    def test_cache_different_types(self, cache: SmartCache) -> None:
         """Test caching different data types."""
         test_data = {
             "string": "test",
@@ -69,7 +70,7 @@ class TestSmartCache:
             cache.put(key, value)
             assert cache.get(key) == value
 
-    def test_cache_clear(self, cache):
+    def test_cache_clear(self, cache: SmartCache) -> None:
         """Test cache clear operation."""
         cache.put("key1", "value1")
         cache.put("key2", "value2")
@@ -82,7 +83,7 @@ class TestSmartCache:
         assert cache.get("key1") is None
         assert cache.get("key2") is None
 
-    def test_cache_stats(self, cache):
+    def test_cache_stats(self, cache: SmartCache) -> None:
         """Test cache statistics."""
         stats = cache.get_stats()
         assert isinstance(stats, dict)
@@ -104,7 +105,7 @@ class TestSmartCache:
 class TestPIIPatterns:
     """Test PII regex patterns."""
 
-    def test_email_pattern(self):
+    def test_email_pattern(self) -> None:
         """Test email pattern matching."""
         pattern = PIIPatterns.EMAIL
 
@@ -130,7 +131,7 @@ class TestPIIPatterns:
         for email in invalid_emails:
             assert pattern.search(email) is None
 
-    def test_credit_card_pattern(self):
+    def test_credit_card_pattern(self) -> None:
         """Test credit card pattern matching."""
         pattern = PIIPatterns.CREDIT_CARD
 
@@ -154,7 +155,7 @@ class TestPIIPatterns:
         for card in invalid_cards:
             assert pattern.search(card) is None
 
-    def test_ssn_pattern(self):
+    def test_ssn_pattern(self) -> None:
         """Test SSN pattern matching."""
         pattern = PIIPatterns.SSN
 
@@ -178,7 +179,7 @@ class TestPIIPatterns:
         for ssn in invalid_ssns:
             assert pattern.search(ssn) is None
 
-    def test_phone_pattern(self):
+    def test_phone_pattern(self) -> None:
         """Test phone pattern matching."""
         pattern = PIIPatterns.PHONE
 
@@ -205,7 +206,7 @@ class TestPIIPatterns:
         for phone in invalid_phones:
             assert pattern.search(phone) is None
 
-    def test_ip_address_pattern(self):
+    def test_ip_address_pattern(self) -> None:
         """Test IP address pattern matching."""
         pattern = PIIPatterns.IP_ADDRESS
 
@@ -238,18 +239,18 @@ class TestEnhancedPIIFilter:
     """Test EnhancedPIIFilter functionality."""
 
     @pytest.fixture
-    def pii_filter(self):
+    def pii_filter(self) -> EnhancedPIIFilter:
         """Create EnhancedPIIFilter instance."""
         return EnhancedPIIFilter()
 
-    def test_filter_initialization(self, pii_filter):
+    def test_filter_initialization(self, pii_filter: EnhancedPIIFilter) -> None:
         """Test filter initialization."""
         assert isinstance(pii_filter.patterns, dict)
         assert len(pii_filter.patterns) > 0
         assert isinstance(pii_filter.stats, dict)
         assert all(count == 0 for count in pii_filter.stats.values())
 
-    def test_detect_pii(self, pii_filter):
+    def test_detect_pii(self, pii_filter: EnhancedPIIFilter) -> None:
         """Test PII detection."""
         text = "Contact John at john@example.com or call 123-456-7890"
         detections = pii_filter.detect(text)
@@ -260,7 +261,7 @@ class TestEnhancedPIIFilter:
         assert detections["email"] == ["john@example.com"]
         assert detections["phone"] == ["123-456-7890"]
 
-    def test_detect_no_pii(self, pii_filter):
+    def test_detect_no_pii(self, pii_filter: EnhancedPIIFilter) -> None:
         """Test detection with no PII."""
         text = "This is a normal text without any sensitive information."
         detections = pii_filter.detect(text)
@@ -268,7 +269,7 @@ class TestEnhancedPIIFilter:
         assert isinstance(detections, dict)
         assert len(detections) == 0
 
-    def test_redact_pii(self, pii_filter):
+    def test_redact_pii(self, pii_filter: EnhancedPIIFilter) -> None:
         """Test PII redaction."""
         text = "Contact John at john@example.com or call 123-456-7890"
         redacted, found_pii, pii_types = pii_filter.redact(text)
@@ -282,7 +283,7 @@ class TestEnhancedPIIFilter:
         assert "[EMAIL_REDACTED]" in redacted
         assert "[PHONE_REDACTED]" in redacted
 
-    def test_redact_no_pii(self, pii_filter):
+    def test_redact_no_pii(self, pii_filter: EnhancedPIIFilter) -> None:
         """Test redaction with no PII."""
         text = "This is a normal text without any sensitive information."
         redacted, found_pii, pii_types = pii_filter.redact(text)
@@ -291,7 +292,7 @@ class TestEnhancedPIIFilter:
         assert pii_types == []
         assert redacted == text
 
-    def test_partial_redact_pii(self, pii_filter):
+    def test_partial_redact_pii(self, pii_filter: EnhancedPIIFilter) -> None:
         """Test partial PII redaction."""
         text = "Contact John at john@example.com"
         redacted, found_pii, pii_types = pii_filter.partial_redact(text, preserve_chars=2)
@@ -302,7 +303,7 @@ class TestEnhancedPIIFilter:
         # Should preserve some characters
         assert "jo" in redacted and "om" in redacted
 
-    def test_filter_stats(self, pii_filter):
+    def test_filter_stats(self, pii_filter: EnhancedPIIFilter) -> None:
         """Test filter statistics."""
         text = "Contact john@example.com and jane@test.org"
         pii_filter.detect(text)
@@ -315,7 +316,7 @@ class TestEnhancedPIIFilter:
         stats = pii_filter.get_stats()
         assert all(count == 0 for count in stats.values())
 
-    def test_custom_patterns(self):
+    def test_custom_patterns(self) -> None:
         """Test custom PII patterns."""
         custom_patterns = {"custom_id": re.compile(r"ID-\d{6}")}
 
@@ -332,31 +333,31 @@ class TestSecureTokenManager:
     """Test SecureTokenManager functionality."""
 
     @pytest.fixture
-    def token_manager(self):
+    def token_manager(self) -> SecureTokenManager:
         """Create SecureTokenManager instance."""
         secret = secrets.token_urlsafe(32)
         return SecureTokenManager(secret)
 
-    def test_token_manager_initialization(self, token_manager):
+    def test_token_manager_initialization(self, token_manager: SecureTokenManager) -> None:
         """Test token manager initialization."""
         assert token_manager.algorithm == "HS256"
         assert token_manager.issuer == "unified-memory-system"
         assert len(token_manager.secret_key) >= 32
 
-    def test_token_manager_invalid_secret(self):
+    def test_token_manager_invalid_secret(self) -> None:
         """Test token manager with invalid secret."""
         with pytest.raises(SecurityError) as exc_info:
             SecureTokenManager("short")
         assert "at least 32 characters" in str(exc_info.value)
 
-    def test_token_manager_invalid_algorithm(self):
+    def test_token_manager_invalid_algorithm(self) -> None:
         """Test token manager with invalid algorithm."""
         secret = secrets.token_urlsafe(32)
         with pytest.raises(SecurityError) as exc_info:
             SecureTokenManager(secret, algorithm="INVALID")
         assert "not allowed" in str(exc_info.value)
 
-    def test_generate_token(self, token_manager):
+    def test_generate_token(self, token_manager: SecureTokenManager) -> None:
         """Test token generation."""
         user_id = "test_user"
         token = token_manager.generate_token(user_id)
@@ -369,7 +370,7 @@ class TestSecureTokenManager:
         assert payload is not None
         assert payload["sub"] == user_id
 
-    def test_generate_token_with_custom_params(self, token_manager):
+    def test_generate_token_with_custom_params(self, token_manager: SecureTokenManager) -> None:
         """Test token generation with custom parameters."""
         user_id = "test_user"
         expires_in = 7200
@@ -385,7 +386,7 @@ class TestSecureTokenManager:
         assert payload["scopes"] == scopes
         assert payload["aud"] == audience
 
-    def test_generate_token_invalid_user_id(self, token_manager):
+    def test_generate_token_invalid_user_id(self, token_manager: SecureTokenManager) -> None:
         """Test token generation with invalid user ID."""
         with pytest.raises(SecurityError) as exc_info:
             token_manager.generate_token("")
@@ -395,7 +396,7 @@ class TestSecureTokenManager:
             token_manager.generate_token("x" * 101)
         assert "Invalid user_id" in str(exc_info.value)
 
-    def test_generate_token_invalid_expiration(self, token_manager):
+    def test_generate_token_invalid_expiration(self, token_manager: SecureTokenManager) -> None:
         """Test token generation with invalid expiration."""
         with pytest.raises(SecurityError) as exc_info:
             token_manager.generate_token("test_user", expires_in=0)
@@ -405,7 +406,7 @@ class TestSecureTokenManager:
             token_manager.generate_token("test_user", expires_in=100000)
         assert "Invalid expiration time" in str(exc_info.value)
 
-    def test_verify_token(self, token_manager):
+    def test_verify_token(self, token_manager: SecureTokenManager) -> None:
         """Test token verification."""
         user_id = "test_user"
         token = token_manager.generate_token(user_id)
@@ -415,13 +416,13 @@ class TestSecureTokenManager:
         assert payload["sub"] == user_id
         assert payload["iss"] == "unified-memory-system"
 
-    def test_verify_invalid_token(self, token_manager):
+    def test_verify_invalid_token(self, token_manager: SecureTokenManager) -> None:
         """Test verification of invalid token."""
         with pytest.raises(SecurityError) as exc_info:
             token_manager.verify_token("invalid_token")
         assert "Invalid token" in str(exc_info.value)
 
-    def test_verify_expired_token(self, token_manager):
+    def test_verify_expired_token(self, token_manager: SecureTokenManager) -> None:
         """Test verification of expired token."""
         user_id = "test_user"
         token = token_manager.generate_token(user_id, expires_in=1)
@@ -433,7 +434,7 @@ class TestSecureTokenManager:
             token_manager.verify_token(token)
         assert "expired" in str(exc_info.value).lower()
 
-    def test_revoke_token(self, token_manager):
+    def test_revoke_token(self, token_manager: SecureTokenManager) -> None:
         """Test token revocation."""
         user_id = "test_user"
         token = token_manager.generate_token(user_id)
@@ -451,7 +452,7 @@ class TestSecureTokenManager:
             token_manager.verify_token(token)
         assert "revoked" in str(exc_info.value).lower()
 
-    def test_generate_refresh_token(self, token_manager):
+    def test_generate_refresh_token(self, token_manager: SecureTokenManager) -> None:
         """Test refresh token generation."""
         user_id = "test_user"
         refresh_token = token_manager.generate_refresh_token(user_id)
@@ -464,7 +465,7 @@ class TestSecureTokenManager:
         assert payload["sub"] == user_id
         assert payload["token_type"] == "refresh"
 
-    def test_token_manager_stats(self, token_manager):
+    def test_token_manager_stats(self, token_manager: SecureTokenManager) -> None:
         """Test token manager statistics."""
         stats = token_manager.get_stats()
         assert isinstance(stats, dict)
@@ -478,7 +479,7 @@ class TestSecureTokenManager:
 class TestPasswordManager:
     """Test PasswordManager functionality."""
 
-    def test_hash_password(self):
+    def test_hash_password(self) -> None:
         """Test password hashing."""
         password = "test_password_123"
         hashed, salt = PasswordManager.hash_password(password)
@@ -489,7 +490,7 @@ class TestPasswordManager:
         assert len(salt) > 0
         assert hashed != password
 
-    def test_hash_password_with_salt(self):
+    def test_hash_password_with_salt(self) -> None:
         """Test password hashing with provided salt."""
         password = "test_password_123"
         salt = b"test_salt_16_bytes"
@@ -498,13 +499,13 @@ class TestPasswordManager:
         assert returned_salt == salt
         assert isinstance(hashed, str)
 
-    def test_hash_password_short_password(self):
+    def test_hash_password_short_password(self) -> None:
         """Test hashing short password."""
         with pytest.raises(SecurityError) as exc_info:
             PasswordManager.hash_password("short")
         assert "at least 8 characters" in str(exc_info.value)
 
-    def test_verify_password(self):
+    def test_verify_password(self) -> None:
         """Test password verification."""
         password = "test_password_123"
         hashed, salt = PasswordManager.hash_password(password)
@@ -515,13 +516,13 @@ class TestPasswordManager:
         # Wrong password
         assert PasswordManager.verify_password("wrong_password", hashed, salt) is False
 
-    def test_verify_password_with_exception(self):
+    def test_verify_password_with_exception(self) -> None:
         """Test password verification with exception."""
         # Should return False on any exception
         result = PasswordManager.verify_password("password", "invalid_hash", b"salt")
         assert result is False
 
-    def test_generate_secure_password(self):
+    def test_generate_secure_password(self) -> None:
         """Test secure password generation."""
         password = PasswordManager.generate_secure_password()
 
@@ -534,12 +535,12 @@ class TestPasswordManager:
         assert any(c.isdigit() for c in password)
         assert any(c in "!@#$%^&*()_+-=[]{}|;:,.<>?" for c in password)
 
-    def test_generate_secure_password_custom_length(self):
+    def test_generate_secure_password_custom_length(self) -> None:
         """Test secure password generation with custom length."""
         password = PasswordManager.generate_secure_password(length=20)
         assert len(password) == 20
 
-    def test_generate_secure_password_no_symbols(self):
+    def test_generate_secure_password_no_symbols(self) -> None:
         """Test secure password generation without symbols."""
         password = PasswordManager.generate_secure_password(include_symbols=False)
 
@@ -547,7 +548,7 @@ class TestPasswordManager:
         assert len(password) == 16
         assert not any(c in "!@#$%^&*()_+-=[]{}|;:,.<>?" for c in password)
 
-    def test_generate_secure_password_invalid_length(self):
+    def test_generate_secure_password_invalid_length(self) -> None:
         """Test secure password generation with invalid length."""
         with pytest.raises(SecurityError) as exc_info:
             PasswordManager.generate_secure_password(length=5)
@@ -562,5 +563,5 @@ class TestEncryptionManager:
     """Test EncryptionManager functionality."""
 
     @pytest.fixture
-    def encryption_manager(self):
+    def encryption_manager(self) -> Any:
         """Create EncryptionManager instance."""
