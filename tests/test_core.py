@@ -281,7 +281,7 @@ class TestEmbeddingJob:
         assert job.text == "test text"
         assert job.future is future
 
-     def test_embedding_job_immutable(self) -> None:
+    def test_embedding_job_immutable(self) -> None:
         """
         Test that EmbeddingJob is immutable.
         This test intentionally attempts to assign to a read-only property of a frozen dataclass.
