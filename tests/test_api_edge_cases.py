@@ -2,6 +2,7 @@ import asyncio
 from typing import AsyncGenerator
 
 import pytest
+
 import httpx
 import pytest_asyncio
 from fastapi import FastAPI
