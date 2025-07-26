@@ -269,6 +269,7 @@ class UnifiedSettings(BaseSettings):
     def for_testing(cls) -> "UnifiedSettings":
         return cls(
             profile="testing",
+            database=DatabaseConfig(model_config={"frozen": False}),
             performance=PerformanceConfig(max_workers=2, cache_size=100, cache_ttl_seconds=10),
             monitoring=MonitoringConfig(enable_metrics=False, health_check_interval=5),
             api=APIConfig(port=0),
