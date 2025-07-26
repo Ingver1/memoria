@@ -44,18 +44,30 @@ def reify(strat: _Strategy) -> object:
 
 def given(**kwargs: Any) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """Decorator for property-based tests. Injects strategy examples."""
+
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         sig = inspect.signature(func)
-        @functools.wraps(func)
-        def wrapper(*args: Any, **fkwargs: Any) -> T:
-            values = {name: strat.example() for name, strat in kwargs.items()}
-            fkwargs.update(values)
-            result = func(*args, **fkwargs)
-            return result
-        if inspect.isfunction(wrapper):
+
+        if inspect.iscoroutinefunction(func):
+            async def async_wrapper(*args: Any, **fkwargs: Any) -> T:
+                values = {name: strat.example() for name, strat in kwargs.items()}
+                fkwargs.update(values)
+                return await cast(Any, func)(*args, **fkwargs)
+
+            wrapper_func: Callable[..., T] = async_wrapper
+        else:
+            def sync_wrapper(*args: Any, **fkwargs: Any) -> T:
+                values = {name: strat.example() for name, strat in kwargs.items()}
+                fkwargs.update(values)
+                return func(*args, **fkwargs)
+
+            wrapper_func = sync_wrapper
+
+        if inspect.isfunction(wrapper_func):
             params = [p for p in sig.parameters.values() if p.name not in kwargs]
-            wrapper.__signature__ = inspect.Signature(parameters=params, return_annotation=sig.return_annotation)
-        return wrapper
+            wrapper_func.__signature__ = inspect.Signature(parameters=params, return_annotation=sig.return_annotation)
+        return cast(Callable[..., T], functools.wraps(func)(wrapper_func))
+
     return decorator
 
 def settings(**kwargs: Any) -> Callable[[Callable[..., T]], Callable[..., T]]:
