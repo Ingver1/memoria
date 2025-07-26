@@ -5,6 +5,7 @@ inside the SQLite backing file (uses SQLCipher driver).
 from pathlib import Path
 
 import pytest
+
 from memory_system.config.settings import DatabaseConfig, UnifiedSettings
 from memory_system.core.enhanced_store import EnhancedMemoryStore
 
