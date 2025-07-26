@@ -115,6 +115,24 @@ ignore_errors = true
 line-length = 120
 target-version = "py312"
 exclude = ["build/*", "build/", "dist/*"]
+extend-exclude = [
+    ".venv",
+    "aiosqlite",
+    "cryptography",
+    "fastapi",
+    "faiss",
+    "httpx",
+    "hypothesis",
+    "numpy",
+    "opentelemetry",
+    "prometheus_client",
+    "pydantic",
+    "pydantic_settings",
+    "schemathesis",
+    "sentence_transformers",
+    "starlette",
+    "yaml",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "B", "I"]
