@@ -38,9 +38,7 @@ class EnhancedMemoryStore:
         self.settings = settings
         self._start_time = time.time()
         # Underlying storage components
-        dsn = str(settings.database.db_path)
-        if hasattr(settings, "storage") and getattr(settings.storage, "database_url", None):
-            dsn = settings.storage.database_url
+        dsn = settings.get_database_url()
         self._store = SQLiteMemoryStore(dsn)
         self._index = FaissHNSWIndex(dim=settings.model.vector_dim)
         self._memory_count = 0
