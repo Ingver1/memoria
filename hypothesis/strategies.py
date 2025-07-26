@@ -5,6 +5,10 @@ from typing import Any, Callable, List, Optional
 class Strategy:
     """Base class for property-based strategies."""
 
+     def __class_getitem__(cls, item: Any) -> "Strategy":
+        """Allow Strategy[...] for type hinting purposes."""
+        return cls
+         
     def example(self) -> Any:
         raise NotImplementedError
 
@@ -103,4 +107,8 @@ def lists(element: Strategy, min_size: int = 0, max_size: Optional[int] = None) 
     return ListStrategy(element, min_size=min_size, max_size=max_size)
 
 
-__all__ = ["floats", "integers", "lists", "Strategy"]
+# Alias for compatibility with Hypothesis' public API
+SearchStrategy = Strategy
+
+
+__all__ = ["floats", "integers", "lists", "Strategy", "SearchStrategy"]
