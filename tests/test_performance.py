@@ -5,7 +5,7 @@ import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Generator, AsyncGenerator
+from typing import AsyncGenerator, Generator
 
 import pytest
 
