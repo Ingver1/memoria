@@ -1,9 +1,15 @@
 import functools
 import inspect
 import random
-from typing import Any, Callable
+from typing import Any, Callable, Protocol, TypeVar, cast
+from typing_extensions import TypeGuard
 
 from . import strategies
+
+T = TypeVar('T')
+
+class ConfigurableFunction(Protocol):
+    _settings: Any
 
 
 class _Strategy:
@@ -36,18 +42,15 @@ def reify(strat: _Strategy) -> object:
     """Get a concrete example from a strategy."""
     return strat.example()
 
-def given(**kwargs: Any) -> Callable[..., object]:
+def given(**kwargs: Any) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """Decorator for property-based tests. Injects strategy examples."""
-    def decorator(func: Callable[..., object]) -> Callable[..., object]:
+    def decorator(func: Callable[..., T]) -> Callable[..., T]:
         sig = inspect.signature(func)
         @functools.wraps(func)
-        def wrapper(*args: Any, **fkwargs: Any) -> object:
+        def wrapper(*args: Any, **fkwargs: Any) -> T:
             values = {name: strat.example() for name, strat in kwargs.items()}
             fkwargs.update(values)
             result = func(*args, **fkwargs)
-            if inspect.iscoroutine(result):
-                from memory_system.utils.loop import get_or_create_loop
-                return get_or_create_loop().run_until_complete(result)
             return result
         if inspect.isfunction(wrapper):
             params = [p for p in sig.parameters.values() if p.name not in kwargs]
@@ -55,15 +58,17 @@ def given(**kwargs: Any) -> Callable[..., object]:
         return wrapper
     return decorator
 
-def settings(**kwargs: Any) -> Callable[..., object]:
+def settings(**kwargs: Any) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """Dummy settings decorator for property-based tests."""
     class Config:
-        def __init__(self, **kw):
+        def __init__(self, **kw: Any) -> None:
             self.__dict__.update(kw)
-    def decorator(func: Callable[..., object]) -> Callable[..., object]:
-        # Use setattr to avoid mypy error
-        func._settings = Config(**kwargs)
+            
+    def decorator(func: Callable[..., T]) -> Callable[..., T]:
+        f = cast(ConfigurableFunction, func)
+        f._settings = Config(**kwargs)
         return func
+        
     return decorator
 
 __all__ = ["given", "settings", "strategies", "reify"]
