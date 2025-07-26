@@ -1,5 +1,7 @@
 import asyncio
 import json
+from pathlib import Path
+from typing import List, Dict, Any
 
 import pytest
 
@@ -7,7 +9,7 @@ from memory_system.core.store import Memory, SQLiteMemoryStore
 
 
 class TestMemoryDataclass:
-    def test_memory_new_ranges(self):
+    def test_memory_new_ranges(self) -> None:
         mem = Memory.new(
             "hello",
             importance=0.5,
@@ -21,7 +23,7 @@ class TestMemoryDataclass:
         assert mem.metadata == {"foo": "bar"}
         assert mem.created_at.tzinfo is not None
 
-    def test_row_to_memory_serialization(self):
+    def test_row_to_memory_serialization(self) -> None:
         mem = Memory.new("serialize", metadata={"a": 1})
         store = SQLiteMemoryStore(":memory:")
         row = {
@@ -39,7 +41,7 @@ class TestMemoryDataclass:
 
 
 @pytest.mark.asyncio
-async def test_add_transaction_atomicity(tmp_path):
+async def test_add_transaction_atomicity(tmp_path: Path) -> None:
     store = SQLiteMemoryStore(str(tmp_path / "db.sqlite"))
     bad = Memory.new("bad", metadata={"a": object()})
     size_before = store._pool.qsize()
@@ -49,10 +51,10 @@ async def test_add_transaction_atomicity(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_concurrent_add_and_search(tmp_path):
+async def test_concurrent_add_and_search(tmp_path: Path) -> None:
     store = SQLiteMemoryStore(str(tmp_path / "db.sqlite"))
 
-    async def add_one(i: int):
+    async def add_one(i: int) -> None:
         await store.add(Memory.new(f"text {i}"))
 
     await asyncio.gather(*(add_one(i) for i in range(10)))
@@ -61,7 +63,7 @@ async def test_concurrent_add_and_search(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_search_no_results(tmp_path):
+async def test_search_no_results(tmp_path: Path) -> None:
     store = SQLiteMemoryStore(str(tmp_path / "db.sqlite"))
     results = await store.search("nothing")
     assert results == []
