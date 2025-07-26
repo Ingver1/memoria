@@ -2,8 +2,10 @@
 Ensures DB columns obey NOT NULL + dimension constraints after inserts.
 Works with SQLite or SQLCipher.
 """
-import pytest
+from pathlib import Path
+from types import SimpleNamespace
 
+import pytest
 import numpy as np
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.enhanced_store import EnhancedMemoryStore
@@ -12,9 +14,11 @@ DIM = UnifiedSettings.for_testing().model.vector_dim
 
 
 @pytest.mark.asyncio
-async def test_db_invariants(tmp_path):
+async def test_db_invariants(tmp_path: Path) -> None:
+    """Test database column invariants after inserts."""
     cfg = UnifiedSettings.for_testing()
-    cfg.storage.database_url = f"sqlite:///{tmp_path/'inv.db'}"
+    # Use database.db_path instead of storage.database_url
+    cfg.database.db_path = tmp_path / "inv.db"
     store = EnhancedMemoryStore(cfg)
 
     await store.add_memory(text="inv", embedding=np.random.rand(DIM).tolist())
