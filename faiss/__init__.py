@@ -27,9 +27,17 @@ def normalize_L2(vecs: np.ndarray) -> None:
     if hasattr(vecs, "__setitem__"):
         for i in range(len(arr)):
             vecs[i] = arr[i]
+    return arr
 
 
- """Stub for FAISS swig_ptr."""
+def swig_ptr(arr: np.ndarray) -> np.ndarray:
+    """Stub for FAISS ``swig_ptr``.
+
+    FAISS exposes ``swig_ptr`` to retrieve the underlying pointer from a
+    NumPy array.  For the lightweight test stub we simply return the array
+    itself so that callers can continue to pass around the object without
+    touching any C-level memory.
+    """
     return arr
 
 
