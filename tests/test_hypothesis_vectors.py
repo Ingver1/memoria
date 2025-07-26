@@ -10,7 +10,7 @@ import pytest
 import numpy as np
 import pytest_asyncio
 from hypothesis import given, settings, strategies as st
-from hypothesis.core import SearchStrategy
+from hypothesis.strategies import SearchStrategy
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.enhanced_store import EnhancedMemoryStore
 
