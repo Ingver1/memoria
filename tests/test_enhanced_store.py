@@ -8,9 +8,9 @@ Validates real operations of ``EnhancedMemoryStore``:
 import asyncio
 import secrets
 import time
+from typing import AsyncGenerator
 
 import pytest
-
 import numpy as np
 import pytest_asyncio
 from memory_system.config.settings import UnifiedSettings
@@ -19,7 +19,8 @@ from memory_system.core.index import ANNIndexError
 
 
 @pytest_asyncio.fixture(scope="function")
-async def store():
+async def store() -> AsyncGenerator[EnhancedMemoryStore, None]:
+    """Provide an EnhancedMemoryStore instance for testing."""
     settings = UnifiedSettings.for_testing()
     s = EnhancedMemoryStore(settings)
     yield s
@@ -37,7 +38,8 @@ def _rand_vec(dim: int, seed: int = 42) -> list[float]:
 
 
 @pytest.mark.asyncio
-async def test_add_and_search(store):
+async def test_add_and_search(store: EnhancedMemoryStore) -> None:
+    """Test adding a memory and searching for it."""
     vec = _rand_vec(store.settings.model.vector_dim)
     ts = time.time()
 
@@ -65,14 +67,16 @@ async def test_add_and_search(store):
 
 
 @pytest.mark.asyncio
-async def test_search_empty_store(store):
+async def test_search_empty_store(store: EnhancedMemoryStore) -> None:
+    """Test searching when store is empty."""
     vec = _rand_vec(store.settings.model.vector_dim)
     res = await store.semantic_search(vector=vec, k=1)
     assert res == []
 
 
 @pytest.mark.asyncio
-async def test_invalid_vector_length(store):
+async def test_invalid_vector_length(store: EnhancedMemoryStore) -> None:
+    """Test that invalid vector lengths are rejected."""
     # vector shorter than required 384 elements
     bad_vec = [0.1, 0.2, 0.3]
     with pytest.raises(ANNIndexError):
@@ -81,7 +85,7 @@ async def test_invalid_vector_length(store):
 
 # Optional extended check
 @pytest.mark.asyncio
-async def test_duplicate_vectors_rejected(store):
+async def test_duplicate_vectors_rejected(store: EnhancedMemoryStore) -> None:
     dim = store.settings.model.vector_dim
     v1 = _rand_vec(dim, seed=1)
     now = time.time()
