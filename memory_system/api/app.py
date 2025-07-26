@@ -151,7 +151,8 @@ def create_app(settings: UnifiedSettings | None = None) -> FastAPI:  # pragma: n
 
 
 # ---------------------------------------------------------------------------
-# Entry‑point for `uvicorn memory_system.api.app:app`
+# Entry‑point for `uvicorn memory_system.api.app:create_app`
+# (`uvicorn memory_system.api.app:app` remains for backward compatibility)
 # ---------------------------------------------------------------------------
 settings = get_settings()
 app = create_app(settings)
