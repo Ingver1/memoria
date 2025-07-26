@@ -1,7 +1,7 @@
 import asyncio
 from pathlib import Path
+from typing import Any, Awaitable, Callable, List, Optional
 from unittest.mock import patch
-from typing import Awaitable, List, Optional, Callable, Any
 
 import pytest
 
