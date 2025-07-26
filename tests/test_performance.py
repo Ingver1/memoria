@@ -1,6 +1,8 @@
 """Performance tests for Unified Memory System."""
 
 import asyncio
+from pathlib import Path
+from typing import Generator, AsyncGenerator
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -66,7 +68,7 @@ class TestEmbeddingPerformance:
     """Test embedding service performance."""
 
     @pytest_asyncio.fixture
-    async def embedding_service(self):
+    async def embedding_service(self) -> AsyncGenerator[EnhancedEmbeddingService, None]:
         """Create embedding service for performance tests."""
         settings = UnifiedSettings.for_testing()
         service = EnhancedEmbeddingService("all-MiniLM-L6-v2", settings)
@@ -74,7 +76,7 @@ class TestEmbeddingPerformance:
         service.shutdown()
 
     @pytest.mark.slow
-    async def test_single_embedding_performance(self, embedding_service):
+    async def test_single_embedding_performance(self, embedding_service: EnhancedEmbeddingService) -> None:
         """Test performance of single text embedding."""
         text = "This is a test sentence for performance evaluation."
 
@@ -97,7 +99,7 @@ class TestEmbeddingPerformance:
         )
 
     @pytest.mark.slow
-    async def test_batch_embedding_performance(self, embedding_service):
+    async def test_batch_embedding_performance(self, embedding_service: EnhancedEmbeddingService) -> None:
         """Test performance of batch embedding."""
         texts = [
             f"This is test sentence number {i} for batch performance evaluation." for i in range(50)
@@ -123,10 +125,9 @@ class TestEmbeddingPerformance:
         )
 
     @pytest.mark.slow
-    async def test_concurrent_embedding_performance(self, embedding_service):
+    async def test_concurrent_embedding_performance(self, embedding_service: EnhancedEmbeddingService) -> None:
         """Test performance under concurrent load."""
-
-        async def embed_text(text_id: int):
+        async def embed_text(text_id: int) -> np.ndarray:
             text = f"Concurrent test text {text_id}"
             return await embedding_service.encode(text)
 
@@ -155,7 +156,7 @@ class TestEmbeddingPerformance:
             f"Total concurrent time: {concurrent_time:.3f}s"
         )
 
-    async def test_embedding_cache_performance(self, embedding_service):
+    async def test_embedding_cache_performance(self, embedding_service: EnhancedEmbeddingService) -> None:
         """Test performance improvement from caching."""
         text = "This text will be cached for performance testing."
 
@@ -182,7 +183,7 @@ class TestEmbeddingPerformance:
         )
 
     @pytest.mark.slow
-    async def test_embedding_memory_usage(self, embedding_service):
+    async def test_embedding_memory_usage(self, embedding_service: EnhancedEmbeddingService) -> None:
         """Test memory usage during embedding operations."""
 
         process = psutil.Process(os.getpid())
@@ -208,7 +209,7 @@ class TestIndexPerformance:
     """Test FAISS index performance."""
 
     @pytest.fixture
-    def large_index(self):
+    def large_index(self) -> FaissHNSWIndex:
         """Create index with substantial data."""
         index = FaissHNSWIndex(dim=384)
 
@@ -224,7 +225,7 @@ class TestIndexPerformance:
         print(f"Index build time for {num_vectors} vectors: {build_time:.3f}s")
         return index
 
-    def test_index_search_performance(self, large_index):
+    def test_index_search_performance(self, large_index: FaissHNSWIndex) -> None:
         """Test search performance on large index."""
         query_vector = np.random.rand(384).astype(np.float32)
 
@@ -253,7 +254,7 @@ class TestIndexPerformance:
             f"Maximum search time: {max_search_time:.6f}s"
         )
         
-    def test_index_build_performance(self):
+    def test_index_build_performance(self) -> None:
         """Test index build performance."""
         index = FaissHNSWIndex(dim=384)
 
@@ -275,23 +276,19 @@ class TestIndexPerformance:
                 f"Per-vector build time: {per_vector_time:.6f}s"
             )
 
-    def test_index_concurrent_search(self, large_index):
+    def test_index_concurrent_search(self, large_index: FaissHNSWIndex) -> None:
         """Test concurrent search performance."""
-
-        def search_worker(worker_id: int):
+        def search_worker(worker_id: int) -> list[float]:
             """Worker function for concurrent searches."""
             query_vector = np.random.rand(384).astype(np.float32)
             results = []
-
             for _ in range(20):
                 start_time = time.perf_counter()
                 result_ids, distances = large_index.search(query_vector, k=5)
                 search_time = time.perf_counter() - start_time
                 results.append(search_time)
-
                 assert len(result_ids) <= 5
                 assert len(distances) <= 5
-
             return results
 
         # Run concurrent searches
@@ -319,7 +316,7 @@ class TestIndexPerformance:
         )
         print(f"Completed {total_searches} concurrent searches in {total_time:.3f}s")
 
-    def test_index_memory_efficiency(self):
+    def test_index_memory_efficiency(self) -> None:
         """Test index memory efficiency."""
 
         process = psutil.Process(os.getpid())
@@ -349,13 +346,13 @@ class TestVectorStorePerformance:
     """Test vector store performance."""
 
     @pytest.fixture
-    def vector_store(self, clean_test_vectors):
+    def vector_store(self, clean_test_vectors: Path) -> Generator[VectorStore, None, None]:
         """Create vector store for performance tests."""
         store = VectorStore(clean_test_vectors, dim=384)
         yield store
         store.close()
 
-    def test_vector_store_write_performance(self, vector_store):
+    def test_vector_store_write_performance(self, vector_store: VectorStore) -> None:
         """Test vector store write performance."""
         num_vectors = 500
         vectors = np.random.rand(num_vectors, 384).astype(np.float32)
@@ -383,7 +380,7 @@ class TestVectorStorePerformance:
             f"Flush time: {flush_time:.3f}s"
         )
 
-    def test_vector_store_read_performance(self, vector_store):
+    def test_vector_store_read_performance(self, vector_store: VectorStore) -> None:
         """Test vector store read performance."""
         # Add test vectors
         num_vectors = 100
@@ -415,17 +412,17 @@ class TestVectorStorePerformance:
             f"Maximum read time: {max_read_time:.6f}s"
         )
 
-    def test_vector_store_concurrent_access(self, vector_store):
+    def test_vector_store_concurrent_access(self, vector_store: VectorStore) -> None:
         """Test concurrent access performance."""
 
-        def write_worker(worker_id: int):
+        def write_worker(worker_id: int) -> None:
             """Worker function for concurrent writes."""
             for i in range(50):
                 vector_id = f"concurrent_w{worker_id}_v{i}"
                 vector = np.random.rand(384).astype(np.float32)
                 vector_store.add_vector(vector_id, vector)
 
-        def read_worker(worker_id: int):
+        def read_worker(worker_id: int) -> None:
             """Worker function for concurrent reads."""
             # First add some vectors to read
             vector_ids = []
@@ -469,7 +466,7 @@ class TestVectorStorePerformance:
 class TestCachePerformance:
     """Test cache performance."""
 
-    def test_cache_access_performance(self):
+    def test_cache_access_performance(self) -> None:
         """Test cache access performance."""
         cache = SmartCache(max_size=1000, ttl=300)
 
@@ -501,7 +498,7 @@ class TestCachePerformance:
             f"Maximum get time: {max_get_time:.6f}s"
         )
 
-    def test_cache_put_performance(self):
+    def test_cache_put_performance(self) -> None:
         """Test cache put performance."""
         cache = SmartCache(max_size=1000, ttl=300)
 
@@ -527,7 +524,7 @@ class TestCachePerformance:
             f"Maximum put time: {max_put_time:.6f}s"
         )
 
-    def test_cache_concurrent_performance(self):
+    def test_cache_concurrent_performance(self) -> None:
         """Test cache performance under concurrent access."""
         cache = SmartCache(max_size=1000, ttl=300)
 
@@ -567,7 +564,7 @@ class TestCachePerformance:
 class TestSecurityPerformance:
     """Test security component performance."""
 
-    def test_pii_filter_performance(self):
+    def test_pii_filter_performance(self) -> None:
         """Test PII filter performance."""
         pii_filter = EnhancedPIIFilter()
 
@@ -604,7 +601,7 @@ class TestSecurityPerformance:
             f"Per-text redaction time: {per_text_time:.6f}s"
         )
 
-    def test_encryption_performance(self):
+    def test_encryption_performance(self) -> None:
         """Test encryption performance."""
         encryption_manager = EncryptionManager()
 
