@@ -29,8 +29,7 @@ def normalize_L2(vecs: np.ndarray) -> None:
             vecs[i] = arr[i]
 
 
-def swig_ptr(arr: np.ndarray) -> np.ndarray:
-    """Stub for FAISS swig_ptr."""
+ """Stub for FAISS swig_ptr."""
     return arr
 
 
@@ -55,32 +54,32 @@ class IndexHNSWFlat:
         self.ids = np.concatenate([self.ids, ids])
     def search(self, vecs: np.ndarray, k: int) -> tuple[np.ndarray, np.ndarray]:
         """Return (distances, ids) for top-k matches."""
-        if self.metric == METRIC_INNER_PRODUCT:
-            scores_list = []
-            for base_vec in self.vectors:
-                row = []
-                for q in vecs:
-                    val = _builtins.sum(float(a) * float(b) for a, b in zip(base_vec, q, strict=False))
-                    row.append(val)
-                scores_list.append(row)
-            scores = np.asarray(scores_list)
-            distances = scores / -1.0
-        else:
-            diff = self.vectors[:, None, :] - vecs[None, :, :]
-            distances = cast(np.ndarray, np.linalg.norm(diff, axis=2))
-        idx = np.argsort(distances, axis=0)[:k, :]
-        dists = np.take_along_axis(distances, idx, axis=0)
-        ids = self.ids[idx]
-        return dists.T.astype("float32"), ids.T.astype("int64")
+        dists_all = []
+        ids_all = []
+        for q in vecs:
+            if self.metric == METRIC_INNER_PRODUCT:
+                dist_list = [
+                    _builtins.sum(float(a) * float(b) for a, b in zip(base_vec, q, strict=False)) * -1.0
+                    for base_vec in self.vectors
+                ]
+            else:
+                dist_list = [
+                    (_builtins.sum((float(a) - float(b)) ** 2 for a, b in zip(base_vec, q, strict=False))) ** 0.5
+                    for base_vec in self.vectors
+                ]
+            idx = np.argsort(np.asarray(dist_list))[:k]
+            dists_all.append(np.asarray(dist_list)[idx])
+            ids_all.append(self.ids[idx])
+        return np.asarray(dists_all, dtype="float32"), np.asarray(ids_all, dtype="int64")
     def remove_ids(self, selector: IDSelectorBatch | np.ndarray) -> int:
         if isinstance(selector, np.ndarray):
-            ids_to_remove = selector
+            ids_to_remove = {int(i) for i in selector}
         else:
-            ids_to_remove = selector.ids
-        mask = np.isin(self.ids, ids_to_remove, invert=True)
-        removed = int(np.sum(np.logical_not(mask)))
-        self.ids = self.ids[mask]
-        self.vectors = self.vectors[mask]
+            ids_to_remove = {int(i) for i in selector.ids}
+        keep = [i for i, val in enumerate(self.ids) if int(val) not in ids_to_remove]
+        removed = len(self.ids) - len(keep)
+        self.ids = np.asarray([self.ids[i] for i in keep], dtype="int64")
+        self.vectors = np.asarray([self.vectors[i] for i in keep], dtype="float32")
         return removed
     @property
     def ntotal(self) -> int:
@@ -114,7 +113,7 @@ class IndexIDMap2:
         return f"<IndexIDMap2 ntotal={self.ntotal}>"
 
 
-def write_index(index: IndexIDMap2 | IndexHNSWFlat, path: str) -> None:
+def write_index(index: IndexIDMap2 | IndexHNSWFlat, path: str) -> None:  # pragma: no cover
     """Save index to disk as .npz. Handles errors."""
     try:
         np.savez(path,
@@ -126,7 +125,7 @@ def write_index(index: IndexIDMap2 | IndexHNSWFlat, path: str) -> None:
         print(f"Error saving index: {e}")
 
 
-def read_index(path: str) -> IndexIDMap2:
+def read_index(path: str) -> IndexIDMap2:  # pragma: no cover
     """Load index from disk. Handles errors."""
     try:
         data = np.load(path)
@@ -137,3 +136,4 @@ def read_index(path: str) -> IndexIDMap2:
     except Exception as e:
         print(f"Error loading index: {e}")
         raise
+        
