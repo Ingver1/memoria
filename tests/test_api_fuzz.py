@@ -5,6 +5,7 @@ Schemathesis autogenerates thousands of requests with random payloads.
 from typing import Any
 
 import pytest
+
 import schemathesis
 from memory_system.api.app import create_app
 from memory_system.config.settings import UnifiedSettings
