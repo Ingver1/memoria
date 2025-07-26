@@ -8,14 +8,13 @@ from typing import Any, Dict, List, Optional
 import pytest
 
 from memory_system.utils.cache import SmartCache
+from memory_system.utils.exceptions import SecurityError
 from memory_system.utils.security import (
     EnhancedPIIFilter,
     PasswordManager,
     PIIPatterns,
     SecureTokenManager,
 )
-from memory_system.utils.exceptions import SecurityError
-
 
 class TestSmartCache:
     """Test SmartCache functionality."""
