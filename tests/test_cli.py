@@ -1,15 +1,15 @@
 import json
 import os
 
-import httpx
 import pytest
+
+import httpx
 
 pytest.importorskip("typer")
 from typer.testing import CliRunner
 
-from memory_system.cli import app, API_URL_ENV
+from memory_system.cli import API_URL_ENV, app
 from memory_system.config.settings import UnifiedSettings
-
 
 runner = CliRunner()
 
