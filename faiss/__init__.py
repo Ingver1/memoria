@@ -27,7 +27,13 @@ def normalize_L2(vecs: np.ndarray) -> None:
     if hasattr(vecs, "__setitem__"):
         for i in range(len(arr)):
             vecs[i] = arr[i]
-    return arr
+    # The real FAISS implementation performs normalization in place and
+    # returns ``None``.  The return statement was causing a mypy error
+    # because the function is annotated to return ``None``.
+    #
+    # Keep the behavior consistent with the actual library and simply
+    # return without a value.
+    return None
 
 
 def swig_ptr(arr: np.ndarray) -> np.ndarray:
