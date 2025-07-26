@@ -3,13 +3,14 @@ import os
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
 
 from memory_system.core.store import Memory, SQLiteMemoryStore
 from memory_system.core.vector_store import VectorStore
 
 
 @pytest.mark.asyncio
-async def test_sqlite_store_large_volume(tmp_path):
+async def test_sqlite_store_large_volume(tmp_path: Path) -> None:
     """Store and retrieve a large number of memories."""
     db_path = tmp_path / "large.db"
     store = SQLiteMemoryStore(db_path.as_posix())
@@ -25,7 +26,7 @@ async def test_sqlite_store_large_volume(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_vector_store_backup(tmp_path):
+async def test_vector_store_backup(tmp_path: Path) -> None:
     """Ensure VectorStore.replicate creates a backup file."""
     vec_path = tmp_path / "vectors.index"
     store = VectorStore(vec_path, dim=16)
@@ -40,7 +41,7 @@ async def test_vector_store_backup(tmp_path):
         store.close()
 
 
-def test_api_search_empty_query(test_client):
+def test_api_search_empty_query(test_client: "TestClient") -> None:
     """Search endpoint should reject empty queries."""
     response = test_client.post("/api/v1/memory/search", json={"query": ""})
     assert response.status_code == 422
