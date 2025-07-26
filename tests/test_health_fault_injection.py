@@ -4,6 +4,7 @@ reporting unhealthy status and returning 503 on /health.
 """
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
+
 from fastapi.testclient import TestClient
 from memory_system.api.app import create_app
 from memory_system.config.settings import UnifiedSettings
