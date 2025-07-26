@@ -3,13 +3,14 @@ If the ANN index is missing, the service should degrade gracefully,
 reporting unhealthy status and returning 503 on /health.
 """
 import pytest
-
+from _pytest.monkeypatch import MonkeyPatch
 from fastapi.testclient import TestClient
 from memory_system.api.app import create_app
 from memory_system.config.settings import UnifiedSettings
 
 
-def test_index_missing_returns_503(monkeypatch):
+def test_index_missing_returns_503(monkeypatch: MonkeyPatch) -> None:
+    """Test that health check returns 503 when ANN index is missing."""
     cfg = UnifiedSettings.for_testing()
     app = create_app(cfg)
 
@@ -23,3 +24,4 @@ def test_index_missing_returns_503(monkeypatch):
     resp = client.get("/health")
     assert resp.status_code == 503
     assert resp.json()["healthy"] is False
+    
