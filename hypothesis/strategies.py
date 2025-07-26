@@ -1,8 +1,11 @@
 import random
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable, List, Optional, Generic, TypeVar
 
 
-class Strategy:
+T_co = TypeVar("T_co", covariant=True)
+
+
+class Strategy(Generic[T_co]):
     """Base class for property-based strategies."""
 
      def __class_getitem__(cls, item: Any) -> "Strategy":
@@ -46,7 +49,7 @@ class Strategy:
         return [self.example() for _ in range(n)]
 
 
-class FloatStrategy(Strategy):
+class FloatStrategy(Strategy[float]):
     """Strategy for generating random floats."""
 
     def __init__(
@@ -65,7 +68,7 @@ class FloatStrategy(Strategy):
         return random.uniform(self.min_value, self.max_value)
 
 
-class IntegerStrategy(Strategy):
+class IntegerStrategy(Strategy[int]):
     """Strategy for generating random integers."""
 
     def __init__(self, min_value: int = 0, max_value: int = 100):
@@ -76,7 +79,7 @@ class IntegerStrategy(Strategy):
         return random.randint(self.min_value, self.max_value)
 
 
-class ListStrategy(Strategy):
+class ListStrategy(Strategy[List[Any]]):
     """Strategy for generating lists of elements from another strategy."""
 
     def __init__(self, element: Strategy, min_size: int = 0, max_size: Optional[int] = None):
@@ -102,7 +105,7 @@ def integers(min_value: int = 0, max_value: int = 100) -> IntegerStrategy:
     return IntegerStrategy(min_value=min_value, max_value=max_value)
 
 
-def lists(element: Strategy, min_size: int = 0, max_size: Optional[int] = None) -> ListStrategy:
+def lists(element: Strategy[T_co], min_size: int = 0, max_size: Optional[int] = None) -> ListStrategy:
     """Create a list strategy."""
     return ListStrategy(element, min_size=min_size, max_size=max_size)
 
