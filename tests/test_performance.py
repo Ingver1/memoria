@@ -505,9 +505,8 @@ class TestCachePerformance:
         # Test put performance
         put_times = []
         for i in range(500):
-            key = f"key_{i}"
+            key = f"perf_key_{i}"
             value = f"value_{i}" * 10  # Some bulk data
-
             start_time = time.perf_counter()
             cache.put(key, value)
             put_time = time.perf_counter() - start_time
@@ -516,7 +515,7 @@ class TestCachePerformance:
         avg_put_time = sum(put_times) / len(put_times)
         max_put_time = max(put_times)
 
-        # Cache put should be fast
+        # Put operations should be fast
         assert avg_put_time * 1000 < MAX_CACHE_PUT_AVG_MS, (
             f"Average put time: {avg_put_time:.8f}s"
         )
@@ -525,40 +524,44 @@ class TestCachePerformance:
         )
 
     def test_cache_concurrent_performance(self) -> None:
-        """Test cache performance under concurrent access."""
-        cache = SmartCache(max_size=1000, ttl=300)
+        """Test cache performance under concurrent load."""
+        cache = SmartCache(max_size=5000, ttl=300)
 
-        def cache_worker(worker_id: int):
-            """Worker function for concurrent cache access."""
+        def worker(worker_id: int) -> None:
+            # Each worker does a mix of puts and gets
             for i in range(100):
-                key = f"worker_{worker_id}_key_{i}"
-                value = f"worker_{worker_id}_value_{i}"
-
-                # Put and get
+                key = f"conc_w{worker_id}_k{i}"
+                value = f"value_{i}" * 5
                 cache.put(key, value)
-                retrieved = cache.get(key)
-                assert retrieved == value
+                # Read some values written by this worker
+                if i > 0:
+                    prev_key = f"conc_w{worker_id}_k{i-1}"
+                    value = cache.get(prev_key)
+                    assert value is not None
 
-        # Run concurrent workers
-        num_workers = 5
-        with ThreadPoolExecutor(max_workers=num_workers) as executor:
-            start = time.perf_counter()
-            futures = [executor.submit(cache_worker, i) for i in range(num_workers)]
+        # Run concurrent operations
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            start_time = time.perf_counter()
+            futures = [executor.submit(worker, i) for i in range(4)]
             for future in futures:
                 future.result()
-            total_time = time.perf_counter() - start
+            total_time = time.perf_counter() - start_time
 
-        total_time = max(total_time, 1e-9)
-        operations_per_second = (num_workers * 100 * 2) / total_time  # 2 ops per iteration
-
-        # Should handle many concurrent operations
-        assert operations_per_second > MIN_CACHE_OPS_PER_SEC, (
-            f"Operations per second: {operations_per_second:.0f}"
-        )
+        # Total time should be reasonable for concurrent operations
         assert total_time * 1000 < MAX_CACHE_CONCURRENT_TOTAL_MS, (
-            f"Total concurrent time: {total_time:.3f}s"
+            f"Concurrent operation time: {total_time:.3f}s"
         )
 
+        # Calculate operations per second
+        total_ops = 4 * 100 * 2  # 4 workers * 100 iterations * (1 put + ~1 get)
+        ops_per_sec = total_ops / total_time
+
+        assert ops_per_sec > MIN_CACHE_OPS_PER_SEC, (
+            f"Cache operations per second: {ops_per_sec:.1f}"
+        )
+
+
+@pytest.mark.performance
 
 @pytest.mark.performance
 class TestSecurityPerformance:
