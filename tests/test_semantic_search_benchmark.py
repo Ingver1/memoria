@@ -5,9 +5,10 @@ pick sensible defaults for the FAISS index. Async fixtures are provided
 via ``pytest_asyncio``.
 """
 import asyncio
+from typing import AsyncGenerator, Any
 
 import pytest
-
+from pytest_benchmark.fixture import BenchmarkFixture
 import pytest_asyncio
 from memory_system.utils.loop import get_or_create_loop
 
@@ -23,7 +24,7 @@ RANDOM_VECTOR = np.random.rand(DIM).astype("float32").tolist()
 
 
 @pytest_asyncio.fixture(scope="session")
-async def populated_store():
+async def populated_store() -> AsyncGenerator[EnhancedMemoryStore, None]:
     """Fill the index with 2 000 random vectors to make the test realistic."""
     settings = UnifiedSettings.for_testing()
     store = EnhancedMemoryStore(settings)
@@ -39,7 +40,7 @@ async def populated_store():
 @pytest.mark.perf
 @pytest.mark.benchmark
 @pytest.mark.parametrize("ef", [10, 50, 100, 200])
-def test_benchmark_semantic_search(benchmark, populated_store, ef):
+def test_benchmark_semantic_search(benchmark: BenchmarkFixture, populated_store: EnhancedMemoryStore, ef: int) -> None:
     """Benchmark throughput using pytest-benchmark."""
 
     loop = get_or_create_loop()
