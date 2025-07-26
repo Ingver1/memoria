@@ -1,14 +1,15 @@
 import os
+from pathlib import Path
 
 import pytest
-
 import numpy as np
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.enhanced_store import EnhancedMemoryStore
 
 
 @pytest.mark.asyncio
-async def test_enhanced_store_add_search_list_stats(tmp_path):
+async def test_enhanced_store_add_search_list_stats(tmp_path: Path) -> None:
+    """Test adding memories, searching, listing and retrieving stats from enhanced store."""
     os.environ["DATABASE__DB_PATH"] = str(tmp_path / "mem.db")
     settings = UnifiedSettings.for_testing()
     store = EnhancedMemoryStore(settings)
