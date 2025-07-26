@@ -88,9 +88,9 @@ class ListStrategy(Strategy):
         return [self.element.example() for _ in range(size)]
 
 
-def floats(**kwargs) -> FloatStrategy:
+def floats(*, min_value: float = 0.0, max_value: float = 1.0, allow_nan: bool = True, allow_infinity: bool = True) -> FloatStrategy:
     """Create a float strategy."""
-    return FloatStrategy(**kwargs)
+    return FloatStrategy(min_value=min_value, max_value=max_value, allow_nan=allow_nan, allow_infinity=allow_infinity)
 
 
 def integers(min_value: int = 0, max_value: int = 100) -> IntegerStrategy:
