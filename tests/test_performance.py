@@ -1,11 +1,11 @@
 """Performance tests for Unified Memory System."""
 
 import asyncio
-from pathlib import Path
-from typing import Generator, AsyncGenerator
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from typing import Generator, AsyncGenerator
 
 import pytest
 
