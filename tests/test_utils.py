@@ -16,6 +16,7 @@ from memory_system.utils.security import (
     SecureTokenManager,
 )
 
+
 class TestSmartCache:
     """Test SmartCache functionality."""
 
