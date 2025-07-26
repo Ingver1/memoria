@@ -14,7 +14,7 @@ from memory_system.utils.security import (
     PIIPatterns,
     SecureTokenManager,
 )
-from memory_system.utils.security.errors import SecurityError
+from memory_system.utils.exceptions import SecurityError
 
 
 class TestSmartCache:
