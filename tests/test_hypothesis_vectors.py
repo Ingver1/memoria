@@ -7,9 +7,11 @@ via an exact semantic search; the store must never raise or lose data.
 from typing import AsyncGenerator, List
 
 import pytest
+
 import numpy as np
 import pytest_asyncio
-from hypothesis import given, settings, strategies as st
+from hypothesis import given, settings
+from hypothesis import strategies as st
 from hypothesis.strategies import SearchStrategy
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.enhanced_store import EnhancedMemoryStore
