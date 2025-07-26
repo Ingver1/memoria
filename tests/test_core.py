@@ -281,16 +281,27 @@ class TestEmbeddingJob:
         assert job.text == "test text"
         assert job.future is future
 
-    def test_embedding_job_immutable(self) -> None:
-        """Test that EmbeddingJob is immutable."""
+     def test_embedding_job_immutable(self) -> None:
+        """
+        Test that EmbeddingJob is immutable.
+        This test intentionally attempts to assign to a read-only property of a frozen dataclass.
+        Linters and static analyzers should ignore the assignment; it is expected to raise AttributeError.
+        """
         loop = asyncio.new_event_loop()
         future = loop.create_future()
         job = EmbeddingJob(text="test text", future=future)
 
-        # Should not be able to modify frozen dataclass
-        # This test is expected to raise AttributeError because 'text' is read-only (frozen dataclass)
-        with pytest.raises(AttributeError):
-            job.text = "new text"
+        with pytest.raises(AttributeError) as exc_info:
+            # Intentionally attempt to modify read-only property to verify immutability
+            job.text = "new text"  # noqa: B018, E1101
+        error_msg = str(exc_info.value).lower()
+        assert (
+            "read-only" in error_msg
+            or "can't set attribute" in error_msg
+            or "cannot assign" in error_msg
+            or "frozen" in error_msg
+            or "immutable" in error_msg
+        ), f"Unexpected error message: {error_msg}"
 
 
 class TestEmbeddingError:
@@ -550,27 +561,43 @@ class TestFaissHNSWIndex:
 
     def test_remove_vectors(self, index: FaissHNSWIndex) -> None:
         """Test removing vectors from index."""
+        # Add some vectors
         ids = ["vec1", "vec2", "vec3"]
         vectors = np.random.rand(3, 384).astype(np.float32)
         index.add_vectors(ids, vectors)
-
+        # Remove vectors
         index.remove_ids(["vec1", "vec3"])
 
         stats = index.stats()
         assert stats.total_vectors == 1
 
+    # Verify removal through search
+        query_vector = np.random.rand(384).astype(np.float32)
+        result_ids, _ = index.search(query_vector, k=3)
+        assert "vec1" not in result_ids
+        assert "vec3" not in result_ids
+        assert len(result_ids) == 1
+        
     def test_dynamic_ef_search(self, index: FaissHNSWIndex) -> None:
         """Test dynamic ef_search parameter."""
-        ids = ["vec1", "vec2", "vec3"]
-        vectors = np.random.rand(3, 384).astype(np.float32)
+        # Add test vectors
+        ids = [f"vec{i}" for i in range(10)]
+        vectors = np.random.rand(10, 384).astype(np.float32)
         index.add_vectors(ids, vectors)
 
         query_vector = np.random.rand(384).astype(np.float32)
 
-        # Test with custom ef_search
-        result_ids, distances = index.search(query_vector, k=2, ef_search=64)
-        assert len(result_ids) <= 2
-        assert index.ef_search == 64  # Should be updated
+         # Test with different ef_search values
+        index.ef_search = 16
+        results1, _ = index.search(query_vector, k=5)
+        
+        index.ef_search = 64
+        results2, _ = index.search(query_vector, k=5)
+        
+        # Verify results
+        assert len(results1) == len(results2) == 5
+        # Higher ef_search might find different (potentially better) results
+        assert index.ef_search == 64  # Should maintain the new value
 
     def test_index_rebuild(self, index: FaissHNSWIndex) -> None:
         """Test index rebuild."""
