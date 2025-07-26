@@ -1,17 +1,16 @@
 import random
 from typing import Any, Callable, List, Optional, Generic, TypeVar
 
-
 T_co = TypeVar("T_co", covariant=True)
 
 
 class Strategy(Generic[T_co]):
     """Base class for property-based strategies."""
 
-     def __class_getitem__(cls, item: Any) -> "Strategy":
-        """Allow Strategy[...] for type hinting purposes."""
+    def __class_getitem__(cls, item: Any) -> "Strategy":
+        """Allow ``Strategy[...]`` for type hinting purposes."""
         return cls
-         
+
     def example(self) -> Any:
         raise NotImplementedError
 
@@ -58,7 +57,7 @@ class FloatStrategy(Strategy[float]):
         max_value: float = 1.0,
         allow_nan: bool = True,
         allow_infinity: bool = True,
-    ):
+    ) -> None:
         self.min_value = min_value
         self.max_value = max_value
         self.allow_nan = allow_nan
@@ -71,7 +70,7 @@ class FloatStrategy(Strategy[float]):
 class IntegerStrategy(Strategy[int]):
     """Strategy for generating random integers."""
 
-    def __init__(self, min_value: int = 0, max_value: int = 100):
+    def __init__(self, min_value: int = 0, max_value: int = 100) -> None:
         self.min_value = min_value
         self.max_value = max_value
 
@@ -82,7 +81,7 @@ class IntegerStrategy(Strategy[int]):
 class ListStrategy(Strategy[List[Any]]):
     """Strategy for generating lists of elements from another strategy."""
 
-    def __init__(self, element: Strategy, min_size: int = 0, max_size: Optional[int] = None):
+    def __init__(self, element: Strategy, min_size: int = 0, max_size: Optional[int] = None) -> None:
         self.element = element
         self.min_size = min_size
         self.max_size = max_size if max_size is not None else min_size
@@ -112,6 +111,5 @@ def lists(element: Strategy[T_co], min_size: int = 0, max_size: Optional[int] = 
 
 # Alias for compatibility with Hypothesis' public API
 SearchStrategy = Strategy
-
 
 __all__ = ["floats", "integers", "lists", "Strategy", "SearchStrategy"]
