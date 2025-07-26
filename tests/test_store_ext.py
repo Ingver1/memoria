@@ -44,7 +44,7 @@ def test_memory_new_validation_ok() -> None:
 def test_memory_new_validation_error(field: str, value: float) -> None:
     kwargs = {field: value}
     with pytest.raises(ValueError):
-        Memory.new("x", **kwargs)
+        Memory.new("x", **kwargs)  # type: ignore[arg-type]
 
 
 @pytest.mark.asyncio
