@@ -145,8 +145,9 @@ def add(
         help="Arbitrary JSON metadata.",
     ),
     url: str = typer.Option(
-        os.getenv(API_URL_ENV, DEFAULT_API),
+        DEFAULT_API,
         "--url",
+        envvar=API_URL_ENV,
         show_default="env/localhost",
     ),
 ) -> None:  # noqa: D401
@@ -171,9 +172,10 @@ def add(
 def search(
     query: str = typer.Argument(..., help="Search query."),
     k: int = typer.Option(5, help="Number of results."),
-    url: str = typer.Option(
-        os.getenv(API_URL_ENV, DEFAULT_API),
+    uurl: str = typer.Option(
+        DEFAULT_API,
         "--url",
+        envvar=API_URL_ENV,
         show_default="env/localhost",
     ),
 ) -> None:  # noqa: D401
@@ -204,8 +206,9 @@ def search(
 def delete(
     mem_id: str = typer.Argument(..., help="Memory ID to delete."),
     url: str = typer.Option(
-        os.getenv(API_URL_ENV, DEFAULT_API),
+        DEFAULT_API,
         "--url",
+        envvar=API_URL_ENV,
         show_default="env/localhost",
     ),
 ) -> None:  # noqa: D401
@@ -225,8 +228,9 @@ def delete(
 def import_json(
     file: Path = typer.Argument(..., exists=True, readable=True, help="JSONL file (one memory per line)."),
     url: str = typer.Option(
-        os.getenv(API_URL_ENV, DEFAULT_API),
+        DEFAULT_API,
         "--url",
+        envvar=API_URL_ENV,
         show_default="env/localhost",
     ),
 ) -> None:  # noqa: D401
