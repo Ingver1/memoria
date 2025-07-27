@@ -192,7 +192,7 @@ class FaissHNSWIndex:
 
         vec32 = self._to_float32(np.asarray(vector))
         vec1d = vec32.flatten()
-        vvec_bytes = (
+        vec_bytes = (
             vec1d.tobytes() if hasattr(vec1d, "tobytes") else struct.pack(f"{len(vec1d)}f", *[float(x) for x in vec1d])
         )
         key = (hash(vec_bytes), k, ef_search or self.ef_search)
