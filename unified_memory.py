@@ -54,16 +54,13 @@ class Memory:
 class MemoryStoreProtocol(Protocol):
     """Minimal protocol expected from a memory store."""
 
-    async def add_memory(self, memory: Memory) -> None:
-        ...
+    async def add_memory(self, memory: Memory) -> None: ...
 
     async def search_memory(
         self, *, query: str, k: int = 5, metadata_filter: MutableMapping[str, Any] | None = None
-    ) -> Sequence[Memory]:
-        ...
+    ) -> Sequence[Memory]: ...
 
-    async def delete_memory(self, memory_id: str) -> None:
-        ...
+    async def delete_memory(self, memory_id: str) -> None: ...
 
     async def update_memory(
         self,
@@ -71,11 +68,10 @@ class MemoryStoreProtocol(Protocol):
         *,
         text: str | None = None,
         metadata: MutableMapping[str, Any] | None = None,
-    ) -> Memory:
-        ...
+    ) -> Memory: ...
 
-    async def list_recent(self, *, n: int = 20) -> Sequence[Memory]:
-        ...
+    async def list_recent(self, *, n: int = 20) -> Sequence[Memory]: ...
+
 
 logger = logging.getLogger(__name__)
 
@@ -248,6 +244,7 @@ async def delete(
         logger.error("Delete failed: %s", e)
         raise
 
+
 async def update(
     memory_id: str,
     *,
@@ -277,6 +274,7 @@ async def update(
         raise
     return updated
 
+
 async def reinforce(
     memory_id: str,
     amount: float = 0.1,
@@ -299,14 +297,13 @@ async def reinforce(
         "last_accessed": _dt.datetime.utcnow().replace(tzinfo=_dt.timezone.utc).isoformat(),
     }
     try:
-        updated = await asyncio.wait_for(
-            st.update_memory(memory_id, metadata=meta), timeout=ASYNC_TIMEOUT
-        )
+        updated = await asyncio.wait_for(st.update_memory(memory_id, metadata=meta), timeout=ASYNC_TIMEOUT)
         logger.debug("Memory %s reinforced by %.2f.", memory_id, amount)
     except Exception as e:
         logger.error("Reinforce failed: %s", e)
         raise
     return updated
+
 
 async def list_recent(
     n: int = 20,
@@ -330,6 +327,7 @@ async def list_recent(
         logger.error("List recent failed: %s", e)
         raise
     return recent
+
 
 async def list_best(
     n: int = 5,
@@ -357,7 +355,7 @@ async def list_best(
         logger.error("List best failed: %s", e)
         raise
     return scored[:n]
-  
+
 
 __all__ = [
     "Memory",
