@@ -34,10 +34,6 @@ def test_create_memory_text_too_long(test_client: TestClient) -> None:
 
 @pytest.mark.asyncio
 async def test_concurrent_memory_posts(async_client: httpx.AsyncClient) -> None:
-    tasks = [
-        async_client.post("/api/v1/memory/", json={"text": f"mem {i}"})
-        for i in range(5)
-    ]
+    tasks = [async_client.post("/api/v1/memory/", json={"text": f"mem {i}"}) for i in range(5)]
     responses = await asyncio.gather(*tasks)
     assert all(r.status_code == 201 for r in responses)
-  
