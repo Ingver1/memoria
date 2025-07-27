@@ -18,10 +18,9 @@ import sys
 from pathlib import Path
 from typing import Any, Optional, Type, cast
 
-import typer
-
 # ────────────────────────────── third-party imports ────────────────────────────
 import httpx
+import typer
 
 Panel: Type[Any]
 Table: Type[Any]
@@ -134,7 +133,7 @@ def _metadata_option(
 # ---------------------------------------------------------------------------
 
 
-@app.command()  # type: ignore[misc]
+@app.command()
 def add(
     text: str = typer.Argument(..., help="Text to remember."),
     importance: float = typer.Option(0.5, help="0-1 importance weighting."),
@@ -168,7 +167,7 @@ def add(
     asyncio.run(_run_add())
 
 
-@app.command()  # type: ignore[misc]
+@app.command()
 def search(
     query: str = typer.Argument(..., help="Search query."),
     k: int = typer.Option(5, help="Number of results."),
@@ -202,7 +201,7 @@ def search(
     asyncio.run(_run_search())
 
 
-@app.command()  # type: ignore[misc]
+@app.command()
 def delete(
     mem_id: str = typer.Argument(..., help="Memory ID to delete."),
     url: str = typer.Option(
@@ -224,7 +223,7 @@ def delete(
     asyncio.run(_run_delete())
 
 
-@app.command()  # type: ignore[misc]
+@app.command()
 def import_json(
     file: Path = typer.Argument(..., exists=True, readable=True, help="JSONL file (one memory per line)."),
     url: str = typer.Option(
