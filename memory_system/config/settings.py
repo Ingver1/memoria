@@ -217,6 +217,27 @@ class UnifiedSettings(BaseSettings):
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
 
+        # ensure nested configs are not shared across instances
+        object.__setattr__(
+            self, "database", DatabaseConfig(**self.database.model_dump())
+        )
+        object.__setattr__(self, "model", ModelConfig(**self.model.model_dump()))
+        object.__setattr__(
+            self, "security", SecurityConfig(**self.security.model_dump())
+        )
+        object.__setattr__(
+            self,
+            "performance",
+            PerformanceConfig(**self.performance.model_dump()),
+        )
+        object.__setattr__(
+            self, "reliability", ReliabilityConfig(**self.reliability.model_dump())
+        )
+        object.__setattr__(self, "api", APIConfig(**self.api.model_dump()))
+        object.__setattr__(
+            self, "monitoring", MonitoringConfig(**self.monitoring.model_dump())
+        )
+
         # environment variable overrides
         envs: dict[str, str] = {}
         env_file = self.model_config.get("env_file")
