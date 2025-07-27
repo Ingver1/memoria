@@ -5,6 +5,7 @@ Validates real operations of ``EnhancedMemoryStore``:
 * semantic search
 * reactions to edge cases
 """
+
 import asyncio
 import secrets
 import time
@@ -106,6 +107,4 @@ async def test_duplicate_vectors_rejected(store: EnhancedMemoryStore) -> None:
     # FAISS will not allow the same ID twice,
     # we check duplicate detection at the index level
     with pytest.raises(ValueError):
-        store._index.add_vectors(
-            [store._index._id_map[1]], np.asarray([v1], dtype=np.float32)
-        )
+        store._index.add_vectors([store._index._id_map[1]], np.asarray([v1], dtype=np.float32))
