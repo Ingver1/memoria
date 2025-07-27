@@ -377,9 +377,7 @@ class TestSecureTokenManager:
         scopes = ["read", "write"]
         audience = "test_api"
 
-        token = token_manager.generate_token(
-            user_id, expires_in=expires_in, scopes=scopes, audience=audience
-        )
+        token = token_manager.generate_token(user_id, expires_in=expires_in, scopes=scopes, audience=audience)
 
         payload = token_manager.verify_token(token, audience=audience)
         assert payload["sub"] == user_id
