@@ -25,12 +25,13 @@ import aiosqlite
 
 if TYPE_CHECKING:  # pragma: no cover - optional FastAPI import for type hints
     from fastapi import FastAPI, Request
-    
+
 logger = logging.getLogger(__name__)
 
 ###############################################################################
 # Data model
 ###############################################################################
+
 
 @dataclass(slots=True, frozen=True)
 class Memory:
@@ -38,9 +39,7 @@ class Memory:
 
     id: str
     text: str
-    created_at: dt.datetime = field(
-        default_factory=lambda: dt.datetime.now(dt.timezone.utc)
-    )
+    created_at: dt.datetime = field(default_factory=lambda: dt.datetime.now(dt.timezone.utc))
     importance: float = 0.0  # 0..1
     valence: float = 0.0  # -1..1 emotional polarity
     emotional_intensity: float = 0.0  # 0..1 strength of emotion
@@ -57,7 +56,7 @@ class Memory:
             and self.emotional_intensity == other.emotional_intensity
             and self.metadata == other.metadata
         )
-        
+
     @staticmethod
     def new(
         text: str,
@@ -73,7 +72,7 @@ class Memory:
             raise ValueError("valence must be between -1 and 1")
         if not 0.0 <= emotional_intensity <= 1.0:
             raise ValueError("emotional_intensity must be between 0 and 1")
-            
+
         return Memory(
             id=str(uuid.uuid4()),
             text=text,
@@ -84,9 +83,11 @@ class Memory:
             metadata=metadata or {},
         )
 
+
 ###############################################################################
 # Store implementation
 ###############################################################################
+
 
 class SQLiteMemoryStore:
     """Async store that leverages SQLite JSON1 for flexible metadata queries."""
@@ -222,9 +223,7 @@ class SQLiteMemoryStore:
         await self.initialise()
         conn = await self._acquire()
         try:
-            cursor = await conn.execute(
-                "SELECT * FROM memories WHERE id = ?", (memory_id,)
-            )
+            cursor = await conn.execute("SELECT * FROM memories WHERE id = ?", (memory_id,))
             row = await cursor.fetchone()
             return self._row_to_memory(row) if row else None
         finally:
@@ -250,7 +249,7 @@ class SQLiteMemoryStore:
 
         meta_raw = _get(row, "metadata")
         metadata = json.loads(meta_raw) if meta_raw not in (None, "null") else None
-        
+
         return Memory(
             id=_get(row, "id"),
             text=_get(row, "text"),
@@ -288,9 +287,7 @@ class SQLiteMemoryStore:
                     params.extend([f"$.{key}", val])
 
             # construct final SQL
-            sql = (
-                "SELECT id, text, created_at, importance, valence, emotional_intensity, metadata FROM memories"
-            )
+            sql = "SELECT id, text, created_at, importance, valence, emotional_intensity, metadata FROM memories"
             if clauses:
                 sql += " WHERE " + " AND ".join(clauses)
             sql += " ORDER BY created_at DESC LIMIT ?"
@@ -316,7 +313,7 @@ class SQLiteMemoryStore:
             rows = await cursor.fetchall()
             return [self._row_to_memory(r) for r in rows]
         finally:
-                await self._release(conn)
+            await self._release(conn)
 
     async def add_memory(self, mem_obj: Any) -> None:
         """Add a memory object, accepting either :class:`Memory` or a similar object."""
@@ -324,11 +321,7 @@ class SQLiteMemoryStore:
         if isinstance(mem_obj, Memory):
             mem_to_add = mem_obj
         else:
-            mid = (
-                getattr(mem_obj, "id", None)
-                or getattr(mem_obj, "memory_id", None)
-                or str(uuid.uuid4())
-            )
+            mid = getattr(mem_obj, "id", None) or getattr(mem_obj, "memory_id", None) or str(uuid.uuid4())
             mtext = mem_obj.text
             mcreated = getattr(
                 mem_obj,
@@ -403,6 +396,7 @@ class SQLiteMemoryStore:
         """Search memories by text and optional metadata filters (alias for :meth:`search`)."""
         return await self.search(text_query=query, metadata_filters=metadata_filter, limit=k)
 
+
 ###############################################################################
 # FastAPI integration helpers (optional import‑time dep)
 ###############################################################################
@@ -425,7 +419,8 @@ async def lifespan_context(app: "FastAPI") -> AsyncIterator[None]:  # pragma: no
 
 def get_memory_store(request: "Request") -> SQLiteMemoryStore:  # pragma: no cover
     return cast(SQLiteMemoryStore, request.app.state.memory_store)
-    
+
+
 ###############################################################################
 # Singleton helper
 ###############################################################################
@@ -455,6 +450,7 @@ async def get_store(path: str | Path | None = None) -> SQLiteMemoryStore:
         assert _STORE is not None
         return _STORE
 
+
 from memory_system.core.enhanced_store import (
     EnhancedMemoryStore,
     HealthComponent,
@@ -467,4 +463,3 @@ __all__ = [
     "EnhancedMemoryStore",
     "HealthComponent",
 ]
-
