@@ -80,7 +80,7 @@ class SecurityConfig(BaseModel):
             raise ValidationError("API token must be at least 8 characters long")
         if self.encryption_key:
             self._validate_key(self.encryption_key)
-         if self.encrypt_at_rest and not self.encryption_key:
+        if self.encrypt_at_rest and not self.encryption_key:
             object.__setattr__(self, "encryption_key", Fernet.generate_key().decode())
 
     def __setattr__(self, name: str, value: Any) -> None:  # pragma: no cover
