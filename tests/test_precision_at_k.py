@@ -2,6 +2,7 @@
 Evaluates semantic_search precision@k with simple synthetic neighbours.
 Goal: at least 0.8 precision when querying near-identical vectors.
 """
+
 import random
 from pathlib import Path
 from typing import List, Union
