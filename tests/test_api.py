@@ -141,9 +141,7 @@ class TestHealthEndpoints:
 
         if response.status_code == 200:
             # Should be Prometheus format
-            assert (
-                response.headers.get("content-type") == "text/plain; version=0.0.4; charset=utf-8"
-            )
+            assert response.headers.get("content-type") == "text/plain; version=0.0.4; charset=utf-8"
             content = response.text
             assert "# HELP" in content or "# TYPE" in content
 
@@ -182,13 +180,13 @@ class TestAdminEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert data == {"enabled": False}
-        
+
     def test_maintenance_mode_enable(self, test_client: ClientHelper) -> None:
         """Test enabling maintenance mode."""
         response = test_client.post("/api/v1/admin/maintenance-mode/enable")
         assert response.status_code == 204
         assert test_client.app.state.maintenance._enabled is True
-        
+
     def test_maintenance_mode_disable(self, test_client: ClientHelper) -> None:
         """Test disabling maintenance mode."""
         test_client.post("/api/v1/admin/maintenance-mode/enable")
@@ -589,8 +587,7 @@ class TestPerformance:
 
         # Should handle 50 requests in reasonable time
         assert total_time < 10.0  # 10 seconds max
-        
+
         # Average response time should be reasonable
         avg_time = total_time / 50
         assert avg_time < 0.1  # 100ms max per request
-
