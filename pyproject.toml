@@ -107,6 +107,7 @@ ignore_missing_imports = true
 show_error_codes       = true
 exclude                = ["fastapi/.*", "aiosqlite/.*"]
 files                  = ["memory_system"]
+mypy_path              = ["stubs"]
 
 [[tool.mypy.overrides]]
 module = ["fastapi.*", "aiosqlite.*"]
