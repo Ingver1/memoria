@@ -373,14 +373,12 @@ class TestUnifiedSettings:
         assert url.startswith("sqlite:///")
         assert str(settings.database.db_path) in url
 
-    def test_unified_settings_validate_production_ready(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_unified_settings_validate_production_ready(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test production readiness validation."""
         # Ensure no environment token interferes with defaults
         monkeypatch.delenv("AI_SECURITY__API_TOKEN", raising=False)
         monkeypatch.delenv("SECURITY__API_TOKEN", raising=False)
-        
+    
         # Default settings should have issues
         settings = UnifiedSettings()
         issues = settings.validate_production_ready()
