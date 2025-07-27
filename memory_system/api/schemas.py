@@ -46,17 +46,13 @@ class MemoryBase(BaseModel):
         if not -1.0 <= self.valence <= 1.0:
             raise ValueError("valence must be between -1 and 1")
         if not 0.0 <= self.emotional_intensity <= 1.0:
-            raise ValueError(
-                "emotional_intensity must be between 0 and 1"
-            )
+            raise ValueError("emotional_intensity must be between 0 and 1")
 
 
 class MemoryCreate(MemoryBase):
     """Payload for *create* operation."""
 
-    user_id: str | None = Field(
-        None, description="Owner identifier (if omitted — resolved from auth context)"
-    )
+       user_id: str | None = Field(None, description="Owner identifier (if omitted — resolved from auth context)")
 
 
 class MemoryUpdate(BaseModel):
@@ -67,7 +63,7 @@ class MemoryUpdate(BaseModel):
     tags: list[str] | None = Field(default=None, max_length=10)
     valence: float | None = Field(default=None, ge=-1.0, le=1.0)
     emotional_intensity: float | None = Field(default=None, ge=0.0, le=1.0)
-    
+
     model_config = {
         "extra": "forbid",
         "validate_default": True,
@@ -93,9 +89,7 @@ class MemoryQuery(BaseModel):
 
     query: str = Field(..., min_length=1, max_length=1_000)
     top_k: int = Field(10, ge=1, le=100)
-    include_embeddings: bool = Field(
-        False, description="Return raw vector embeddings in the response"
-    )
+    include_embeddings: bool = Field(False, description="Return raw vector embeddings in the response")
 
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
