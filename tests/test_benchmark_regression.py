@@ -4,6 +4,7 @@ These tests fail CI if performance regresses by more than 10 % compared
 with the stored baseline. pytest-benchmark handles the comparison, and
 pytest_asyncio is used for async fixtures.
 """
+
 import asyncio
 from typing import Any, AsyncGenerator, Callable
 
