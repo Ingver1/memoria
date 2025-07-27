@@ -168,9 +168,7 @@ class TestPerformanceConfig:
 
     def test_performance_config_custom_values(self) -> None:
         """Test custom performance configuration."""
-        config = PerformanceConfig(
-            max_workers=8, cache_size=2000, cache_ttl_seconds=600, rebuild_interval_seconds=7200
-        )
+        config = PerformanceConfig(max_workers=8, cache_size=2000, cache_ttl_seconds=600, rebuild_interval_seconds=7200)
         assert config.max_workers == 8
         assert config.cache_size == 2000
         assert config.cache_ttl_seconds == 600
@@ -308,9 +306,7 @@ class TestUnifiedSettings:
             vec_path = Path(tmpdir) / "vectors" / "test.vec"
             cache_path = Path(tmpdir) / "cache" / "test.cache"
 
-            UnifiedSettings(
-                database=DatabaseConfig(db_path=db_path, vec_path=vec_path, cache_path=cache_path)
-            )
+            UnifiedSettings(database=DatabaseConfig(db_path=db_path, vec_path=vec_path, cache_path=cache_path))
 
             assert db_path.parent.exists()
             assert vec_path.parent.exists()
