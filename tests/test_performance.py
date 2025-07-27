@@ -119,7 +119,7 @@ class TestEmbeddingPerformance:
     @pytest.mark.slow
     async def test_concurrent_embedding_performance(self, embedding_service: EnhancedEmbeddingService) -> None:
         """Test performance under concurrent load."""
-        
+
         async def embed_text(text_id: int) -> np.ndarray:
             text = f"Concurrent test text {text_id}"
             return await embedding_service.encode(text)
@@ -167,9 +167,9 @@ class TestEmbeddingPerformance:
         # some platforms causing flaky failures.  We still want to
         # ensure caching has a real benefit so require at least a
         # twofold improvement.
-        assert (
-            second_time < first_time * EMBEDDING_CACHE_FACTOR
-        ), f"Cache hit time: {second_time:.3f}s vs first time: {first_time:.3f}s"
+        assert second_time < first_time * EMBEDDING_CACHE_FACTOR, (
+            f"Cache hit time: {second_time:.3f}s vs first time: {first_time:.3f}s"
+        )
 
     @pytest.mark.slow
     async def test_embedding_memory_usage(self, embedding_service: EnhancedEmbeddingService) -> None:
@@ -255,9 +255,9 @@ class TestIndexPerformance:
             per_vector_time = build_time / batch_size
 
             # Build time should scale reasonably
-            assert (
-                per_vector_time * 1000 < MAX_INDEX_BUILD_PER_VECTOR_MS
-            ), f"Per-vector build time: {per_vector_time:.6f}s"
+             assert per_vector_time * 1000 < MAX_INDEX_BUILD_PER_VECTOR_MS, (
+                f"Per-vector build time: {per_vector_time:.6f}s"
+            )
 
     def test_index_concurrent_search(self, large_index: FaissHNSWIndex) -> None:
         """Test concurrent search performance."""
@@ -292,9 +292,9 @@ class TestIndexPerformance:
         total_searches = len(all_times)
 
         # Concurrent searches should maintain good performance
-        assert (
-            avg_search_time * 1000 < MAX_INDEX_CONCURRENT_AVG_MS
-        ), f"Average concurrent search time: {avg_search_time:.6f}s"
+          assert avg_search_time * 1000 < MAX_INDEX_CONCURRENT_AVG_MS, (
+            f"Average concurrent search time: {avg_search_time:.6f}s"
+        )
         assert total_time * 1000 < MAX_INDEX_CONCURRENT_TOTAL_MS, f"Total concurrent test time: {total_time:.3f}s"
         print(f"Completed {total_searches} concurrent searches in {total_time:.3f}s")
 
@@ -495,7 +495,7 @@ class TestCachePerformance:
                 cache.put(key, value)
                 # Read some values written by this worker
                 if i > 0:
-                    prev_key = f"conc_w{worker_id}_k{i-1}"
+                    prev_key = f"conc_w{worker_id}_k{i - 1}"
                     value = cache.get(prev_key)
                     assert value is not None
 
