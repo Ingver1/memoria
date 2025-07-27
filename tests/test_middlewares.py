@@ -55,9 +55,7 @@ def _patch_client(client: TestClient) -> None:
             async def final(req: Request) -> Response:
                 return await _build_response(handler, req)
 
-            return await client.app.state.rate.dispatch(
-                r, lambda rr: client.app.state.maintenance.dispatch(rr, final)
-            )
+            return await client.app.state.rate.dispatch(r, lambda rr: client.app.state.maintenance.dispatch(rr, final))
 
         resp = client._loop.run_until_complete(call_chain(req))
         return _TestResponse(resp)
@@ -89,4 +87,3 @@ def test_maintenance_mode_blocks() -> None:
 
         resp = client.get("/ping")
         assert resp.status_code == 503
-      
