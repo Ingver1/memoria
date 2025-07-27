@@ -7,6 +7,7 @@ lives in the `cli` extra so production deployments can avoid pulling
 interactive libraries.  When *rich* is missing we degrade to plain‑text
 output.
 """
+
 from __future__ import annotations
 
 # ─────────────────────────────── stdlib imports ───────────────────────────────
@@ -93,8 +94,8 @@ else:
 # ---------------------------------------------------------------------------
 
 app = typer.Typer(
-name="ai-mem",
-help="Interact with an AI-memory- server via REST API.",
+    name="ai-mem",
+    help="Interact with an AI-memory- server via REST API.",
 )
 
 API_URL_ENV = "AI_MEM_API_URL"
@@ -106,10 +107,12 @@ DEFAULT_API = "http://localhost:8000"
 
 # ---------------------------------------------------------------------------
 
+
 def _client(base_url: str) -> httpx.AsyncClient:  # noqa: D401
     """Return shared httpx client with reasonable timeout."""
     return httpx.AsyncClient(base_url=base_url, timeout=30.0)
-    
+
+
 def _metadata_option(
     _ctx: typer.Context,
     _param: typer.CallbackParam,
@@ -123,27 +126,29 @@ def _metadata_option(
     except json.JSONDecodeError as exc:  # pragma: no cover
         raise typer.BadParameter(f"Invalid JSON: {exc}") from exc
 
+
 # ---------------------------------------------------------------------------
 
 # Commands
 
 # ---------------------------------------------------------------------------
 
+
 @app.command()  # type: ignore[misc]
 def add(
-text: str = typer.Argument(..., help="Text to remember."),
-importance: float = typer.Option(0.5, help="0-1 importance weighting."),
-metadata: str | None = typer.Option(
-None,
-"--metadata",
-callback=_metadata_option,
-help="Arbitrary JSON metadata.",
-),
-url: str = typer.Option(
-os.getenv(API_URL_ENV, DEFAULT_API),
-"--url",
-show_default="env/localhost",
-),
+    text: str = typer.Argument(..., help="Text to remember."),
+    importance: float = typer.Option(0.5, help="0-1 importance weighting."),
+    metadata: str | None = typer.Option(
+        None,
+        "--metadata",
+        callback=_metadata_option,
+        help="Arbitrary JSON metadata.",
+    ),
+    url: str = typer.Option(
+        os.getenv(API_URL_ENV, DEFAULT_API),
+        "--url",
+        show_default="env/localhost",
+    ),
 ) -> None:  # noqa: D401
     """Add a new memory row to the store."""
 
@@ -164,13 +169,13 @@ show_default="env/localhost",
 
 @app.command()  # type: ignore[misc]
 def search(
-query: str = typer.Argument(..., help="Search query."),
-k: int = typer.Option(5, help="Number of results."),
-url: str = typer.Option(
-os.getenv(API_URL_ENV, DEFAULT_API),
-"--url",
-show_default="env/localhost",
-),
+    query: str = typer.Argument(..., help="Search query."),
+    k: int = typer.Option(5, help="Number of results."),
+    url: str = typer.Option(
+        os.getenv(API_URL_ENV, DEFAULT_API),
+        "--url",
+        show_default="env/localhost",
+    ),
 ) -> None:  # noqa: D401
     """Semantic search in the memory vector store."""
 
@@ -197,12 +202,12 @@ show_default="env/localhost",
 
 @app.command()  # type: ignore[misc]
 def delete(
-mem_id: str = typer.Argument(..., help="Memory ID to delete."),
-url: str = typer.Option(
-os.getenv(API_URL_ENV, DEFAULT_API),
-"--url",
-show_default="env/localhost",
-),
+    mem_id: str = typer.Argument(..., help="Memory ID to delete."),
+    url: str = typer.Option(
+        os.getenv(API_URL_ENV, DEFAULT_API),
+        "--url",
+        show_default="env/localhost",
+    ),
 ) -> None:  # noqa: D401
     """Delete a memory by ID."""
 
@@ -218,14 +223,12 @@ show_default="env/localhost",
 
 @app.command()  # type: ignore[misc]
 def import_json(
-file: Path = typer.Argument(
-..., exists=True, readable=True, help="JSONL file (one memory per line)."
-),
-url: str = typer.Option(
-os.getenv(API_URL_ENV, DEFAULT_API),
-"--url",
-show_default="env/localhost",
-),
+    file: Path = typer.Argument(..., exists=True, readable=True, help="JSONL file (one memory per line)."),
+    url: str = typer.Option(
+        os.getenv(API_URL_ENV, DEFAULT_API),
+        "--url",
+        show_default="env/localhost",
+    ),
 ) -> None:  # noqa: D401
     """Bulk‑import memories from a .jsonl file."""
 
