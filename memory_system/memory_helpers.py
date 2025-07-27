@@ -1,4 +1,5 @@
 """Compatibility wrapper exposing high-level memory helper functions."""
+
 from __future__ import annotations
 
 import unified_memory as _u
