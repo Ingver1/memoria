@@ -172,7 +172,7 @@ def add(
 def search(
     query: str = typer.Argument(..., help="Search query."),
     k: int = typer.Option(5, help="Number of results."),
-    uurl: str = typer.Option(
+    url: str = typer.Option(
         DEFAULT_API,
         "--url",
         envvar=API_URL_ENV,
