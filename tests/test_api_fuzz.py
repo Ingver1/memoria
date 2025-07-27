@@ -2,6 +2,7 @@
 Fuzzes the whole FastAPI surface against its OpenAPI schema.
 Schemathesis autogenerates thousands of requests with random payloads.
 """
+
 from typing import Any
 
 import pytest
@@ -25,11 +26,13 @@ class _Case:
 def case() -> _Case:
     """Provide a minimal `case` fixture when the real schemathesis plugin is missing."""
     return _Case()
-    
+
+
 schema = schemathesis.from_path(
     "tests/st_api_fuzz.yaml",
     data_generation_methods=[DataGenerationMethod.fuzzed],
 )
+
 
 def test_api_fuzz(case: _Case) -> None:
     """Run schema-driven fuzzing against the live ASGI app."""
