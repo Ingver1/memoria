@@ -29,14 +29,11 @@ def test_memory_endpoints(client: TestClient) -> None:
     assert add.status_code == 201
     mem_id = add.json()["id"]
 
-    search = client.post(
-        "/api/v1/memory/search", json={"query": "fastapi", "top_k": 5}
-    )
+    search = client.post("/api/v1/memory/search", json={"query": "fastapi", "top_k": 5})
     assert search.status_code == 200
     results = search.json()
     assert isinstance(results, list)
     assert any(r["id"] == mem_id for r in results)
 
     detail = client.get(f"/api/v1/memory/{mem_id}")
-    assert detail.status_code == 404
-  
+    assert detail.status_code == 404 
