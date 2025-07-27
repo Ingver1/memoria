@@ -47,9 +47,7 @@ class AbstractVectorStore(ABC):
     """Interface that concrete stores must implement."""
 
     @abstractmethod
-    async def add(
-        self, vectors: Sequence[list[float]], metadata: Sequence[dict[str, Any]]
-    ) -> list[str]: ...
+    async def add(self, vectors: Sequence[list[float]], metadata: Sequence[dict[str, Any]]) -> list[str]: ...
 
     @abstractmethod
     async def search(self, vector: list[float], k: int = 5) -> list[tuple[str, float]]: ...
@@ -116,9 +114,7 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
     # ---------------------------------------------------------------------
     # Public methods
     # ---------------------------------------------------------------------
-    async def add(
-        self, vectors: Sequence[list[float]], metadata: Sequence[dict[str, Any]]
-    ) -> list[str]:
+    async def add(self, vectors: Sequence[list[float]], metadata: Sequence[dict[str, Any]]) -> list[str]:
         if len(vectors) != len(metadata):
             raise ValueError("vectors and metadata length mismatch")
 
@@ -154,9 +150,7 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
 
     async def flush(self) -> None:  # noqa: D401 (imperative)
         async with self._rwlock.writer_lock():
-            await self._loop.run_in_executor(
-                None, faiss.write_index, self._index, str(self._index_path)
-            )
+            await self._loop.run_in_executor(None, faiss.write_index, self._index, str(self._index_path))
             # simple metadata persistence
             (self._index_path.with_suffix(".meta.json")).write_text(json.dumps(self._metadata))
 
@@ -185,9 +179,7 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
         """Writes the current index to disk, replacing previous blob."""
         _LOGGER.debug("Compacting FAISS index → %s", self._index_path)
         async with self._rwlock.writer_lock():
-            await self._loop.run_in_executor(
-                None, faiss.write_index, self._index, str(self._index_path)
-            )
+            await self._loop.run_in_executor(None, faiss.write_index, self._index, str(self._index_path))
 
     async def replicate(self) -> None:
         """Makes a timestamped backup copy of the index blob."""
@@ -206,8 +198,10 @@ def _to_faiss_array(vectors: Sequence[Sequence[float]]) -> _np.ndarray:
         arr = arr.reshape(1, -1)
     return arr
 
+
 def _to_faiss_ids(ids: Sequence[str]) -> _np.ndarray:
     return _np.array([uuid.UUID(_id).int & ((1 << 64) - 1) for _id in ids], dtype="int64")
+
 
 def _from_faiss_id(idx: int) -> str:
     return str(uuid.UUID(int=idx))
@@ -240,15 +234,13 @@ class VectorStore:
         self._file = open(self._bin_path, "a+b")
         self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
         self._db_lock = threading.Lock()
-        self._conn.execute(
-            "CREATE TABLE IF NOT EXISTS vectors (id TEXT PRIMARY KEY, offset INTEGER)"
-        )
+        self._conn.execute("CREATE TABLE IF NOT EXISTS vectors (id TEXT PRIMARY KEY, offset INTEGER)")
         self._conn.commit()
 
     # ------------------------------------------------------------------
     def _validate_vector(self, vector: _Seq[float] | np.ndarray) -> np.ndarray:
         """Validate ``vector`` and convert it to ``np.float32`` array."""
-      
+
         if isinstance(vector, np.ndarray):
             if vector.dtype is not np.float32:
                 raise ValidationError("vector dtype must be float32")
