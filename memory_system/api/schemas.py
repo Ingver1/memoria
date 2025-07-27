@@ -52,7 +52,10 @@ class MemoryBase(BaseModel):
 class MemoryCreate(MemoryBase):
     """Payload for *create* operation."""
 
-       user_id: str | None = Field(None, description="Owner identifier (if omitted — resolved from auth context)")
+    user_id: str | None = Field(
+        None,
+        description="Owner identifier (if omitted — resolved from auth context)",
+    )
 
 
 class MemoryUpdate(BaseModel):
