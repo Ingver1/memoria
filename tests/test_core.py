@@ -85,9 +85,7 @@ class TestHealthComponent:
     def test_health_component_creation(self) -> None:
         """Test HealthComponent creation."""
         checks = {"database": True, "index": True}
-        health = HealthComponent(
-            healthy=True, message="All systems operational", uptime=3600, checks=checks
-        )
+        health = HealthComponent(healthy=True, message="All systems operational", uptime=3600, checks=checks)
         assert health.healthy is True
         assert health.message == "All systems operational"
         assert health.uptime == 3600
@@ -96,13 +94,12 @@ class TestHealthComponent:
     def test_health_component_unhealthy(self) -> None:
         """Test HealthComponent for unhealthy state."""
         checks = {"database": False, "index": True}
-        health = HealthComponent(
-            healthy=False, message="Database connection failed", uptime=100, checks=checks
-        )
+        health = HealthComponent(healthy=False, message="Database connection failed", uptime=100, checks=checks)
         assert health.healthy is False
         assert health.message == "Database connection failed"
         assert health.uptime == 100
         assert health.checks == checks
+
 
 class TestSQLiteMemoryStore:
     """Test SQLiteMemoryStore functionality."""
@@ -197,7 +194,6 @@ class TestSQLiteMemoryStore:
 class TestEnhancedMemoryStore:
     """Test EnhancedMemoryStore functionality."""
 
-
     @pytest.fixture
     def test_settings(self) -> UnifiedSettings:
         """Create test settings."""
@@ -233,7 +229,7 @@ class TestEnhancedMemoryStore:
         """Test stats retrieval."""
         stats = await store.get_stats()
         assert isinstance(stats, dict)
-        assert "total_memories" in stats  
+        assert "total_memories" in stats
         assert "index_size" in stats
         assert "cache_stats" in stats
         assert "buffer_size" in stats
@@ -263,7 +259,7 @@ class TestGetStore:
             path = Path(f.name)
 
         store = await get_store(path)
-        try:  
+        try:
             assert store._path == path
         finally:
             await store.close()
@@ -381,9 +377,11 @@ class TestEnhancedEmbeddingService:
         """Test encoding timeout."""
         # Mock a slow encoding operation
         with patch.object(service, "_encode_direct") as mock_encode:
+
             def stub(_texts: list[str]) -> None:
                 asyncio.run(asyncio.sleep(0.1))
                 raise TimeoutError("operation timed out")
+
             mock_encode.side_effect = stub
             with pytest.raises(EmbeddingError) as exc_info:
                 await service.encode("test text")
@@ -571,13 +569,13 @@ class TestFaissHNSWIndex:
         stats = index.stats()
         assert stats.total_vectors == 1
 
-    # Verify removal through search
+        # Verify removal through search
         query_vector = np.random.rand(384).astype(np.float32)
         result_ids, _ = index.search(query_vector, k=3)
         assert "vec1" not in result_ids
         assert "vec3" not in result_ids
         assert len(result_ids) == 1
-        
+
     def test_dynamic_ef_search(self, index: FaissHNSWIndex) -> None:
         """Test dynamic ef_search parameter."""
         # Add test vectors
@@ -587,13 +585,13 @@ class TestFaissHNSWIndex:
 
         query_vector = np.random.rand(384).astype(np.float32)
 
-         # Test with different ef_search values
+        # Test with different ef_search values
         index.ef_search = 16
         results1, _ = index.search(query_vector, k=5)
-        
+
         index.ef_search = 64
         results2, _ = index.search(query_vector, k=5)
-        
+
         # Verify results
         assert len(results1) == len(results2) == 5
         # Higher ef_search might find different (potentially better) results
