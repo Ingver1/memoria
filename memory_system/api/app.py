@@ -116,7 +116,7 @@ def create_app(settings: UnifiedSettings | None = None) -> FastAPI:  # pragma: n
         await store.aclose()
         logger.info("SQLiteMemoryStore closed")
 
-    # Dependency bridge -----------------------------------------------------
+        # Dependency bridge -----------------------------------------------------
         app.dependency_overrides[get_memory_store] = lambda req: cast(SQLiteMemoryStore, req.app.state.store)
 
     # Routers ---------------------------------------------------------------
