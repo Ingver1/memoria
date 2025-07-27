@@ -2,6 +2,7 @@
 Ensures `security.encrypt_at_rest=True` really hides plaintext
 inside the SQLite backing file (uses SQLCipher driver).
 """
+
 from pathlib import Path
 
 import pytest
@@ -16,10 +17,7 @@ async def test_sqlcipher_encryption(tmp_path: Path) -> None:
     db_file = tmp_path / "cipher.db"
     cfg = UnifiedSettings.for_testing()
     # Configure database with SQLCipher and encryption
-    cfg.database = DatabaseConfig(
-        db_path=db_file,
-        connection_string=f"sqlite+sqlcipher:///{db_file}"
-    )
+    cfg.database = DatabaseConfig(db_path=db_file, connection_string=f"sqlite+sqlcipher:///{db_file}")
     cfg.security.encrypt_at_rest = True
 
     store = EnhancedMemoryStore(cfg)
