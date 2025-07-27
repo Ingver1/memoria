@@ -62,8 +62,8 @@ def _wrap_sync(metric: Histogram) -> Callable[[Callable[P, R]], Callable[P, R]]:
 
 def _wrap_async(
     metric: Histogram,
-) -> Callable[[Callable[P, Coroutine[Any, Any, R]]], Callable[P, Coroutine[Any, Any, R]]]
-"""Decorator factory for async function timing."""
+) -> Callable[[Callable[P, Coroutine[Any, Any, R]]], Callable[P, Coroutine[Any, Any, R]]]:
+    """Decorator factory for async function timing."""
 
     def decorator(fn: Callable[P, Coroutine[Any, Any, R]]) -> Callable[P, Coroutine[Any, Any, R]]:
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
