@@ -258,7 +258,7 @@ class TestIndexPerformance:
             assert per_vector_time * 1000 < MAX_INDEX_BUILD_PER_VECTOR_MS, (
                 f"Per-vector build time: {per_vector_time:.6f}s"
             )
-            
+
     def test_index_concurrent_search(self, large_index: FaissHNSWIndex) -> None:
         """Test concurrent search performance."""
 
