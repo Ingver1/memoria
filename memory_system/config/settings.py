@@ -240,7 +240,7 @@ class UnifiedSettings(BaseSettings):
         for key, value in envs.items():
             if "__" not in key:
                 continue
-            trimmed = key[len(prefix):] if prefix and key.startswith(prefix) else key
+            trimmed = key[len(prefix) :] if prefix and key.startswith(prefix) else key
             section, field = trimmed.split("__", 1)
             section = section.lower()
             field = field.lower()
