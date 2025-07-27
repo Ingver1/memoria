@@ -299,9 +299,25 @@ class UnifiedSettings(BaseSettings):
         return f"sqlite:///{self.database.db_path}"
 
     def validate_production_ready(self) -> list[str]:
+        """Return a list of configuration issues blocking production usage."""
+
         issues: list[str] = []
+
         if not self.security.api_token or self.security.api_token == "your-secret-token-change-me":
             issues.append("API token is not set")
+
+        if self.profile != "production":
+            issues.append("Profile is not production")
+
+        if not self.security.encrypt_at_rest:
+            issues.append("Encryption at rest disabled")
+
+        if not self.security.filter_pii:
+            issues.append("PII filtering disabled")
+
+        if not self.monitoring.enable_metrics:
+            issues.append("Metrics disabled")
+
         return issues
 
     def get_config_summary(self) -> dict[str, Any]:
