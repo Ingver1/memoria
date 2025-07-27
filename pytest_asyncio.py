@@ -30,18 +30,28 @@ asyncio.set_event_loop(LOOP)
 
 @pytest.hookimpl(tryfirst=True)
 def pytest_pyfunc_call(pyfuncitem: "pytest.Function") -> bool | None:
+    """Run async tests and wrappers in the session event loop."""
     testfunc = pyfuncitem.obj
-    if inspect.iscoroutinefunction(testfunc):
-        asyncio.set_event_loop(LOOP)
-        fixtureinfo = getattr(pyfuncitem, "_fixtureinfo", None)
-        if fixtureinfo is not None:
-            argnames = getattr(fixtureinfo, "argnames", list(pyfuncitem.funcargs))
-        else:
-            argnames = list(pyfuncitem.funcargs)
-        kwargs = {name: pyfuncitem.funcargs[name] for name in argnames if name in pyfuncitem.funcargs}
-        LOOP.run_until_complete(testfunc(**kwargs))
-        return True
-    return None  # Ensure all code paths return
+
+    # Only handle coroutine functions or tests marked with ``asyncio`` which may
+    # return an awaitable (e.g. Hypothesis wrappers).
+    if not inspect.iscoroutinefunction(testfunc) and pyfuncitem.get_closest_marker(
+        "asyncio"
+    ) is None:
+        return None
+
+    asyncio.set_event_loop(LOOP)
+    fixtureinfo = getattr(pyfuncitem, "_fixtureinfo", None)
+    if fixtureinfo is not None:
+        argnames = getattr(fixtureinfo, "argnames", list(pyfuncitem.funcargs))
+    else:
+        argnames = list(pyfuncitem.funcargs)
+    kwargs = {name: pyfuncitem.funcargs[name] for name in argnames if name in pyfuncitem.funcargs}
+
+    result = testfunc(**kwargs)
+    if inspect.isawaitable(result):
+        LOOP.run_until_complete(result)
+    return True
 
 
 @pytest.hookimpl(tryfirst=True)
