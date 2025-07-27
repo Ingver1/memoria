@@ -392,7 +392,7 @@ class TestAPIIntegration:
             assert response.status_code == 200
             data = response.json()
             assert data["version"] == __version__
-   
+
     def test_api_error_handling_integration(self, client: ClientHelper) -> None:
         """Test API error handling integration."""
         # Test 404 error
