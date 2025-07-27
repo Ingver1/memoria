@@ -2,6 +2,7 @@
 Ensures DB columns obey NOT NULL + dimension constraints after inserts.
 Works with SQLite or SQLCipher.
 """
+
 from pathlib import Path
 from types import SimpleNamespace
 
