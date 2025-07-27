@@ -3,6 +3,7 @@ Tests correct disabling of the `/metrics` endpoint.
 If metrics are disabled, the service must return 404/403
 and must not output Prometheus formatted data.
 """
+
 from typing import Any
 
 import pytest
