@@ -4,6 +4,7 @@ Measures queries-per-second for different ``ef_search`` values to help
 pick sensible defaults for the FAISS index. Async fixtures are provided
 via ``pytest_asyncio``.
 """
+
 import asyncio
 from typing import Any, AsyncGenerator
 
@@ -54,4 +55,3 @@ def test_benchmark_semantic_search(benchmark: BenchmarkFixture, populated_store:
             )
         )
     )
-    
