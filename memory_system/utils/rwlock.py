@@ -32,9 +32,7 @@ class AsyncRWLock:
     @asynccontextmanager
     async def writer_lock(self) -> AsyncGenerator[None, None]:
         async with self._cond:
-            await self._cond.wait_for(
-                lambda: not self._writer and self._readers == 0
-            )
+            await self._cond.wait_for(lambda: not self._writer and self._readers == 0)
             self._writer = True
         try:
             yield
