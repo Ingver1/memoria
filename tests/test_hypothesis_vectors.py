@@ -4,6 +4,7 @@ Property-based tests for EnhancedMemoryStore vector workflow.
 The goal: whatever random float32 vector we add must be retrievable
 via an exact semantic search; the store must never raise or lose data.
 """
+
 from typing import AsyncGenerator, List
 
 import pytest
@@ -23,11 +24,15 @@ VECTOR_DIM = UnifiedSettings.for_testing().model.vector_dim
 
 def _float32_arrays() -> SearchStrategy[List[float]]:
     """Generate lists of float32 values in the range [0, 1)."""
-    return st.lists(
-        st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
-        min_size=VECTOR_DIM,
-        max_size=VECTOR_DIM,
-    ).map(np.float32).map(list)
+    return (
+        st.lists(
+            st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
+            min_size=VECTOR_DIM,
+            max_size=VECTOR_DIM,
+        )
+        .map(np.float32)
+        .map(list)
+    )
 
 
 @pytest_asyncio.fixture(scope="function")
