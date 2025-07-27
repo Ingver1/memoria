@@ -185,9 +185,7 @@ class TestEndToEndMemoryWorkflow:
             domain_memories = {mem["id"] for mem in memory_groups[domain]}
 
             # Count how many results are from the correct domain
-            correct_domain_results = sum(
-                1 for result_id in result_ids if result_id in domain_memories
-            )
+            correct_domain_results = sum(1 for result_id in result_ids if result_id in domain_memories)
 
             assert correct_domain_results >= 0
 
@@ -394,7 +392,7 @@ class TestAPIIntegration:
             assert response.status_code == 200
             data = response.json()
             assert data["version"] == __version__
-            
+   
     def test_api_error_handling_integration(self, client: ClientHelper) -> None:
         """Test API error handling integration."""
         # Test 404 error
@@ -506,10 +504,7 @@ class TestSecurityIntegration:
         encryption_manager = EncryptionManager()
 
         # Generate test data
-        test_texts = [
-            f"User {i} with email user{i}@example.com and phone {i:03d}-{i:03d}-{i:04d}"
-            for i in range(10)
-        ]
+        test_texts = [f"User {i} with email user{i}@example.com and phone {i:03d}-{i:03d}-{i:04d}" for i in range(10)]
 
         start_time = time.time()
 
