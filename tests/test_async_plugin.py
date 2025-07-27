@@ -1,5 +1,6 @@
-import pytest
 from typing import Coroutine
+
+import pytest
 
 
 @pytest.mark.asyncio
