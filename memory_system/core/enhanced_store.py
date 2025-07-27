@@ -83,7 +83,7 @@ class EnhancedMemoryStore:
             "buffer_size": 0,
             "uptime_seconds": int(time.time() - self._start_time),
         }
-    
+
     async def close(self) -> None:
         """Close the store."""
         await self._store.aclose()
@@ -133,9 +133,7 @@ class EnhancedMemoryStore:
         include_embeddings: bool = False,
         ef_search: int | None = None,
     ) -> list[Any]:
-        ids, _dists = self._index.search(
-            np.asarray(vector, dtype=np.float32), k=k, ef_search=ef_search
-        )
+        ids, _dists = self._index.search(np.asarray(vector, dtype=np.float32), k=k, ef_search=ef_search)
         results: list[Any] = []
         for _id in ids:
             mem = await self._store.get(_id)
