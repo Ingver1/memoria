@@ -255,7 +255,7 @@ class TestIndexPerformance:
             per_vector_time = build_time / batch_size
 
             # Build time should scale reasonably
-             assert per_vector_time * 1000 < MAX_INDEX_BUILD_PER_VECTOR_MS, (
+            assert per_vector_time * 1000 < MAX_INDEX_BUILD_PER_VECTOR_MS, (
                 f"Per-vector build time: {per_vector_time:.6f}s"
             )
 
@@ -292,7 +292,7 @@ class TestIndexPerformance:
         total_searches = len(all_times)
 
         # Concurrent searches should maintain good performance
-          assert avg_search_time * 1000 < MAX_INDEX_CONCURRENT_AVG_MS, (
+        assert avg_search_time * 1000 < MAX_INDEX_CONCURRENT_AVG_MS, (
             f"Average concurrent search time: {avg_search_time:.6f}s"
         )
         assert total_time * 1000 < MAX_INDEX_CONCURRENT_TOTAL_MS, f"Total concurrent test time: {total_time:.3f}s"
