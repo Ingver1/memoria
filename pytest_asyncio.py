@@ -35,9 +35,7 @@ def pytest_pyfunc_call(pyfuncitem: "pytest.Function") -> bool | None:
 
     # Only handle coroutine functions or tests marked with ``asyncio`` which may
     # return an awaitable (e.g. Hypothesis wrappers).
-    if not inspect.iscoroutinefunction(testfunc) and pyfuncitem.get_closest_marker(
-        "asyncio"
-    ) is None:
+    if not inspect.iscoroutinefunction(testfunc) and pyfuncitem.get_closest_marker("asyncio") is None:
         return None
 
     asyncio.set_event_loop(LOOP)
