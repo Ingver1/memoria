@@ -2,6 +2,7 @@
 If the ANN index is missing, the service should degrade gracefully,
 reporting unhealthy status and returning 503 on /health.
 """
+
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
 
@@ -25,4 +26,3 @@ def test_index_missing_returns_503(monkeypatch: MonkeyPatch) -> None:
     resp = client.get("/health")
     assert resp.status_code == 503
     assert resp.json()["healthy"] is False
-    
