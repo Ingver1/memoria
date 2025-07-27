@@ -1,5 +1,6 @@
 import pytest
 
+
 @pytest.mark.asyncio
 def test_sync_returns_coroutine():
     async def inner():
