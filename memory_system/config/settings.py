@@ -236,10 +236,12 @@ class UnifiedSettings(BaseSettings):
                 return Path(val)
             return val
 
+        prefix = str(self.model_config.get("env_prefix", ""))
         for key, value in envs.items():
             if "__" not in key:
                 continue
-            section, field = key.split("__", 1)
+            trimmed = key[len(prefix):] if prefix and key.startswith(prefix) else key
+            section, field = trimmed.split("__", 1)
             section = section.lower()
             field = field.lower()
             if hasattr(self, section):
