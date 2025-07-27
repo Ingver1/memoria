@@ -98,7 +98,7 @@ class EmbeddingService:
             # In case an event loop is already running, schedule close
             loop = get_or_create_loop()
             loop.run_until_complete(self.close())
-    
+
     # Model management
 
     def _load_model(self) -> None:
@@ -133,9 +133,7 @@ class EmbeddingService:
         """Start the background batching thread (idempotent)."""
         if self._batch_thread and self._batch_thread.is_alive():
             return
-        self._batch_thread = threading.Thread(
-            target=self._batch_loop, name="emb-batcher", daemon=True
-        )
+        self._batch_thread = threading.Thread(target=self._batch_loop, name="emb-batcher", daemon=True)
         self._batch_thread.start()
 
     def _batch_loop(self) -> None:
@@ -242,7 +240,7 @@ class EmbeddingService:
             self._batch_thread.join(timeout=1.0)
         log.info("Embedding service closed.")
 
-# Convenience synchronous wrapper used in tests
+    # Convenience synchronous wrapper used in tests
     def shutdown(self) -> None:
         try:
             loop = asyncio.get_running_loop()
