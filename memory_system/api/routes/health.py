@@ -28,7 +28,7 @@ router = APIRouter(tags=["Health & Monitoring"])
 async def _store() -> EnhancedMemoryStore:
     """Dependency to get the global EnhancedMemoryStore (async)."""
     return get_memory_store()
-    
+
 
 def _settings() -> UnifiedSettings:
     """Dependency to get current UnifiedSettings."""
@@ -78,12 +78,11 @@ async def health_check() -> Response:
         headers={"content-type": "application/json"},
     )
 
+
 @router.post("/health")
 async def health_method_not_allowed() -> JSONResponse:
     """Explicit 405 response for unsupported POST method."""
-    return JSONResponse(
-        status_code=405, headers={"content-type": "application/json"}
-    )
+    return JSONResponse(status_code=405, headers={"content-type": "application/json"})
 
 
 @router.get("/health/live", summary="Liveness probe")
@@ -142,7 +141,11 @@ async def metrics_endpoint(settings: Optional[UnifiedSettings] = None) -> Respon
     settings = settings or _settings()
     if asyncio.iscoroutine(settings):
         settings = await settings
-    if settings is None or not getattr(settings, "monitoring", None) or not getattr(settings.monitoring, "enable_metrics", False):
+    if (
+        settings is None
+        or not getattr(settings, "monitoring", None)
+        or not getattr(settings.monitoring, "enable_metrics", False)
+    ):
         raise HTTPException(status_code=404, detail="Metrics disabled")
     ctype = get_metrics_content_type()
     return Response(
