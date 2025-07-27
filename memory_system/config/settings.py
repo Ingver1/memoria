@@ -37,7 +37,7 @@ class DatabaseConfig(BaseModel):
     connection_pool_size: PositiveInt = 10
 
     model_config = {"frozen": True}
-    
+
     @field_validator("db_path", "vec_path", "cache_path")
     @classmethod
     def _coerce_path(cls, v: Any) -> Path:
@@ -80,10 +80,8 @@ class SecurityConfig(BaseModel):
             raise ValidationError("API token must be at least 8 characters long")
         if self.encryption_key:
             self._validate_key(self.encryption_key)
-        if self.encrypt_at_rest and not self.encryption_key:
-            object.__setattr__(
-                self, "encryption_key", Fernet.generate_key().decode()
-            )
+         if self.encrypt_at_rest and not self.encryption_key:
+            object.__setattr__(self, "encryption_key", Fernet.generate_key().decode())
 
     def __setattr__(self, name: str, value: Any) -> None:  # pragma: no cover
         if name == "encrypt_at_rest" and value and not getattr(self, "encryption_key", ""):
@@ -127,7 +125,7 @@ class PerformanceConfig(BaseModel):
         if name in self.__dict__ and self.model_config.get("frozen"):
             raise ValidationError("PerformanceConfig is immutable")
         super().__setattr__(name, value)
-    
+
     @field_validator("max_workers")
     @classmethod
     def _workers_range(cls, value: int) -> int:
@@ -218,7 +216,7 @@ class UnifiedSettings(BaseSettings):
 
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
-        
+
         # environment variable overrides
         envs: dict[str, str] = {}
         env_file = self.model_config.get("env_file")
@@ -263,7 +261,7 @@ class UnifiedSettings(BaseSettings):
         object.__setattr__(self.database, "db_path", fixed[0])
         object.__setattr__(self.database, "vec_path", fixed[1])
         object.__setattr__(self.database, "cache_path", fixed[2])
-        object.__setattr__(self, "storage", SimpleNamespace(database_url=self.get_database_url())) 
+        object.__setattr__(self, "storage", SimpleNamespace(database_url=self.get_database_url()))
 
     @classmethod
     def for_testing(cls) -> "UnifiedSettings":
@@ -275,7 +273,7 @@ class UnifiedSettings(BaseSettings):
             api=APIConfig(port=0),
             security=SecurityConfig(api_token="test-token-12345678", rate_limit_per_minute=10_000),
         )
-        
+
     @classmethod
     def for_production(cls) -> "UnifiedSettings":
         return cls(
@@ -284,7 +282,7 @@ class UnifiedSettings(BaseSettings):
             performance=PerformanceConfig(max_workers=8, cache_size=5_000),
             security=SecurityConfig(encrypt_at_rest=True, filter_pii=True),
         )
-    
+
     @classmethod
     def for_development(cls) -> "UnifiedSettings":
         return cls(
