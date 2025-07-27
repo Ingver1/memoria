@@ -46,6 +46,7 @@ async def add_memory(request: Request, body: dict[str, Any]) -> dict[str, str]:
     mem = await add(body["text"], metadata=body.get("metadata", {}), store=store)
     return {"id": mem.memory_id}
 
+
 @router.delete("/{memory_id}", summary="Delete memory", response_description="Deletion status")
 async def delete_memory(request: Request, memory_id: str) -> dict[str, str]:
     """Delete a memory entry by ID."""
@@ -72,10 +73,10 @@ def create_app(settings: UnifiedSettings | None = None) -> FastAPI:  # pragma: n
     configure_logging(settings)
 
     app = FastAPI(title="Unified Memory System", version=__version__)
-    
+
     # Maintenance mode middleware is attached via middleware stack
     app.add_middleware(MaintenanceModeMiddleware)
-    
+
     # CORS (can be tightened in prod)
     app.add_middleware(
         CORSMiddleware,
@@ -115,11 +116,8 @@ def create_app(settings: UnifiedSettings | None = None) -> FastAPI:  # pragma: n
         await store.aclose()
         logger.info("SQLiteMemoryStore closed")
 
-
     # Dependency bridge -----------------------------------------------------
-    app.dependency_overrides[get_memory_store] = (
-        lambda req: cast(SQLiteMemoryStore, req.app.state.store)
-    )
+        app.dependency_overrides[get_memory_store] = lambda req: cast(SQLiteMemoryStore, req.app.state.store)
 
     # Routers ---------------------------------------------------------------
     # Memory endpoints live under /api/v1/memory
@@ -134,7 +132,7 @@ def create_app(settings: UnifiedSettings | None = None) -> FastAPI:  # pragma: n
     @app.get("/health")
     async def health_alias() -> Response:
         return await health_routes.health_check()
-        
+
     # Metrics ---------------------------------------------------------------
     if settings.monitoring.enable_metrics:
         try:
@@ -143,9 +141,7 @@ def create_app(settings: UnifiedSettings | None = None) -> FastAPI:  # pragma: n
             app.mount("/metrics", make_asgi_app())
             logger.info("Prometheus /metrics endpoint enabled")
         except ImportError:  # pragma: no cover - optional feature
-            logger.warning(
-                "prometheus_client not installed, cannot expose /metrics"
-            )
+            logger.warning("prometheus_client not installed, cannot expose /metrics")
 
     return app
 
