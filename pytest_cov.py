@@ -20,6 +20,12 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     )
     group.addoption("--cov-append", action="store_true", help="no-op")
     group.addoption("--cov-config", action="store", default=None, help="no-op")
+    group.addoption(
+        "--cov-fail-under",
+        action="store",
+        default=None,
+        help="no-op",
+    )
 
 
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
