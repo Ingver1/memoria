@@ -299,7 +299,11 @@ class UnifiedSettings(BaseSettings):
         return f"sqlite:///{self.database.db_path}"
 
     def validate_production_ready(self) -> list[str]:
-        """Return a list of configuration issues blocking production usage."""
+        """Return any configuration issues that make the app unsafe for production.
+
+        This checks the API token, runtime profile, encryption settings,
+        whether PII filtering is enabled, and if metrics collection is active.
+        """
 
         issues: list[str] = []
 
