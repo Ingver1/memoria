@@ -41,9 +41,11 @@ _VEC_DELETED = prometheus_counter("ums_vectors_deleted_total", "Vectors deleted 
 _QUERY_CNT = prometheus_counter("ums_ann_queries_total", "ANN queries executed")
 _QUERY_ERR = prometheus_counter("ums_ann_query_errors_total", "Errors while querying ANN index")
 
+
 # ────────────────────────── Exceptions ───────────────────────────
 class ANNIndexError(StorageError, ValueError):
     """Raised for duplicate IDs, dimension mismatch, or internal FAISS errors."""
+
 
 # ─────────────────────────── Dataclass ────────────────────────────
 @dataclass(slots=True)
@@ -54,6 +56,7 @@ class IndexStats:
     avg_latency_ms: float = 0.0
     last_rebuild: float | None = None
     extra: dict[str, int | float] = field(default_factory=dict)
+
 
 # ────────────────────────── Main class ────────────────────────────
 class FaissHNSWIndex:
@@ -189,8 +192,8 @@ class FaissHNSWIndex:
 
         vec32 = self._to_float32(np.asarray(vector))
         vec1d = vec32.flatten()
-        vec_bytes = vec1d.tobytes() if hasattr(vec1d, "tobytes") else struct.pack(
-            f"{len(vec1d)}f", *[float(x) for x in vec1d]
+        vvec_bytes = (
+            vec1d.tobytes() if hasattr(vec1d, "tobytes") else struct.pack(f"{len(vec1d)}f", *[float(x) for x in vec1d])
         )
         key = (hash(vec_bytes), k, ef_search or self.ef_search)
         cached = self._cache.get(key)
