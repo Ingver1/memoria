@@ -65,7 +65,7 @@ class KeyMetadata(BaseModel):
 
     @field_validator("expires_at")
     @classmethod
-        def _exp_after_created(cls, v: datetime | None, info: ValidationInfo) -> datetime | None:
+    def _exp_after_created(cls, v: datetime | None, info: ValidationInfo) -> datetime | None:
         if v is not None and v <= info.data["created_at"]:
             raise ValueError("expires_at must be after created_at")
         return v
@@ -313,7 +313,7 @@ class PIIPatterns:
     PHONE = re.compile(r"^(?:\+?\d{1,2}[ -]?)?(?:\(\d{3}\)|\d{3})[ -.]?\d{3}[ -.]?\d{4}$")
     CREDIT_CARD = re.compile(r"^(?:\d{4}[ -]?){3}\d{4}$")
     SSN = re.compile(r"^\d{3}-\d{2}-\d{4}$")
-        IP_ADDRESS = re.compile(r"^(?:25[0-5]|2[0-4]\d|1?\d{1,2})(?:\.(?:25[0-5]|2[0-4]\d|1?\d{1,2})){3}$")
+    IP_ADDRESS = re.compile(r"^(?:25[0-5]|2[0-4]\d|1?\d{1,2})(?:\.(?:25[0-5]|2[0-4]\d|1?\d{1,2})){3}$")
 
 
 class EnhancedPIIFilter:
