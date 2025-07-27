@@ -378,7 +378,7 @@ class TestUnifiedSettings:
         # Ensure no environment token interferes with defaults
         monkeypatch.delenv("AI_SECURITY__API_TOKEN", raising=False)
         monkeypatch.delenv("SECURITY__API_TOKEN", raising=False)
-    
+
         # Default settings should have issues
         settings = UnifiedSettings()
         issues = settings.validate_production_ready()
