@@ -26,7 +26,8 @@ def pytest_configure(config: Config) -> None:
     config.addinivalue_line("markers", "asyncio: mark async test")
     config.addinivalue_line("markers", "perf: marks performance / load tests")
 
-pytest_configure.__annotations__ = {'config': object, 'return': None}
+
+pytest_configure.__annotations__ = {"config": object, "return": None}
 
 
 def pytest_collection_modifyitems(config: Config, items: List[Item]) -> None:
@@ -36,7 +37,8 @@ def pytest_collection_modifyitems(config: Config, items: List[Item]) -> None:
         if inspect.iscoroutinefunction(test_fn):
             item.add_marker(pytest.mark.asyncio)
 
-pytest_collection_modifyitems.__annotations__ = {'config': object, 'items': list, 'return': None}
+
+pytest_collection_modifyitems.__annotations__ = {"config": object, "items": list, "return": None}
 
 # Set test environment variables
 os.environ.update(
@@ -57,8 +59,9 @@ def _raise_log_level(caplog: LogCaptureFixture) -> None:
     """
     caplog.set_level(logging.INFO, logger="memory_system.core.index")
 
-_raise_log_level.__annotations__ = {'caplog': object, 'return': None}
-    
+
+_raise_log_level.__annotations__ = {"caplog": object, "return": None}
+
 
 @pytest.fixture(scope="session")
 def test_settings() -> UnifiedSettings:
@@ -74,7 +77,8 @@ def test_app(test_settings: UnifiedSettings) -> Any:
     """Create FastAPI application for tests."""
     return create_app()
 
-test_app.__annotations__ = {'test_settings': object, 'return': object}
+
+test_app.__annotations__ = {"test_settings": object, "return": object}
 
 
 @pytest.fixture
@@ -82,7 +86,8 @@ def test_client(test_app: Any) -> TestClient:
     """HTTP client for API tests."""
     return TestClient(test_app)
 
-test_client.__annotations__ = {'test_app': object, 'return': object}
+
+test_client.__annotations__ = {"test_app": object, "return": object}
 
 
 @pytest.fixture
@@ -90,7 +95,9 @@ def clean_test_vectors(tmp_path: Path) -> Path:
     """Temporary path used for vector store tests."""
     return tmp_path / "vectors"
 
-clean_test_vectors.__annotations__ = {'tmp_path': Path, 'return': Path}
+
+clean_test_vectors.__annotations__ = {"tmp_path": Path, "return": Path}
+
 
 @pytest.fixture(name="benchmark")
 def _benchmark() -> Any:
@@ -102,7 +109,8 @@ def _benchmark() -> Any:
 
     return DummyBenchmark()
 
-_benchmark.__annotations__ = {'return': object}
+
+_benchmark.__annotations__ = {"return": object}
 
 
 @pytest.fixture(name="mem_benchmark")
@@ -110,8 +118,9 @@ def _mem_benchmark(benchmark: Any) -> Any:
     """Backward-compatible alias for the benchmark fixture."""
     return benchmark
 
-_mem_benchmark.__annotations__ = {'benchmark': object, 'return': object}
-    
+
+_mem_benchmark.__annotations__ = {"benchmark": object, "return": object}
+
 # tests/test_basic.py
 import pytest
 
@@ -202,10 +211,10 @@ class TestBasicFunctionality:
     def test_python_version(self) -> None:
         """Test Python version is supported."""
         import sys
+
         assert sys.version_info >= (3, 9)
 
     def test_environment_variables(self) -> None:
         """Test that test environment is set up correctly."""
         assert os.environ.get("UMS_ENVIRONMENT") == "testing"
         assert os.environ.get("CUDA_VISIBLE_DEVICES") == ""
- 
