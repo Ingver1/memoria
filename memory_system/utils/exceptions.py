@@ -180,9 +180,7 @@ def create_validation_error(message: str, **context: Any) -> ValidationError:
     return ValidationError(message, context=context)
 
 
-def log_exception(
-    error: MemorySystemError, logger: logging.Logger | None = None, level: int = logging.ERROR
-) -> None:
+def log_exception(error: MemorySystemError, logger: logging.Logger | None = None, level: int = logging.ERROR) -> None:
     """
     Log an exception in structured JSON form.
     If no logger is provided, uses the local module logger.
