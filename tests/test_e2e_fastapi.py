@@ -36,4 +36,4 @@ def test_memory_endpoints(client: TestClient) -> None:
     assert any(r["id"] == mem_id for r in results)
 
     detail = client.get(f"/api/v1/memory/{mem_id}")
-    assert detail.status_code == 404 
+    assert detail.status_code == 404
