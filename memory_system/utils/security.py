@@ -42,7 +42,7 @@ __all__ = [
     "CryptoContext",
     "KeyManagementBackend",
     "LocalKeyBackend",
-"PIIPatterns",
+    "PIIPatterns",
     "EnhancedPIIFilter",
     "SecureTokenManager",
     "PasswordManager",
@@ -65,9 +65,7 @@ class KeyMetadata(BaseModel):
 
     @field_validator("expires_at")
     @classmethod
-    def _exp_after_created(
-        cls, v: datetime | None, info: ValidationInfo
-    ) -> datetime | None:
+        def _exp_after_created(cls, v: datetime | None, info: ValidationInfo) -> datetime | None:
         if v is not None and v <= info.data["created_at"]:
             raise ValueError("expires_at must be after created_at")
         return v
@@ -223,9 +221,7 @@ class CryptoContext:
         if isinstance(data, str):
             data = data.encode()
         token = self._active_key.as_fernet().encrypt(data)
-        _audit_logger.info(
-            "encrypt", extra={"by": self._active_key.metadata.key_id, "size": len(data)}
-        )
+        _audit_logger.info("encrypt", extra={"by": self._active_key.metadata.key_id, "size": len(data)})
         return token.decode()
 
     def decrypt(self, token: str) -> bytes:
@@ -273,9 +269,7 @@ class CryptoContext:
                     region=os.getenv("AWS_REGION", "us-east-1"),
                 )  # type: KeyManagementBackend
             except ImportError:  # pragma: no cover
-                logging.getLogger(__name__).warning(
-                    "boto3 missing, falling back to LocalKeyBackend"
-                )
+                logging.getLogger(__name__).warning("boto3 missing, falling back to LocalKeyBackend")
                 backend = LocalKeyBackend()
         else:
             backend = LocalKeyBackend()
@@ -298,6 +292,7 @@ async def start_maintenance(ctx: CryptoContext, interval_hours: int = 6) -> None
 
     asyncio.create_task(_loop(), name="crypto_key_maintenance")
 
+
 # ---------------------------------------------------------------------------
 # Additional lightweight security helpers for tests
 # ---------------------------------------------------------------------------
@@ -318,10 +313,8 @@ class PIIPatterns:
     PHONE = re.compile(r"^(?:\+?\d{1,2}[ -]?)?(?:\(\d{3}\)|\d{3})[ -.]?\d{3}[ -.]?\d{4}$")
     CREDIT_CARD = re.compile(r"^(?:\d{4}[ -]?){3}\d{4}$")
     SSN = re.compile(r"^\d{3}-\d{2}-\d{4}$")
-    IP_ADDRESS = re.compile(
-        r"^(?:25[0-5]|2[0-4]\d|1?\d{1,2})(?:\.(?:25[0-5]|2[0-4]\d|1?\d{1,2})){3}$"
-    )
-  
+        IP_ADDRESS = re.compile(r"^(?:25[0-5]|2[0-4]\d|1?\d{1,2})(?:\.(?:25[0-5]|2[0-4]\d|1?\d{1,2})){3}$")
+
 
 class EnhancedPIIFilter:
     """Utility to detect and redact PII in text."""
@@ -514,7 +507,7 @@ class EncryptionManager:
         raw = data.encode()
         out = bytes(b ^ self.key[i % len(self.key)] for i, b in enumerate(raw))
         return base64.urlsafe_b64encode(out)
-      
+
     def decrypt(self, token: bytes) -> str:
         data = base64.urlsafe_b64decode(token)
         out = bytes(b ^ self.key[i % len(self.key)] for i, b in enumerate(data))
