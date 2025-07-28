@@ -5,7 +5,6 @@ from __future__ import annotations
 Provides ``embed`` function compatible with ``UnifiedSettings`` integration.
 """
 
-import inspect
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
