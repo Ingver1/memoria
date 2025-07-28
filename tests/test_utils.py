@@ -101,6 +101,15 @@ class TestSmartCache:
         stats = cache.get_stats()
         assert stats["size"] == 2
 
+ def test_cache_hit_rate(self, cache: SmartCache) -> None:
+        """Verify hit/miss tracking via hit_rate."""
+        assert cache.get("missing") is None
+        cache.put("key", "val")
+        assert cache.get("key") == "val"
+        assert cache.get("other") is None
+
+        stats = cache.get_stats()
+        assert abs(stats["hit_rate"] - (1 / 3)) < 1e-6
 
 class TestPIIPatterns:
     """Test PII regex patterns."""
