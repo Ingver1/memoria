@@ -11,6 +11,7 @@ fixture = pytest.fixture
 
 __all__ = [
     "pytest_configure",
+    "pytest_pycollect_makeitem",
     "pytest_pyfunc_call",
     "pytest_fixture_setup",
     "pytest_unconfigure",
@@ -26,6 +27,23 @@ def pytest_configure(config: pytest.Config) -> None:
 # like :class:`asyncio.Future` without errors.
 LOOP = asyncio.new_event_loop()
 asyncio.set_event_loop(LOOP)
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_pycollect_makeitem(
+    collector: "pytest.Collector", name: str, obj: object
+) -> "pytest.Function | None":
+    """Collect async test functions with or without the asyncio mark."""
+    if isinstance(obj, (staticmethod, classmethod)):
+        obj = cast(object, obj.__func__)
+
+    if not callable(obj) or not collector.funcnamefilter(name):
+        return None
+
+    has_mark = any(getattr(mark, "name", "") == "asyncio" for mark in getattr(obj, "pytestmark", []))
+    if inspect.iscoroutinefunction(obj) or has_mark:
+        return pytest.Function.from_parent(collector, name=name, callobj=obj)
+    return None
 
 
 @pytest.hookimpl(tryfirst=True)
