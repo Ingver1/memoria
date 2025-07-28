@@ -23,17 +23,23 @@ class SmartCache:
         self.ttl = ttl
         self._data: dict[str, Any] = {}
         self._timestamps: dict[str, float] = {}
+        # Counters for basic statistics
+        self._hits = 0
+        self._misses = 0
 
     def get(self, key: str) -> Any:
         """Retrieve a value from the cache by key, honoring TTL if set."""
         if key not in self._data:
+            self._misses += 1
             return None
         if self.ttl > 0:
             age = time.time() - self._timestamps.get(key, 0)
             if age > self.ttl:
                 self._data.pop(key, None)
                 self._timestamps.pop(key, None)
+                self._misses += 1
                 return None
+        self._hits += 1
         return self._data[key]
 
     def put(self, key: str, value: Any) -> None:
@@ -53,5 +59,6 @@ class SmartCache:
 
     def get_stats(self) -> dict[str, Any]:
         """Get basic statistics about the cache."""
-        # A hit rate statistic could be maintained with additional tracking; here we return 0.0 as a placeholder.
-        return {"size": len(self._data), "max_size": self.max_size, "hit_rate": 0.0}
+        total = self._hits + self._misses
+        hit_rate = (self._hits / total) if total > 0 else 0.0
+        return {"size": len(self._data), "max_size": self.max_size, "hit_rate": hit_rate}
