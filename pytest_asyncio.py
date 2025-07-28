@@ -40,9 +40,7 @@ def pytest_pycollect_makeitem(
     if not callable(obj) or not collector.funcnamefilter(name):
         return None
 
-    has_mark = any(
-        getattr(mark, "name", "") == "asyncio" for mark in getattr(obj, "pytestmark", [])
-    )
+    has_mark = any(getattr(mark, "name", "") == "asyncio" for mark in getattr(obj, "pytestmark", []))
     if inspect.iscoroutinefunction(obj) or has_mark:
         if isinstance(collector, pytest.Class):
             # Ensure class methods are collected with a bound instance
@@ -72,7 +70,7 @@ def pytest_pyfunc_call(pyfuncitem: "pytest.Function") -> bool | None:
     instance = getattr(pyfuncitem, "instance", None)
     if instance is not None:
         testfunc = testfunc.__get__(instance, type(instance))
-        
+
     result = testfunc(**kwargs)
     if inspect.isawaitable(result):
         LOOP.run_until_complete(result)
