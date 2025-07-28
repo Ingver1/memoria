@@ -1,11 +1,12 @@
 import pytest
+from typing import Iterator
 
 from fastapi.testclient import TestClient
 from memory_system.api.app import create_app
 
 
 @pytest.fixture()
-def client() -> TestClient:
+def client() -> Iterator[TestClient]:
     app = create_app()
     with TestClient(app) as client:
         if hasattr(client.app.state, "store"):
