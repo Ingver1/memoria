@@ -112,13 +112,11 @@ def create_app(settings: UnifiedSettings | None = None) -> FastAPI:  # pragma: n
         app.dependency_overrides[get_memory_store] = lambda req: cast(SQLiteMemoryStore, req.app.state.store)
         logger.info("SQLiteMemoryStore initialised")
 
-
     @app.on_event("shutdown")
     async def _shutdown() -> None:
         store = cast(SQLiteMemoryStore, app.state.store)
         await store.aclose()
         logger.info("SQLiteMemoryStore closed")
-
 
     # Routers ---------------------------------------------------------------
     # Memory endpoints live under /api/v1/memory
