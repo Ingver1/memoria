@@ -3,17 +3,28 @@ from __future__ import annotations
 import asyncio
 import inspect
 from types import SimpleNamespace
+from typing import Any, Awaitable, Callable, TypeVar, cast
 
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient, _TestResponse
 from memory_system.api.middleware import MaintenanceModeMiddleware, RateLimitingMiddleware
 from starlette.responses import JSONResponse, Response
 
+T = TypeVar("T")
+
 
 def create_app() -> FastAPI:
     app = FastAPI()
-    app.state.maintenance = MaintenanceModeMiddleware(app)
-    app.state.rate = RateLimitingMiddleware(app, max_requests=2, window_seconds=60)
+
+    async def app_handler(scope: dict[str, Any], receive: Callable[[], Awaitable[dict[str, Any]]], send: Callable[[dict[str, Any]], Awaitable[None]]) -> None:
+        response = Response(status_code=200)
+        await response(scope, receive, send)
+
+    # Create middleware instances and store them in app.state for access in tests
+    maintenance = MaintenanceModeMiddleware(app_handler)
+    rate_limit = RateLimitingMiddleware(app_handler, max_requests=2, window_seconds=60)
+    app.state.maintenance = maintenance
+    app.state.rate = rate_limit
 
     @app.get("/ping")
     async def ping() -> dict[str, str]:
@@ -23,9 +34,9 @@ def create_app() -> FastAPI:
 
 
 def _patch_client(client: TestClient) -> None:
-    async def _build_response(handler: callable, req: Request) -> Response:
+    async def _build_response(handler: Callable[..., Awaitable[Any]], req: Request) -> Response:
         sig = getattr(handler, "__signature__", None) or inspect.signature(handler)
-        kwargs = {}
+        kwargs: dict[str, Any] = {}
         for name, param in sig.parameters.items():
             if name == "request":
                 kwargs[name] = req
@@ -33,34 +44,46 @@ def _patch_client(client: TestClient) -> None:
                 kwargs[name] = param.default
             else:
                 kwargs[name] = None
-        result = handler(**kwargs)
-        if asyncio.iscoroutine(result):
-            result = await result
+        result = await handler(**kwargs)
         if isinstance(result, Response):
             return result
-        return JSONResponse(result)
+        return JSONResponse(content=result)
 
-    def wrapped_get(url: str, *, params=None, headers=None) -> _TestResponse:
+    def wrapped_get(url: str, *, params: dict[str, Any] | None = None, headers: dict[str, str] | None = None) -> _TestResponse:
         handler = client._resolve_handler("GET", url)
         if handler is None:
             return _TestResponse(Response(status_code=404))
-
-        req = Request()
-        req.app = client.app
-        req.headers = headers or {}
-        req.client = SimpleNamespace(host="test")
-        req.url = SimpleNamespace(path=url)
+            
+        # Create scope for test request
+        scope = {
+            "type": "http",
+            "method": "GET",
+            "path": url,
+            "query_string": b"",
+            "headers": [(k.lower().encode(), str(v).encode()) for k, v in (headers or {}).items()],
+            "client": ("test", 0),
+            "server": ("test", 80),
+            "scheme": "http",
+            "asgi": {"version": "3.0", "spec_version": "2.1"},
+            "raw_path": url.encode()
+        }
+        request = Request(scope)  # Removed extra arguments for Request instantiation
 
         async def call_chain(r: Request) -> Response:
             async def final(req: Request) -> Response:
-                return await _build_response(handler, req)
+                response = await _build_response(handler, req)
+                return response
 
-            return await client.app.state.rate.dispatch(r, lambda rr: client.app.state.maintenance.dispatch(rr, final))
+            result = await client.app.state.rate.dispatch(r, lambda rr: client.app.state.maintenance.dispatch(rr, final))
+            if not isinstance(result, Response):
+                return JSONResponse(content=result)
+            return result
 
-        resp = client._loop.run_until_complete(call_chain(req))
+        resp = client._loop.run_until_complete(call_chain(request))
         return _TestResponse(resp)
 
-    client.get = wrapped_get
+    # Monkey-patch the get method
+    setattr(client, 'get', wrapped_get)
 
 
 def test_rate_limit_exceeded() -> None:
