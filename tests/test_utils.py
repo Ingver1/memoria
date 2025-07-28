@@ -10,7 +10,7 @@ import pytest
 from memory_system.utils.cache import SmartCache
 from memory_system.utils.exceptions import SecurityError
 from memory_system.utils.security import (
-    EncryptionManager
+    EncryptionManager,
     EnhancedPIIFilter,
     PasswordManager,
     PIIPatterns,
@@ -111,6 +111,7 @@ class TestSmartCache:
 
         stats = cache.get_stats()
         assert abs(stats["hit_rate"] - (1 / 3)) < 1e-6
+
 
 class TestPIIPatterns:
     """Test PII regex patterns."""
