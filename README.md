@@ -35,22 +35,22 @@ UMS is a plug-and-play semantic memory service for LLM agents. It’s small, fas
 - **Prometheus metrics & health checks**: easy monitoring
 - **100% test coverage**: unit, property, fuzz, performance
 - **Pluggable key management**: local JSON keyring with a stub for AWS KMS
-- **Simple install**: `pip install memoria1` or Docker one-liner
+- **Simple install**: `pip install ai-memory` or Docker one-liner
 
 ---
 
 ## 🏁 Quick Start
 
 ```bash
-pip install memoria1        # production
-pip install memoria1[dev]   # +tests & tooling
+pip install ai-memory        # production
+pip install ai-memory[dev]   # +tests & tooling
 pip install -e .[dev]       # editable for local dev
 uvicorn memory_system.api.app:create_app --reload
 ```
 
 **Minimal client:**
 ```python
-from memoria1 import EnhancedMemoryStore, UnifiedSettings
+from memory_system import EnhancedMemoryStore, UnifiedSettings
 import numpy as np, asyncio
 
 settings = UnifiedSettings.for_testing()
