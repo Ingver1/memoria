@@ -238,15 +238,23 @@ def import_json(
 
     async def _run_import() -> None:
         async with _client(url) as client:
-            added = 0
-            async with asyncio.Semaphore(8):
-                for line in file.read_text().splitlines():
-                    if not line.strip():
-                        continue
-                    payload = json.loads(line)
-                    resp = await client.post("/memory/add", json=payload)
-                    resp.raise_for_status()
-                    added += 1
+            semaphore = asyncio.Semaphore(8)
+            tasks: list[asyncio.Task[int]] = []
+
+            for line in file.read_text().splitlines():
+                if not line.strip():
+                    continue
+                payload = json.loads(line)
+
+                async def _post(payload: dict[str, Any] = payload) -> int:
+                    async with semaphore:
+                        resp = await client.post("/memory/add", json=payload)
+                        resp.raise_for_status()
+                        return 1
+
+                tasks.append(asyncio.create_task(_post()))
+
+            added = sum(await asyncio.gather(*tasks))
             rprint(Panel(f"Imported [bold green]{added}[/] memories"))
 
     asyncio.run(_run_import())
