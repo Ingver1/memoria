@@ -10,7 +10,7 @@ from typing import AsyncGenerator, Generator
 import pytest
 
 import numpy as np
-import psutil
+from stubs import psutil
 import pytest_asyncio
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.embedding import EnhancedEmbeddingService
