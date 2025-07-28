@@ -342,8 +342,10 @@ class TestEnhancedEmbeddingService:
     async def test_encode_single_text(self, service: EnhancedEmbeddingService) -> None:
         """Test encoding single text."""
         text = "This is a test sentence."
+        expected = service._encode_direct([text])
         result = await service.encode(text)
         assert isinstance(result, np.ndarray)
+        np.testing.assert_array_equal(result, expected)
         assert result.shape[0] == 1  # Single text
         assert result.shape[1] > 0  # Non-zero dimensions
 
@@ -351,8 +353,10 @@ class TestEnhancedEmbeddingService:
     async def test_encode_multiple_texts(self, service: EnhancedEmbeddingService) -> None:
         """Test encoding multiple texts."""
         texts = ["First sentence.", "Second sentence.", "Third sentence."]
+        expected = service._encode_direct(texts)
         result = await service.encode(texts)
         assert isinstance(result, np.ndarray)
+        np.testing.assert_array_equal(result, expected)
         assert result.shape[0] == 3  # Three texts
         assert result.shape[1] > 0  # Non-zero dimensions
 
