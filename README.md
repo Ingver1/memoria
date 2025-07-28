@@ -65,7 +65,19 @@ asyncio.run(demo())
 
 ---
 
-## 🧪 Testing Matrix
+## 🧪 Testing
+
+Tests rely on the bundled `pytest_asyncio.py` plugin located in the repository
+root.  `sitecustomize.py` sets `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` so that pytest
+only loads this stub plugin.  The plugin is explicitly loaded via
+`pytest_plugins` in `conftest.py`.  Always run tests from the repository root so
+`conftest.py` can discover the plugin:
+
+```bash
+pytest -q -m "not perf"
+```
+
+### Matrix
 
 | Suite      | Command                                      | Avg time |
 |------------|----------------------------------------------|----------|
