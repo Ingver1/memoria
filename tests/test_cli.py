@@ -1,5 +1,7 @@
 import json
 import os
+from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -98,3 +100,28 @@ def test_settings_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
 
     settings = UnifiedSettings()
     assert settings.security.api_token == "token-override"
+
+
+def test_import_json_command(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """CLI import-json should POST each line to /memory/add."""
+
+    file = tmp_path / "data.jsonl"
+    file.write_text('{"text": "foo"}\n{"text": "bar"}\n')
+
+    posted: list[dict[str, Any]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.url.path == "/memory/add"
+        posted.append(json.loads(request.content.decode()))
+        return httpx.Response(200, json={"id": "ok"})
+
+    transport = httpx.MockTransport(handler)
+    _patch_client(monkeypatch, transport)
+
+    result = runner.invoke(app, ["import-json", str(file), "--url", "http://api"])
+    assert result.exit_code == 0
+    assert "Imported" in result.output
+    assert len(posted) == 2
+    assert posted[0]["text"] == "foo"
+    assert posted[1]["text"] == "bar"
