@@ -88,7 +88,7 @@ ai-mem = "memory_system.cli:app"
 
 [tool.setuptools.packages.find]
 where   = ["."]
-exclude = ["tests*", "examples*"]
+exclude = ["tests*", "examples*", "stubs*"]
 
 [tool.setuptools]
 py-modules = ["sitecustomize"]
