@@ -30,9 +30,7 @@ asyncio.set_event_loop(LOOP)
 
 
 @pytest.hookimpl(tryfirst=True)
-def pytest_pycollect_makeitem(
-    collector: "pytest.Collector", name: str, obj: object
-) -> "pytest.Function | None":
+def pytest_pycollect_makeitem(collector: "pytest.Collector", name: str, obj: object) -> "pytest.Function | None":
     """Collect async test functions with or without the asyncio mark."""
     if isinstance(obj, (staticmethod, classmethod)):
         obj = cast(object, obj.__func__)
