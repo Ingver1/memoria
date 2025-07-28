@@ -30,7 +30,9 @@ asyncio.set_event_loop(LOOP)
 
 
 @pytest.hookimpl(tryfirst=True)
-def pytest_pycollect_makeitem(collector: "pytest.Collector", name: str, obj: object) -> "pytest.Function | None":
+def pytest_pycollect_makeitem(
+    collector: "pytest.Collector", name: str, obj: object
+) -> "pytest.Function | list[pytest.Function] | None":
     """Collect async test functions with or without the asyncio mark."""
     if isinstance(obj, (staticmethod, classmethod)):
         obj = cast(object, obj.__func__)
@@ -38,9 +40,14 @@ def pytest_pycollect_makeitem(collector: "pytest.Collector", name: str, obj: obj
     if not callable(obj) or not collector.funcnamefilter(name):
         return None
 
-    has_mark = any(getattr(mark, "name", "") == "asyncio" for mark in getattr(obj, "pytestmark", []))
+    has_mark = any(
+        getattr(mark, "name", "") == "asyncio" for mark in getattr(obj, "pytestmark", [])
+    )
     if inspect.iscoroutinefunction(obj) or has_mark:
-        return pytest.Function.from_parent(collector, name=name, callobj=obj)
+        if isinstance(collector, pytest.Class):
+            # Ensure class methods are collected with a bound instance
+            return list(collector._genfunctions(name, obj))
+            return pytest.Function.from_parent(collector, name=name, callobj=obj)
     return None
 
 
@@ -62,6 +69,10 @@ def pytest_pyfunc_call(pyfuncitem: "pytest.Function") -> bool | None:
         argnames = list(pyfuncitem.funcargs)
     kwargs = {name: pyfuncitem.funcargs[name] for name in argnames if name in pyfuncitem.funcargs}
 
+    instance = getattr(pyfuncitem, "instance", None)
+    if instance is not None:
+        testfunc = testfunc.__get__(instance, type(instance))
+        
     result = testfunc(**kwargs)
     if inspect.isawaitable(result):
         LOOP.run_until_complete(result)
