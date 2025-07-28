@@ -289,7 +289,7 @@ class TestEmbeddingJob:
 
         with pytest.raises(AttributeError) as exc_info:
             # Intentionally attempt to modify read-only property to verify immutability
-            job.text = "new text"  # noqa: B018
+            job.text = "new text"  # type: ignore[misc] # noqa: B018
         error_msg = str(exc_info.value).lower()
         assert (
             "read-only" in error_msg
