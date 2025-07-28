@@ -34,6 +34,7 @@ UMS is a plug-and-play semantic memory service for LLM agents. It’s small, fas
 - **API-token auth & rate limits**: secure in transit
 - **Prometheus metrics & health checks**: easy monitoring
 - **100% test coverage**: unit, property, fuzz, performance
+- **Pluggable key management**: local JSON keyring with a stub for AWS KMS
 - **Simple install**: `pip install memoria1` or Docker one-liner
 
 ---
