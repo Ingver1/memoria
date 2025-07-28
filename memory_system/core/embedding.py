@@ -158,7 +158,7 @@ class EmbeddingService:
                         loop = job.future.get_loop()
                         loop.call_soon_threadsafe(
                             job.future.set_result,
-                            np.ndarray(vec),
+                            np.asarray(vec),
                         )
             except Exception as exc:
                 MET_ERRORS_TOTAL.labels(type="embedding", component="batch_loop").inc()
