@@ -45,7 +45,7 @@ def pytest_pycollect_makeitem(
         if isinstance(collector, pytest.Class):
             # Ensure class methods are collected with a bound instance
             return list(collector._genfunctions(name, obj))
-            return pytest.Function.from_parent(collector, name=name, callobj=obj)
+        return pytest.Function.from_parent(collector, name=name, callobj=obj)
     return None
 
 
