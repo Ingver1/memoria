@@ -26,8 +26,8 @@ graph TD
 ## 1. Data Ingestion 🚚
 | Step         | Module                                 | Notes                                               |
 |--------------|----------------------------------------|-----------------------------------------------------|
-| Clean & Chunk| memory_system.ingest.cleaner           | Language-agnostic, ~2k-token windows                |
-| Embed        | memory_system.vector.embedder          | OpenAI by default, swap in Instructor/HuggingFace   |
+| Clean & Chunk| memory_system.utils.security.EnhancedPIIFilter | Language-agnostic, ~2k-token windows (future `memory_system.ingest` module) |
+| Embed        | memory_system.core.embedding.EmbeddingService  | OpenAI by default, swap in Instructor/HuggingFace   |
 | Persist      | memory_system.core.vector_store.AsyncFaissHNSWStore | Raw vector + PK, metadata separate |
 
 All CPU-bound FAISS calls run in the default thread pool for snappy event loop.
