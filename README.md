@@ -126,6 +126,3 @@ Pull Requests welcome!
 Apache License 2.0 – free for commercial & research use.
 
 © 2025 Evgeny Leshchenko, with assistance from ChatGPT & Claude.
-h use.
-
-© 2025 Evgeny Leshchenko, with assistance from ChatGPT & Claude.
