@@ -10,6 +10,7 @@ import pytest
 from memory_system.utils.cache import SmartCache
 from memory_system.utils.exceptions import SecurityError
 from memory_system.utils.security import (
+    EncryptionManager
     EnhancedPIIFilter,
     PasswordManager,
     PIIPatterns,
@@ -101,7 +102,7 @@ class TestSmartCache:
         stats = cache.get_stats()
         assert stats["size"] == 2
 
- def test_cache_hit_rate(self, cache: SmartCache) -> None:
+    def test_cache_hit_rate(self, cache: SmartCache) -> None:
         """Verify hit/miss tracking via hit_rate."""
         assert cache.get("missing") is None
         cache.put("key", "val")
@@ -572,3 +573,10 @@ class TestEncryptionManager:
     @pytest.fixture
     def encryption_manager(self) -> Any:
         """Create EncryptionManager instance."""
+        return EncryptionManager()
+
+    def test_encrypt_roundtrip(self, encryption_manager: EncryptionManager) -> None:
+        """Ensure encrypt and decrypt round-trip data properly."""
+        text = "secret"
+        token = encryption_manager.encrypt(text)
+        assert encryption_manager.decrypt(token) == text
