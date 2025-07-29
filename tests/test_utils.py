@@ -1,4 +1,4 @@
-"""Comprehensive tests for utils module."""
+"""Comprehensive tests for the utils module."""
 
 import re
 import secrets
