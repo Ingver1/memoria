@@ -10,7 +10,7 @@ if str(PROJECT_ROOT) not in sys.path:
 # Pre-import the bundled ``pytest_asyncio`` plugin so ``pytest -p pytest_asyncio``
 # works even when running the ``pytest`` entry point directly.
 try:  # pragma: no cover - only executed during test discovery
-    import pytest_asyncio  # noqa: F401
+    from memoria._pytest_plugins import pytest_asyncio  # noqa: F401
 except Exception:
     pass
 
