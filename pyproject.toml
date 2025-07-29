@@ -36,6 +36,9 @@ dependencies = [
   "aiosqlite>=0.19",
   "faiss-cpu>=1.8",
 
+  # Numerical computations
+  "numpy>=1.26",
+  
   # Security
   "cryptography>=42.0",
   "python-multipart>=0.0.9",
@@ -77,6 +80,10 @@ dev = [
   # Config parsers for Python <3.11
   "tomli>=2.0; python_version<'3.11'",
   "pyyaml>=6.0",
+
+  # Property-based testing & API fuzzing
+  "hypothesis>=6.98",
+  "schemathesis>=3.27",
 ]
 
 [project.scripts]
