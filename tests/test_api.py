@@ -7,7 +7,7 @@ from typing import AsyncGenerator
 import pytest
 
 import httpx
-from _pytest_plugins import pytest_asyncio
+import pytest_asyncio
 from fastapi import FastAPI, Request
 from fastapi.testclient import ClientHelper
 from memory_system import __version__
