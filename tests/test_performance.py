@@ -10,7 +10,10 @@ from typing import AsyncGenerator, Generator
 import pytest
 
 import numpy as np
-import psutil
+try:
+    import psutil
+except Exception:  # pragma: no cover - optional dependency
+    psutil = None
 import pytest_asyncio
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.embedding import EnhancedEmbeddingService
@@ -172,6 +175,7 @@ class TestEmbeddingPerformance:
         ), f"Cache hit time: {second_time:.3f}s vs first time: {first_time:.3f}s"
 
     @pytest.mark.slow
+    @pytest.mark.skipif(psutil is None, reason="psutil not installed")
     async def test_embedding_memory_usage(self, embedding_service: EnhancedEmbeddingService) -> None:
         """Test memory usage during embedding operations."""
 
@@ -298,6 +302,7 @@ class TestIndexPerformance:
         assert total_time * 1000 < MAX_INDEX_CONCURRENT_TOTAL_MS, f"Total concurrent test time: {total_time:.3f}s"
         print(f"Completed {total_searches} concurrent searches in {total_time:.3f}s")
 
+    @pytest.mark.skipif(psutil is None, reason="psutil not installed")
     def test_index_memory_efficiency(self) -> None:
         """Test index memory efficiency."""
 
