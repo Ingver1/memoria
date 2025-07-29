@@ -70,9 +70,9 @@ asyncio.run(demo())
 
 Tests rely on the bundled plugins under `memoria/_pytest_plugins/`.  
 `sitecustomize.py` sets `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` so that pytest only
-loads these stub plugins.  The `pytest_asyncio` plugin is explicitly loaded via
-`pytest_plugins` in `conftest.py`.  Always run tests from the repository root so
-`conftest.py` can discover the plugins:
+loads these stub plugins.  `conftest.py` loads them via
+`pytest_plugins = ("memoria._pytest_plugins",)`. Always run tests from the
+repository root so `conftest.py` can discover the plugins:
 
 ```bash
 pytest -q -m "not perf"
