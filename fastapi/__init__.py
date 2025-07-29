@@ -20,6 +20,8 @@ def _decorator(func: F) -> F:
 
 
 class Request:
+    """Minimal Request stub for testing."""
+    
     app: Any
     headers: dict[str, str]
     client: Any
