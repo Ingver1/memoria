@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import unified_memory as _u
+from . import unified_memory as _u
 
 Memory = _u.Memory
 MemoryStoreProtocol = _u.MemoryStoreProtocol
