@@ -1,10 +1,17 @@
 """Pytest configuration and fixtures."""
 
+# Ensure the repository root is on ``sys.path`` so tests can import the package
+import sys
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import inspect
 import logging
 import os
 import tempfile
-from pathlib import Path
 from typing import Any, List
 
 import pytest
