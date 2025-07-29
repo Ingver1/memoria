@@ -11,6 +11,6 @@ if str(PROJECT_ROOT) not in sys.path:
 
 # Always load the bundled ``pytest_asyncio`` plugin for async test support
 pytest_plugins = (
-    "pytest_asyncio",
-    "pytest_cov",
+    "memoria._pytest_plugins.pytest_asyncio",
+    "memoria._pytest_plugins.pytest_cov",
 )
