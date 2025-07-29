@@ -43,24 +43,6 @@ def __init__(self, scope: dict[str, Any] | None = None) -> None:
         self.app = scope.get("app")
 
 
-def __init__(self, scope: dict[str, Any] | None = None) -> None:
-        from types import SimpleNamespace
-
-        scope = scope or {}
-        self.headers = {
-            k.decode(): v.decode()
-            for k, v in scope.get("headers", [])
-        }
-        client = scope.get("client")
-        if client is not None:
-            host, port = client
-        else:
-            host, port = None, None
-        self.client = SimpleNamespace(host=host, port=port)
-        self.url = SimpleNamespace(path=scope.get("path", ""))
-        self.app = scope.get("app")
-
-
 class FastAPI:
     """Minimal FastAPI stub for testing and mocks."""
 
