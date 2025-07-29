@@ -16,7 +16,11 @@ T = TypeVar("T")
 def create_app() -> FastAPI:
     app = FastAPI()
 
-    async def app_handler(scope: dict[str, Any], receive: Callable[[], Awaitable[dict[str, Any]]], send: Callable[[dict[str, Any]], Awaitable[None]]) -> None:
+    async def app_handler(
+        scope: dict[str, Any],
+        receive: Callable[[], Awaitable[dict[str, Any]]],
+        send: Callable[[dict[str, Any]], Awaitable[None]],
+    ) -> None:
         response = Response(status_code=200)
         await response(scope, receive, send)
 
@@ -49,11 +53,13 @@ def _patch_client(client: TestClient) -> None:
             return result
         return JSONResponse(content=result)
 
-    def wrapped_get(url: str, *, params: dict[str, Any] | None = None, headers: dict[str, str] | None = None) -> _TestResponse:
+    def wrapped_get(
+        url: str, *, params: dict[str, Any] | None = None, headers: dict[str, str] | None = None
+    ) -> _TestResponse:
         handler = client._resolve_handler("GET", url)
         if handler is None:
             return _TestResponse(Response(status_code=404))
-            
+
         # Create scope for test request
         scope = {
             "type": "http",
@@ -65,7 +71,7 @@ def _patch_client(client: TestClient) -> None:
             "server": ("test", 80),
             "scheme": "http",
             "asgi": {"version": "3.0", "spec_version": "2.1"},
-            "raw_path": url.encode()
+            "raw_path": url.encode(),
         }
         request = Request(scope)  # Removed extra arguments for Request instantiation
 
@@ -74,7 +80,9 @@ def _patch_client(client: TestClient) -> None:
                 response = await _build_response(handler, req)
                 return response
 
-            result = await client.app.state.rate.dispatch(r, lambda rr: client.app.state.maintenance.dispatch(rr, final))
+            result = await client.app.state.rate.dispatch(
+                r, lambda rr: client.app.state.maintenance.dispatch(rr, final)
+            )
             if not isinstance(result, Response):
                 return JSONResponse(content=result)
             return result
@@ -83,7 +91,7 @@ def _patch_client(client: TestClient) -> None:
         return _TestResponse(resp)
 
     # Monkey-patch the get method
-    setattr(client, 'get', wrapped_get)
+    client.get = wrapped_get
 
 
 def test_rate_limit_exceeded() -> None:
