@@ -21,13 +21,13 @@ def _decorator(func: F) -> F:
 
 class Request:
     """Minimal Request stub for testing."""
-    
+
     app: Any
     headers: dict[str, str]
     client: Any
     url: Any
 
-def __init__(self, scope: dict[str, Any] | None = None) -> None:
+    def __init__(self, scope: dict[str, Any] | None = None) -> None:
         from types import SimpleNamespace
 
         scope = scope or {}
