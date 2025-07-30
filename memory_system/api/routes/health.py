@@ -83,7 +83,11 @@ async def health_check() -> Response:
 @router.post("/health")
 async def health_method_not_allowed() -> JSONResponse:
     """Explicit 405 response for unsupported POST method."""
-    return JSONResponse(status_code=405, headers={"content-type": "application/json"})
+    return JSONResponse(
+        {"detail": "Method Not Allowed"},
+        status_code=405,
+        headers={"content-type": "application/json"},
+    )
 
 
 @router.get("/health/live", summary="Liveness probe")
