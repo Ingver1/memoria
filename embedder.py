@@ -7,6 +7,7 @@ Provides ``embed`` function compatible with ``UnifiedSettings`` integration.
 
 
 import numpy as np
+
 from sentence_transformers import SentenceTransformer
 
 _model: SentenceTransformer = SentenceTransformer("all-MiniLM-L6-v2")
