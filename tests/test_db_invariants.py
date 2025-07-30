@@ -6,9 +6,9 @@ Works with SQLite or SQLCipher.
 from pathlib import Path
 from types import SimpleNamespace
 
+import numpy as np
 import pytest
 
-import numpy as np
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.enhanced_store import EnhancedMemoryStore
 
