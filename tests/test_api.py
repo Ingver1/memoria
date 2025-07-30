@@ -4,12 +4,13 @@ import asyncio
 import time
 from typing import AsyncGenerator
 
-import pytest
-
 import httpx
+import pytest
 import pytest_asyncio
 from fastapi import FastAPI, Request
 from fastapi.testclient import ClientHelper
+from starlette.responses import Response
+
 from memory_system import __version__
 from memory_system.api.app import create_app
 from memory_system.api.schemas import (
@@ -23,7 +24,6 @@ from memory_system.api.schemas import (
     SuccessResponse,
 )
 from memory_system.config.settings import UnifiedSettings
-from starlette.responses import Response
 
 
 @pytest.fixture
@@ -148,6 +148,7 @@ class TestHealthEndpoints:
     def test_metrics_endpoint_disabled(self, test_client: ClientHelper, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test metrics endpoint when disabled."""
         from fastapi import HTTPException
+
         from memory_system.api.routes import health as health_routes
         from memory_system.config.settings import UnifiedSettings
 
