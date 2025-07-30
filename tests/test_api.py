@@ -8,7 +8,10 @@ import httpx
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI, Request
-from fastapi.testclient import ClientHelper
+try:
+    from fastapi.testclient import ClientHelper as TestClient
+except ImportError:  # FastAPI >= 0.111
+    from fastapi.testclient import TestClient
 from starlette.responses import Response
 
 from memory_system import __version__
