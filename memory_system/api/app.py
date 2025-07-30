@@ -15,7 +15,10 @@ from typing import Any, cast
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRouter
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+try:  # pragma: no cover - optional dependency
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+except Exception:  # pragma: no cover - optional dependency
+    FastAPIInstrumentor = None
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.responses import Response
 from starlette.types import ASGIApp
@@ -94,7 +97,7 @@ def create_app(settings: UnifiedSettings | None = None) -> FastAPI:  # pragma: n
     )
 
     # OpenTelemetry
-    if os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"):
+    if FastAPIInstrumentor and os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"):
         FastAPIInstrumentor.instrument_app(app)
 
     # Health probes ---------------------------------------------------------
