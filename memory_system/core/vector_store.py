@@ -243,7 +243,7 @@ class VectorStore:
         """Validate ``vector`` and convert it to ``np.float32`` array."""
 
         if isinstance(vector, np.ndarray):
-            if vector.dtype is not np.float32:
+            if vector.dtype != np.float32:
                 raise ValidationError("vector dtype must be float32")
             if vector.ndim != 1:
                 raise ValidationError("vector must be 1-D")
