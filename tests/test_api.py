@@ -8,6 +8,7 @@ import httpx
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI, Request
+
 try:
     from fastapi.testclient import ClientHelper as TestClient
 except ImportError:  # FastAPI >= 0.111
