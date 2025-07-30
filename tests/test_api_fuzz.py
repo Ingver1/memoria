@@ -6,12 +6,22 @@ Schemathesis autogenerates thousands of requests with random payloads.
 from typing import Any
 
 import pytest
-import schemathesis
 
-try:
+try:  # pragma: no cover - optional dependency
+    import schemathesis
+except ImportError:  # pragma: no cover - schemathesis is optional
+    schemathesis = None  # type: ignore[assignment]
+
+if schemathesis is None:  # pragma: no cover - schemathesis missing
+    pytest.skip("schemathesis not installed", allow_module_level=True)
+
+try:  # pragma: no cover - handle API changes
     from schemathesis import DataGenerationMethod
 except ImportError:  # Schemathesis >= 3.27
-    from schemathesis.specs.openapi import DataGenerationMethod
+    try:
+        from schemathesis.specs.openapi import DataGenerationMethod
+    except Exception:  # pragma: no cover - fallback failed
+        pytest.skip("schemathesis DataGenerationMethod unavailable", allow_module_level=True)
 from starlette.responses import Response
 
 from memory_system.api.app import create_app
