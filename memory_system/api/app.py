@@ -15,6 +15,7 @@ from typing import Any, cast
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRouter
+
 try:  # pragma: no cover - optional dependency
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 except Exception:  # pragma: no cover - optional dependency
