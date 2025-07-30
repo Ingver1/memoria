@@ -9,6 +9,11 @@ from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 from starlette.responses import JSONResponse, Response
 
+from memory_system.api.middleware import (
+    MaintenanceModeMiddleware,
+    RateLimitingMiddleware,
+)
+
 
 class _TestResponse:
     """Minimal response wrapper for compatibility with older FastAPI."""
@@ -23,8 +28,6 @@ class _TestResponse:
             return self._resp.json()
         raise AttributeError("json")
 
-
-from memory_system.api.middleware import MaintenanceModeMiddleware, RateLimitingMiddleware
 
 T = TypeVar("T")
 
