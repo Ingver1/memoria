@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 import numpy as np
+
 from memory_system.config.settings import UnifiedSettings
 from memory_system.utils.cache import SmartCache
 from memory_system.utils.loop import get_or_create_loop
