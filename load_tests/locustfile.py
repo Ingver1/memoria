@@ -2,9 +2,8 @@
 
 import random
 
-from locust import HttpUser, between, task
-
 import numpy as np
+from locust import HttpUser, between, task
 
 DIM = 384  # keep in sync with settings.model.vector_dim
 
