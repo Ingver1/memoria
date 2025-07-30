@@ -52,7 +52,7 @@ class DatabaseConfig(BaseModel):
 
     def __setattr__(self, name: str, value: Any) -> None:  # pragma: no cover - simple immutability check
         if self.model_config.get("frozen") and name in self.__dict__:
-             raise ValueError("DatabaseConfig is immutable")
+            raise ValueError("DatabaseConfig is immutable")
         super().__setattr__(name, value)
 
 
