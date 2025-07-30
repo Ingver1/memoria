@@ -22,6 +22,7 @@ try:  # pragma: no cover - optional dependency during testing
     from httpx import ASGITransport
 
     if "app" not in httpx.AsyncClient.__init__.__code__.co_varnames:
+
         class _AsyncClient(httpx.AsyncClient):
             def __init__(self, *args: Any, app: Any | None = None, **kwargs: Any) -> None:
                 if app is not None:
