@@ -10,8 +10,6 @@ from memory_system.api.app import create_app
 def client() -> Iterator[TestClient]:
     app = create_app()
     with TestClient(app) as client:
-        if hasattr(client.app.state, "store"):
-            client.app.state.memory_store = client.app.state.store
         yield client
 
 
