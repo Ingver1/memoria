@@ -78,9 +78,9 @@ class MemoryRead(MemoryBase):
     """Full memory record as returned by the API."""
 
     id: str
-    user_id: str
+    user_id: str | None = None
     created_at: datetime
-    updated_at: datetime
+    updated_at: datetime | None = None
     valence: float = Field(0.0, ge=-1.0, le=1.0)
     emotional_intensity: float = Field(0.0, ge=0.0, le=1.0)
 
