@@ -7,9 +7,9 @@ import logging
 import platform
 import sys
 from datetime import UTC, datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Depends, status
 from starlette.responses import JSONResponse, Response
 
 from memory_system import __version__
@@ -94,11 +94,10 @@ async def liveness_probe() -> Dict[str, str]:
 
 @router.get("/health/ready", summary="Readiness probe")
 async def readiness_probe(
-    memory_store: Optional[EnhancedMemoryStore] = None,
+    memory_store: EnhancedMemoryStore = Depends(_store),
 ) -> Dict[str, Any]:
     """Readiness probe to check if the memory store is ready for requests."""
-    store = memory_store if memory_store is not None else await _store()
-    component = await store.get_health()
+    component = await memory_store.get_health()
     if component.healthy:
         return {"status": "ready", "timestamp": datetime.now(UTC).isoformat()}
     raise HTTPException(status_code=503, detail=f"Service not ready: {component.message}")
@@ -106,15 +105,13 @@ async def readiness_probe(
 
 @router.get("/stats", summary="System statistics")
 async def get_stats(
-    memory_store: Optional[EnhancedMemoryStore] = None,
-    settings: Optional[UnifiedSettings] = None,
+    memory_store: EnhancedMemoryStore = Depends(_store),
+    settings: UnifiedSettings = Depends(_settings),
 ) -> Dict[str, Any]:
     """Retrieve current system and memory store statistics."""
-    store = memory_store if memory_store is not None else await _store()
-    config = settings if settings is not None else _settings()
-    if asyncio.iscoroutine(config):
-        config = await config
-    stats = await store.get_stats()
+    if asyncio.iscoroutine(settings):
+        settings = await settings
+    stats = await memory_store.get_stats()
     current_time = datetime.now(UTC).timestamp()
     active = sum(1 for ts in session_tracker.values() if ts > current_time - 3600)
     payload = StatsResponse(
@@ -123,13 +120,13 @@ async def get_stats(
         uptime_seconds=stats.get("uptime_seconds", 0),
         memory_store_stats=stats,
         api_stats={
-            "cors_enabled": config.api.enable_cors,
-            "rate_limiting_enabled": config.monitoring.enable_rate_limiting,
-            "metrics_enabled": config.monitoring.enable_metrics,
-            "encryption_enabled": config.security.encrypt_at_rest,
-            "pii_filtering_enabled": config.security.filter_pii,
-            "backup_enabled": config.reliability.backup_enabled,
-            "model_name": config.model.model_name,
+            "cors_enabled": settings.api.enable_cors,
+            "rate_limiting_enabled": settings.monitoring.enable_rate_limiting,
+            "metrics_enabled": settings.monitoring.enable_metrics,
+            "encryption_enabled": settings.security.encrypt_at_rest,
+            "pii_filtering_enabled": settings.security.filter_pii,
+            "backup_enabled": settings.reliability.backup_enabled,
+            "model_name": settings.model.model_name,
             "api_version": "v1",
         },
     )
@@ -137,16 +134,11 @@ async def get_stats(
 
 
 @router.get("/metrics", summary="Prometheus metrics")
-async def metrics_endpoint(settings: Optional[UnifiedSettings] = None) -> Response:
+async def metrics_endpoint(settings: UnifiedSettings = Depends(_settings)) -> Response:
     """Expose Prometheus metrics if enabled, otherwise 404."""
-    settings = settings or _settings()
     if asyncio.iscoroutine(settings):
         settings = await settings
-    if (
-        settings is None
-        or not getattr(settings, "monitoring", None)
-        or not getattr(settings.monitoring, "enable_metrics", False)
-    ):
+    if not getattr(settings, "monitoring", None) or not getattr(settings.monitoring, "enable_metrics", False):
         raise HTTPException(status_code=404, detail="Metrics disabled")
     ctype = get_metrics_content_type()
     return Response(
