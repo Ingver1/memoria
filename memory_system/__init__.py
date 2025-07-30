@@ -15,7 +15,7 @@ This package provides:
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, cast
 
 try:  # pragma: no cover - optional dependency during testing
     import httpx
@@ -30,7 +30,7 @@ try:  # pragma: no cover - optional dependency during testing
                 super().__init__(*args, **kwargs)
 
         # Reassign with a runtime subclass so tests can pass FastAPI apps
-        httpx.AsyncClient = _AsyncClient
+        httpx.AsyncClient = cast(Any, _AsyncClient)
 except Exception:  # pragma: no cover - httpx may not be installed
     pass
 
