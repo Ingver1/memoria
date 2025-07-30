@@ -28,10 +28,11 @@ from time import perf_counter
 
 import faiss
 import numpy as np
+from numpy import ndarray as NDArray
+
 from memory_system.utils.exceptions import StorageError
 from memory_system.utils.metrics import prometheus_counter
 from memory_system.utils.rwlock import RWLock
-from numpy import ndarray as NDArray
 
 log = logging.getLogger(__name__)
 
