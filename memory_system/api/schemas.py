@@ -8,8 +8,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from memory_system import __version__
 from pydantic import BaseModel, Field
+
+from memory_system import __version__
 
 # ---------------------------------------------------------------------------
 # Shared constants
