@@ -10,6 +10,8 @@ from datetime import UTC, datetime
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, HTTPException, status
+from starlette.responses import JSONResponse, Response
+
 from memory_system import __version__
 from memory_system.api.dependencies import get_memory_store
 from memory_system.api.middleware import check_dependencies, session_tracker
@@ -17,7 +19,6 @@ from memory_system.api.schemas import HealthResponse, StatsResponse
 from memory_system.config.settings import UnifiedSettings, get_settings
 from memory_system.core.store import EnhancedMemoryStore
 from memory_system.utils.metrics import get_metrics_content_type, get_prometheus_metrics
-from starlette.responses import JSONResponse, Response
 
 log = logging.getLogger(__name__)
 router = APIRouter(tags=["Health & Monitoring"])
