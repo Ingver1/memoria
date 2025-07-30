@@ -18,10 +18,9 @@ import sys
 from pathlib import Path
 from typing import Any, Optional, Type, cast
 
-import typer
-
 # ────────────────────────────── third-party imports ────────────────────────────
 import httpx
+import typer
 
 Panel: Type[Any]
 Table: Type[Any]
