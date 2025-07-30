@@ -206,7 +206,8 @@ class FaissHNSWIndex:
             faiss.normalize_L2(vec)
 
         if ef_search is not None:
-            self.index.hnsw.efSearch = ef_search
+            # IndexIDMap2 does not expose the HNSW params directly
+            faiss.downcast_index(self.index.index).hnsw.efSearch = ef_search
             self.ef_search = ef_search
 
         start = perf_counter()
