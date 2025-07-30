@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
+
 try:
     from fastapi.testclient import ClientHelper as TestClient
 except ImportError:
