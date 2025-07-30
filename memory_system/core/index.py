@@ -86,7 +86,7 @@ class FaissHNSWIndex:
 
         self.index: faiss.IndexIDMap2 = faiss.IndexIDMap2(base)
         self.ef_search: int = self.DEFAULT_EF_SEARCH
-        self.index.hnsw.efSearch = self.ef_search
+        self.index.index.hnsw.efSearch = self.ef_search
 
         self._stats = IndexStats(dim=dim)
         self._cache: dict[tuple[int, int, int], tuple[list[str], list[float]]] = {}
