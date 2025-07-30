@@ -18,6 +18,7 @@ from fastapi.routing import APIRouter
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from starlette.responses import Response
 from starlette.types import ASGIApp
+from starlette.middleware.base import RequestResponseEndpoint
 
 from memory_system import __version__
 from memory_system.api.middleware import MaintenanceModeMiddleware
@@ -75,8 +76,14 @@ def create_app(settings: UnifiedSettings | None = None) -> FastAPI:  # pragma: n
 
     app = FastAPI(title="Unified Memory System", version=__version__)
 
-    # Maintenance mode middleware is attached via middleware stack
-    app.add_middleware(MaintenanceModeMiddleware)
+    # Maintenance mode middleware
+    maintenance = MaintenanceModeMiddleware(app)
+
+    @app.middleware("http")
+    async def _maintenance_mw(request: Request, call_next: RequestResponseEndpoint) -> Response:
+        return await maintenance.dispatch(request, call_next)
+
+    app.state.maintenance = maintenance
 
     # CORS (can be tightened in prod)
     app.add_middleware(
