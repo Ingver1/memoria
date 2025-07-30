@@ -10,7 +10,14 @@ from types import SimpleNamespace
 from typing import Any
 
 from cryptography.fernet import Fernet, InvalidToken
-from pydantic import BaseModel, Field, PositiveInt, ValidationError, field_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    NonNegativeInt,
+    PositiveInt,
+    ValidationError,
+    field_validator,
+)
 from pydantic_settings import BaseSettings
 
 from memory_system import __version__
@@ -150,7 +157,7 @@ class APIConfig(BaseModel):
     """HTTP API options."""
 
     host: str = "0.0.0.0"
-    port: PositiveInt = 8000
+    port: NonNegativeInt = 8000
     enable_cors: bool = True
     enable_api: bool = True
     cors_origins: list[str] = Field(default_factory=lambda: ["*"])
