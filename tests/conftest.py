@@ -19,8 +19,8 @@ from _pytest.config import Config
 from _pytest.fixtures import FixtureRequest
 from _pytest.logging import LogCaptureFixture
 from _pytest.nodes import Item
-
 from fastapi.testclient import TestClient
+
 from memory_system import __version__
 from memory_system.api.app import create_app
 from memory_system.config.settings import UnifiedSettings
