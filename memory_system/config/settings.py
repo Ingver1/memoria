@@ -10,9 +10,10 @@ from types import SimpleNamespace
 from typing import Any
 
 from cryptography.fernet import Fernet, InvalidToken
-from memory_system import __version__
 from pydantic import BaseModel, Field, PositiveInt, ValidationError, field_validator
 from pydantic_settings import BaseSettings
+
+from memory_system import __version__
 
 __all__ = [
     "DatabaseConfig",
