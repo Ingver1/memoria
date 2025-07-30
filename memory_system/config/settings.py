@@ -15,7 +15,6 @@ from pydantic import (
     Field,
     NonNegativeInt,
     PositiveInt,
-    ValidationError,
     field_validator,
 )
 from pydantic_settings import BaseSettings
@@ -53,7 +52,7 @@ class DatabaseConfig(BaseModel):
 
     def __setattr__(self, name: str, value: Any) -> None:  # pragma: no cover - simple immutability check
         if self.model_config.get("frozen") and name in self.__dict__:
-            raise ValidationError("DatabaseConfig is immutable")
+             raise ValueError("DatabaseConfig is immutable")
         super().__setattr__(name, value)
 
 
@@ -85,7 +84,7 @@ class SecurityConfig(BaseModel):
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
         if len(self.api_token) < 8:
-            raise ValidationError("API token must be at least 8 characters long")
+            raise ValueError("API token must be at least 8 characters long")
         if self.encryption_key:
             self._validate_key(self.encryption_key)
         if self.encrypt_at_rest and not self.encryption_key:
@@ -104,7 +103,7 @@ class SecurityConfig(BaseModel):
         try:
             Fernet(value.encode())
         except Exception as exc:  # pragma: no cover
-            raise ValidationError("Invalid encryption key") from exc
+            raise ValueError("Invalid encryption key") from exc
         return value
 
     @field_validator("api_token")
@@ -131,14 +130,14 @@ class PerformanceConfig(BaseModel):
 
     def __setattr__(self, name: str, value: Any) -> None:  # pragma: no cover
         if name in self.__dict__ and self.model_config.get("frozen"):
-            raise ValidationError("PerformanceConfig is immutable")
+            raise ValueError("PerformanceConfig is immutable")
         super().__setattr__(name, value)
 
     @field_validator("max_workers")
     @classmethod
     def _workers_range(cls, value: int) -> int:
         if value < 1 or value > 32:
-            raise ValidationError("max_workers must be between 1 and 32")
+            raise ValueError("max_workers must be between 1 and 32")
         return value
 
 
@@ -177,7 +176,7 @@ class APIConfig(BaseModel):
     @classmethod
     def _validate_port(cls, value: int) -> int:
         if value < 0 or value > 65_535 or (value != 0 and value < 1024):
-            raise ValidationError("port must be between 1024 and 65535")
+            raise ValueError("port must be between 1024 and 65535")
         return value
 
 
@@ -203,7 +202,7 @@ class MonitoringConfig(BaseModel):
     @classmethod
     def _validate_prom_port(cls, value: int) -> int:
         if value < 1024 or value > 65_535:
-            raise ValidationError("prom_port must be between 1024 and 65535")
+            raise ValueError("prom_port must be between 1024 and 65535")
         return value
 
 
