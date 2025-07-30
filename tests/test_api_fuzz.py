@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 import schemathesis
+
 try:
     from schemathesis import DataGenerationMethod
 except ImportError:  # Schemathesis >= 3.27
