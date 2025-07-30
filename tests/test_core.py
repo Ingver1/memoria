@@ -9,9 +9,9 @@ from pathlib import Path
 from typing import Generator, Iterator
 from unittest.mock import patch
 
+import numpy as np
 import pytest
 
-import numpy as np
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.embedding import (
     EmbeddingError,
