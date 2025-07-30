@@ -3,8 +3,8 @@ import os
 from pathlib import Path
 
 import pytest
-
 from fastapi.testclient import TestClient
+
 from memory_system.core.store import Memory, SQLiteMemoryStore
 from memory_system.core.vector_store import VectorStore
 
