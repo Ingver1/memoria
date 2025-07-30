@@ -226,7 +226,8 @@ class EmbeddingService:
         """Directly encode a batch of texts (runs in background thread)."""
         if self._model is None:
             raise EmbeddingError("Embedding model is not loaded")
-        return self._model.encode(texts)  # returns an array of embeddings
+        vec = self._model.encode(texts)
+        return np.asarray(vec, dtype=np.float32)
 
     def _cache_key(self, text: str) -> str:
         """Compute a cache key for a given text input."""
