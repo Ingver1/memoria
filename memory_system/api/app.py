@@ -17,9 +17,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRouter
 
 try:  # pragma: no cover - optional dependency
-    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor as _FastAPIInstrumentor
 except Exception:  # pragma: no cover - optional dependency
-    FastAPIInstrumentor = None
+    _FastAPIInstrumentor = None
+
+FastAPIInstrumentor: Any | None = _FastAPIInstrumentor
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.responses import Response
 from starlette.types import ASGIApp
