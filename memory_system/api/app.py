@@ -121,9 +121,7 @@ def create_app(settings: UnifiedSettings | None = None) -> FastAPI:  # pragma: n
     async def _startup() -> None:
         app.state.memory_store = await get_store(settings.database.db_path)
         # Dependency bridge ----------------------------------------------------
-        app.dependency_overrides[get_memory_store] = (
-            lambda req: cast(SQLiteMemoryStore, req.app.state.memory_store)
-        )
+        app.dependency_overrides[get_memory_store] = lambda req: cast(SQLiteMemoryStore, req.app.state.memory_store)
         logger.info("SQLiteMemoryStore initialised")
 
     @app.on_event("shutdown")
