@@ -72,10 +72,19 @@ def _patch_client(client: TestClient) -> None:
             return result
         return JSONResponse(content=result)
 
+    def _resolve(method: str, path: str) -> Callable[..., Awaitable[Any]] | None:
+        if hasattr(client, "_resolve_handler"):
+            return cast(Callable[..., Awaitable[Any]] | None, getattr(client, "_resolve_handler")(method, path))
+        for route in client.app.routes:
+            methods = getattr(route, "methods", [])
+            if path == getattr(route, "path", None) and method in methods:
+                return cast(Callable[..., Awaitable[Any]], route.endpoint)
+        return None
+
     def wrapped_get(
         url: str, *, params: dict[str, Any] | None = None, headers: dict[str, str] | None = None
     ) -> _TestResponse:
-        handler = client._resolve_handler("GET", url)
+        handler = _resolve("GET", url)
         if handler is None:
             return _TestResponse(Response(status_code=404))
 
@@ -106,7 +115,8 @@ def _patch_client(client: TestClient) -> None:
                 return JSONResponse(content=result)
             return result
 
-        resp = client._loop.run_until_complete(call_chain(request))
+        loop = getattr(client, "_loop", asyncio.get_event_loop())
+        resp = loop.run_until_complete(call_chain(request))
         return _TestResponse(resp)
 
     # Monkey-patch the get method
