@@ -10,11 +10,14 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, cast
+from typing import Any, TYPE_CHECKING, cast
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRouter
+
+if TYPE_CHECKING:  # Only for type checking, not at runtime
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor as FastAPIInstrumentor
 
 try:  # pragma: no cover - optional dependency
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor as _FastAPIInstrumentor
