@@ -7,8 +7,9 @@ from typing import Any, Awaitable, Callable, TypeVar, cast
 
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient, _TestResponse
-from memory_system.api.middleware import MaintenanceModeMiddleware, RateLimitingMiddleware
 from starlette.responses import JSONResponse, Response
+
+from memory_system.api.middleware import MaintenanceModeMiddleware, RateLimitingMiddleware
 
 T = TypeVar("T")
 
