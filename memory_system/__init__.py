@@ -29,7 +29,7 @@ try:  # pragma: no cover - optional dependency during testing
                     kwargs["transport"] = ASGITransport(app=app)
                 super().__init__(*args, **kwargs)
 
-        httpx.AsyncClient = _AsyncClient  # type: ignore[assignment]
+        httpx.AsyncClient = _AsyncClient
 except Exception:  # pragma: no cover - httpx may not be installed
     pass
 
