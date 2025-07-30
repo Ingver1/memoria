@@ -6,12 +6,12 @@ Schemathesis autogenerates thousands of requests with random payloads.
 from typing import Any
 
 import pytest
-
 import schemathesis
-from memory_system.api.app import create_app
-from memory_system.config.settings import UnifiedSettings
 from schemathesis import DataGenerationMethod
 from starlette.responses import Response
+
+from memory_system.api.app import create_app
+from memory_system.config.settings import UnifiedSettings
 
 
 class _Case:
