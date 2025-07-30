@@ -10,7 +10,7 @@ from typing import AsyncGenerator, List
 import numpy as np
 import pytest
 import pytest_asyncio
-from hypothesis import given, settings
+from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from hypothesis.strategies import SearchStrategy
 
@@ -44,7 +44,7 @@ async def store() -> AsyncGenerator[EnhancedMemoryStore, None]:
 
 
 @given(vec=_float32_arrays())
-@settings(max_examples=20)
+@settings(max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture])
 async def test_roundtrip_vector(store: EnhancedMemoryStore, vec: List[float]) -> None:
     """Adding then searching the same vector must return exactly one hit."""
     await store.add_memory(text="prop-test", embedding=vec)
