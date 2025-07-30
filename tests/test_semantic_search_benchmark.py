@@ -9,15 +9,16 @@ import asyncio
 from typing import Any, AsyncGenerator
 
 import pytest
-
 import pytest_asyncio
-from memory_system.utils.loop import get_or_create_loop
 from pytest_benchmark.fixture import BenchmarkFixture
+
+from memory_system.utils.loop import get_or_create_loop
 
 # Skip benchmarks when pytest-benchmark is not installed
 pytest.importorskip("pytest_benchmark")
 
 import numpy as np
+
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.enhanced_store import EnhancedMemoryStore
 
