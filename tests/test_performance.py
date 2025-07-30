@@ -7,14 +7,15 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import AsyncGenerator, Generator
 
+import numpy as np
 import pytest
 
-import numpy as np
 try:
     import psutil
 except Exception:  # pragma: no cover - optional dependency
     psutil = None
 import pytest_asyncio
+
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.embedding import EnhancedEmbeddingService
 from memory_system.core.index import FaissHNSWIndex
