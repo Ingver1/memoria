@@ -24,7 +24,7 @@ try:
     from fastapi.testclient import TestClient
 except ImportError:  # FastAPI is optional in some environments
     pytest.skip("fastapi not installed", allow_module_level=True)
-    
+
 from memory_system import __version__
 from memory_system.api.app import create_app
 from memory_system.config.settings import UnifiedSettings
