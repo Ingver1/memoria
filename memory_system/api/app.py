@@ -15,6 +15,10 @@ from typing import Any, cast
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRouter
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from starlette.responses import Response
+from starlette.types import ASGIApp
+
 from memory_system import __version__
 from memory_system.api.middleware import MaintenanceModeMiddleware
 from memory_system.api.routes import admin as admin_routes
@@ -27,9 +31,6 @@ from memory_system.config.settings import (
 )
 from memory_system.core.store import SQLiteMemoryStore, get_memory_store, get_store
 from memory_system.memory_helpers import MemoryStoreProtocol, add, delete, search
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from starlette.responses import Response
-from starlette.types import ASGIApp
 
 logger = logging.getLogger(__name__)
 
