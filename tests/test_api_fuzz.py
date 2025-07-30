@@ -7,7 +7,10 @@ from typing import Any
 
 import pytest
 import schemathesis
-from schemathesis import DataGenerationMethod
+try:
+    from schemathesis import DataGenerationMethod
+except ImportError:  # Schemathesis >= 3.27
+    from schemathesis.specs.openapi import DataGenerationMethod
 from starlette.responses import Response
 
 from memory_system.api.app import create_app
