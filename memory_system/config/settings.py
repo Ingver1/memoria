@@ -15,6 +15,7 @@ from pydantic import (
     Field,
     NonNegativeInt,
     PositiveInt,
+    ValidationError,
     field_validator,
 )
 from pydantic_settings import BaseSettings
