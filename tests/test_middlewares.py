@@ -6,8 +6,22 @@ from types import SimpleNamespace
 from typing import Any, Awaitable, Callable, TypeVar, cast
 
 from fastapi import FastAPI, Request
-from fastapi.testclient import TestClient, _TestResponse
-from starlette.responses import JSONResponse, Response
+from fastapi.testclient import TestClient
+from starlette.responses import Response, JSONResponse
+
+
+class _TestResponse:
+    """Minimal response wrapper for compatibility with older FastAPI."""
+
+    def __init__(self, resp: Response) -> None:
+        self.status_code = resp.status_code
+        self.headers = resp.headers
+        self._resp = resp
+
+    def json(self) -> Any:  # pragma: no cover - used if available
+        if hasattr(self._resp, "json"):
+            return self._resp.json()
+        raise AttributeError("json")
 
 from memory_system.api.middleware import MaintenanceModeMiddleware, RateLimitingMiddleware
 
