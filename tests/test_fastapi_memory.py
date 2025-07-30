@@ -2,7 +2,10 @@ from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
-from fastapi.testclient import ClientHelper
+try:
+    from fastapi.testclient import ClientHelper as TestClient
+except ImportError:
+    from fastapi.testclient import TestClient
 
 from memory_system.api.routes.memory import router as memory_router
 from memory_system.core.store import SQLiteMemoryStore, lifespan_context
@@ -18,13 +21,13 @@ def app(tmp_path: Path) -> FastAPI:
 
 def test_startup_injects_store(app: FastAPI) -> None:
     """Test that the memory store is properly injected on startup."""
-    with ClientHelper(app) as client:
+    with TestClient(app) as client:
         assert isinstance(client.app.state.memory_store, SQLiteMemoryStore)
 
 
 def test_add_get_search_cycle(app: FastAPI) -> None:
     """Test the complete cycle of adding, getting, and searching memories."""
-    with ClientHelper(app) as client:
+    with TestClient(app) as client:
         payload = {"text": "hello world"}
         resp = client.post("/api/v1/memory/", json=payload)
         assert resp.status_code == 201
@@ -43,7 +46,7 @@ def test_add_get_search_cycle(app: FastAPI) -> None:
 
 def test_pii_redaction(app: FastAPI) -> None:
     """Test that PII is properly redacted from stored memories."""
-    with ClientHelper(app) as client:
+    with TestClient(app) as client:
         payload = {"text": "Email me at user@example.com"}
         resp = client.post("/api/v1/memory/", json=payload)
         assert resp.status_code == 201
@@ -58,7 +61,7 @@ def test_pii_redaction(app: FastAPI) -> None:
 
 def test_best_memories_endpoint(app: FastAPI) -> None:
     """Test retrieving best memories with limit parameter."""
-    with ClientHelper(app) as client:
+    with TestClient(app) as client:
         for i in range(3):
             payload = {"text": f"mem {i}"}
             client.post("/api/v1/memory/", json=payload)
@@ -70,7 +73,7 @@ def test_best_memories_endpoint(app: FastAPI) -> None:
 
 def test_long_text_validation(app: FastAPI) -> None:
     """Test that memory creation with too long text fails with 422."""
-    with ClientHelper(app) as client:
+    with TestClient(app) as client:
         payload = {"text": "x" * 10001}
         resp = client.post("/api/v1/memory/", json=payload)
         assert resp.status_code == 422
@@ -78,6 +81,6 @@ def test_long_text_validation(app: FastAPI) -> None:
 
 def test_search_invalid_top_k(app: FastAPI) -> None:
     """Test that search with invalid top_k parameter returns 422."""
-    with ClientHelper(app) as client:
+    with TestClient(app) as client:
         resp = client.post("/api/v1/memory/search", json={"query": "hi", "top_k": 0})
         assert resp.status_code == 422
