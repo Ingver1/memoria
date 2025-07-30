@@ -171,9 +171,9 @@ class TestEmbeddingPerformance:
         # some platforms causing flaky failures.  We still want to
         # ensure caching has a real benefit so require at least a
         # twofold improvement.
-        assert (
-            second_time < first_time * EMBEDDING_CACHE_FACTOR
-        ), f"Cache hit time: {second_time:.3f}s vs first time: {first_time:.3f}s"
+        assert second_time < first_time * EMBEDDING_CACHE_FACTOR, (
+            f"Cache hit time: {second_time:.3f}s vs first time: {first_time:.3f}s"
+        )
 
     @pytest.mark.slow
     @pytest.mark.skipif(psutil is None, reason="psutil not installed")
