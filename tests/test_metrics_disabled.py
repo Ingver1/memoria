@@ -7,8 +7,8 @@ and must not output Prometheus formatted data.
 from typing import Any
 
 import pytest
-
 from fastapi.testclient import TestClient
+
 from memory_system.api.app import create_app
 from memory_system.config.settings import UnifiedSettings
 
