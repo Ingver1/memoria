@@ -9,7 +9,7 @@ import sys
 from datetime import UTC, datetime
 from typing import Any, Dict
 
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from starlette.responses import JSONResponse, Response
 
 from memory_system import __version__
