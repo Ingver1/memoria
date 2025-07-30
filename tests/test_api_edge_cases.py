@@ -1,12 +1,12 @@
 import asyncio
 from typing import AsyncGenerator
 
-import pytest
-
 import httpx
+import pytest
 import pytest_asyncio
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+
 from memory_system.api.routes.memory import router as memory_router
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.store import lifespan_context
