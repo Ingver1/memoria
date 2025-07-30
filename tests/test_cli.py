@@ -3,9 +3,8 @@ import os
 from pathlib import Path
 from typing import Any
 
-import pytest
-
 import httpx
+import pytest
 
 pytest.importorskip("typer")
 from typer.testing import CliRunner
