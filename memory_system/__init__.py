@@ -17,6 +17,21 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+try:  # pragma: no cover - optional dependency during testing
+    import httpx
+    from httpx import ASGITransport
+
+    if "app" not in httpx.AsyncClient.__init__.__code__.co_varnames:
+        class _AsyncClient(httpx.AsyncClient):
+            def __init__(self, *args: Any, app: Any | None = None, **kwargs: Any) -> None:
+                if app is not None:
+                    kwargs["transport"] = ASGITransport(app=app)
+                super().__init__(*args, **kwargs)
+
+        httpx.AsyncClient = _AsyncClient  # type: ignore[assignment]
+except Exception:  # pragma: no cover - httpx may not be installed
+    pass
+
 __version__: str = "1.0.0"
 # Rebuild the module docstring to embed the current version.
 __doc__ = f"Unified Memory System v{__version__}.\n\n" + __doc__.split("\n", 1)[1]
