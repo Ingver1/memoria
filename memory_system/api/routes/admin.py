@@ -14,6 +14,8 @@ router = APIRouter(prefix="/admin", tags=["Administration"])
 
 def _maintenance(request: Request) -> MaintenanceModeMiddleware:
     """Retrieve the application's maintenance middleware instance."""
+    if not hasattr(request.app.state, "maintenance"):
+        request.app.state.maintenance = MaintenanceModeMiddleware(request.app)
     return cast(MaintenanceModeMiddleware, request.app.state.maintenance)
 
 
