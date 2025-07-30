@@ -30,7 +30,7 @@ try:  # pragma: no cover - optional dependency during testing
                 super().__init__(*args, **kwargs)
 
         # Reassign with a runtime subclass so tests can pass FastAPI apps
-        httpx.AsyncClient = _AsyncClient  # type: ignore[misc]
+        setattr(httpx, "AsyncClient", _AsyncClient)
 except Exception:  # pragma: no cover - httpx may not be installed
     pass
 
