@@ -240,9 +240,10 @@ class UnifiedSettings(BaseSettings):
 
         # environment variable overrides
         envs: dict[str, str] = {}
-        env_file = self.model_config.get("env_file")
-        if env_file and Path(env_file).exists():
-            for line in Path(env_file).read_text().splitlines():
+        env_file_val = self.model_config.get("env_file")
+        env_path = Path(str(env_file_val)) if env_file_val else None
+        if env_path and env_path.exists():
+            for line in env_path.read_text().splitlines():
                 if "=" in line:
                     k, v = line.split("=", 1)
                     envs.setdefault(k.strip(), v.strip())
@@ -290,7 +291,7 @@ class UnifiedSettings(BaseSettings):
     def for_testing(cls) -> "UnifiedSettings":
         return cls(
             profile="testing",
-            database=DatabaseConfig(model_config={"frozen": False}),
+            database=DatabaseConfig(),
             performance=PerformanceConfig(max_workers=2, cache_size=100, cache_ttl_seconds=10),
             monitoring=MonitoringConfig(enable_metrics=False, health_check_interval=5),
             api=APIConfig(port=0),
