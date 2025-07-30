@@ -74,7 +74,7 @@ def _patch_client(client: TestClient) -> None:
 
     def _resolve(method: str, path: str) -> Callable[..., Awaitable[Any]] | None:
         if hasattr(client, "_resolve_handler"):
-            return cast(Callable[..., Awaitable[Any]] | None, getattr(client, "_resolve_handler")(method, path))
+            return cast(Callable[..., Awaitable[Any]] | None, client._resolve_handler(method, path))
         for route in client.app.routes:
             methods = getattr(route, "methods", [])
             if path == getattr(route, "path", None) and method in methods:
