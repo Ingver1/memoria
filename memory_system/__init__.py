@@ -29,7 +29,8 @@ try:  # pragma: no cover - optional dependency during testing
                     kwargs["transport"] = ASGITransport(app=app)
                 super().__init__(*args, **kwargs)
 
-        httpx.AsyncClient = _AsyncClient
+        # Reassign with a runtime subclass so tests can pass FastAPI apps
+        httpx.AsyncClient = _AsyncClient  # type: ignore[misc]
 except Exception:  # pragma: no cover - httpx may not be installed
     pass
 
