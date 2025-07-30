@@ -24,7 +24,9 @@ try:  # pragma: no cover - optional dependency
 except Exception:  # pragma: no cover - optional dependency
     _FastAPIInstrumentor = None
 
-FastAPIInstrumentor: Any | None = _FastAPIInstrumentor
+fastapi_instrumentor: "FastAPIInstrumentor | None" = cast(
+    "FastAPIInstrumentor | None", _FastAPIInstrumentor
+)
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.responses import Response
 from starlette.types import ASGIApp
@@ -103,8 +105,8 @@ def create_app(settings: UnifiedSettings | None = None) -> FastAPI:  # pragma: n
     )
 
     # OpenTelemetry
-    if FastAPIInstrumentor is not None and os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"):
-        FastAPIInstrumentor.instrument_app(app)
+    if fastapi_instrumentor is not None and os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"):
+        fastapi_instrumentor.instrument_app(app)
 
     # Health probes ---------------------------------------------------------
     @app.get("/health/live", include_in_schema=False)
