@@ -98,7 +98,7 @@ def create_app(settings: UnifiedSettings | None = None) -> FastAPI:  # pragma: n
     )
 
     # OpenTelemetry
-    if FastAPIInstrumentor and os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"):
+    if FastAPIInstrumentor is not None and os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"):
         FastAPIInstrumentor.instrument_app(app)
 
     # Health probes ---------------------------------------------------------
