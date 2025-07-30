@@ -10,7 +10,10 @@ from typing import Any, AsyncGenerator, Dict
 import httpx
 import pytest
 import pytest_asyncio
-from fastapi.testclient import ClientHelper
+try:
+    from fastapi.testclient import ClientHelper as TestClient
+except ImportError:
+    from fastapi.testclient import TestClient
 
 from memory_system import __version__
 from memory_system.api.app import create_app
@@ -334,9 +337,9 @@ class TestAPIIntegration:
         return create_app()
 
     @pytest.fixture
-    def client(self, test_app: Any) -> ClientHelper:
+    def client(self, test_app: Any) -> TestClient:
         """Create test client."""
-        return ClientHelper(test_app)
+        return TestClient(test_app)
 
     @pytest_asyncio.fixture
     async def async_client(self, test_app: Any) -> AsyncGenerator[httpx.AsyncClient, None]:
@@ -344,7 +347,7 @@ class TestAPIIntegration:
         async with httpx.AsyncClient(app=test_app, base_url="http://test") as client:
             yield client
 
-    def test_api_health_integration(self, client: ClientHelper) -> None:
+    def test_api_health_integration(self, client: TestClient) -> None:
         """Test API health endpoint integration."""
         response = client.get("/api/v1/health")
         assert response.status_code == 200
@@ -361,7 +364,7 @@ class TestAPIIntegration:
         for check in expected_checks:
             assert check in data["checks"]
 
-    def test_api_stats_integration(self, client: ClientHelper) -> None:
+    def test_api_stats_integration(self, client: TestClient) -> None:
         """Test API stats endpoint integration."""
         response = client.get("/api/v1/stats")
         assert response.status_code == 200
@@ -393,7 +396,7 @@ class TestAPIIntegration:
             data = response.json()
             assert data["version"] == __version__
 
-    def test_api_error_handling_integration(self, client: ClientHelper) -> None:
+    def test_api_error_handling_integration(self, client: TestClient) -> None:
         """Test API error handling integration."""
         # Test 404 error
         response = client.get("/api/v1/nonexistent")
@@ -404,7 +407,7 @@ class TestAPIIntegration:
         assert response.status_code == 405
         assert response.headers.get("content-type") == "application/json"
 
-    def test_api_middleware_integration(self, client: ClientHelper) -> None:
+    def test_api_middleware_integration(self, client: TestClient) -> None:
         """Test API middleware integration."""
         # Test that middleware is working
         response = client.get("/api/v1/health")
