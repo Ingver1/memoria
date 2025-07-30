@@ -16,9 +16,9 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRouter
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from starlette.middleware.base import RequestResponseEndpoint
 from starlette.responses import Response
 from starlette.types import ASGIApp
-from starlette.middleware.base import RequestResponseEndpoint
 
 from memory_system import __version__
 from memory_system.api.middleware import MaintenanceModeMiddleware
