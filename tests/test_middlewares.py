@@ -7,7 +7,7 @@ from typing import Any, Awaitable, Callable, TypeVar, cast
 
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
-from starlette.responses import Response, JSONResponse
+from starlette.responses import JSONResponse, Response
 
 
 class _TestResponse:
