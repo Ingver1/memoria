@@ -1,9 +1,9 @@
 from pathlib import Path
 
 import pytest
-
 from fastapi import FastAPI
 from fastapi.testclient import ClientHelper
+
 from memory_system.api.routes.memory import router as memory_router
 from memory_system.core.store import SQLiteMemoryStore, lifespan_context
 
