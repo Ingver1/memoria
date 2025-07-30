@@ -23,14 +23,14 @@ try:  # pragma: no cover - optional dependency during testing
 
     if "app" not in httpx.AsyncClient.__init__.__code__.co_varnames:
 
-        class _AsyncClient(httpx.AsyncClient):  # type: ignore[misc]
+        class _AsyncClient(httpx.AsyncClient):
             def __init__(self, *args: Any, app: Any | None = None, **kwargs: Any) -> None:
                 if app is not None:
                     kwargs["transport"] = ASGITransport(app=app)
                 super().__init__(*args, **kwargs)
 
         # Reassign with a runtime subclass so tests can pass FastAPI apps
-        httpx.AsyncClient = cast(Any, _AsyncClient)
+        setattr(httpx, "AsyncClient", cast(Any, _AsyncClient))
 except Exception:  # pragma: no cover - httpx may not be installed
     pass
 
