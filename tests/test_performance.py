@@ -260,9 +260,9 @@ class TestIndexPerformance:
             per_vector_time = build_time / batch_size
 
             # Build time should scale reasonably
-            assert (
-                per_vector_time * 1000 < MAX_INDEX_BUILD_PER_VECTOR_MS
-            ), f"Per-vector build time: {per_vector_time:.6f}s"
+            assert per_vector_time * 1000 < MAX_INDEX_BUILD_PER_VECTOR_MS, (
+                f"Per-vector build time: {per_vector_time:.6f}s"
+            )
 
     def test_index_concurrent_search(self, large_index: FaissHNSWIndex) -> None:
         """Test concurrent search performance."""
@@ -297,9 +297,9 @@ class TestIndexPerformance:
         total_searches = len(all_times)
 
         # Concurrent searches should maintain good performance
-        assert (
-            avg_search_time * 1000 < MAX_INDEX_CONCURRENT_AVG_MS
-        ), f"Average concurrent search time: {avg_search_time:.6f}s"
+        assert avg_search_time * 1000 < MAX_INDEX_CONCURRENT_AVG_MS, (
+            f"Average concurrent search time: {avg_search_time:.6f}s"
+        )
         assert total_time * 1000 < MAX_INDEX_CONCURRENT_TOTAL_MS, f"Total concurrent test time: {total_time:.3f}s"
         print(f"Completed {total_searches} concurrent searches in {total_time:.3f}s")
 
@@ -320,7 +320,9 @@ class TestIndexPerformance:
 
         final_memory = process.memory_info().rss
         memory_increase = (final_memory - initial_memory) / (1024 * 1024)  # MB
-        memory_per_vector = memory_increase / num_vectors * 1024  # KB per vector
+        memory_per_vector = memory_increase / num_vectors * 1024  # KBassert avg_search_time * 1000 < MAX_INDEX_CONCURRENT_AVG_MS, (
+            f"Average concurrent search time: {avg_search_time:.6f}s"
+) per vector
 
         # Memory usage should be reasonable
         assert memory_per_vector < MAX_INDEX_MEMORY_KB, f"Memory per vector: {memory_per_vector:.2f}KB"
