@@ -43,9 +43,9 @@ def test_app(test_settings: UnifiedSettings) -> FastAPI:
 
 
 @pytest.fixture
-def test_client(test_app: FastAPI) -> ClientHelper:
+def test_client(test_app: FastAPI) -> TestClient:
     """Create test client."""
-    return ClientHelper(test_app)
+    return TestClient(test_app)
 
 
 @pytest_asyncio.fixture
@@ -58,7 +58,7 @@ async def async_test_client(test_app: FastAPI) -> AsyncGenerator[httpx.AsyncClie
 class TestHealthEndpoints:
     """Test health and monitoring endpoints."""
 
-    def test_root_endpoint(self, test_client: ClientHelper) -> None:
+    def test_root_endpoint(self, test_client: TestClient) -> None:
         """Test root endpoint."""
         response = test_client.get("/")
         assert response.status_code == 200
@@ -72,7 +72,7 @@ class TestHealthEndpoints:
         assert data["metrics"] == "/metrics"
         assert data["api_version"] == "v1"
 
-    def test_health_endpoint(self, test_client: ClientHelper) -> None:
+    def test_health_endpoint(self, test_client: TestClient) -> None:
         """Test health check endpoint."""
         response = test_client.get("/api/v1/health")
         assert response.status_code == 200
@@ -89,7 +89,7 @@ class TestHealthEndpoints:
         assert isinstance(health_response.api_enabled, bool)
         assert health_response.timestamp is not None
 
-    def test_liveness_probe(self, test_client: ClientHelper) -> None:
+    def test_liveness_probe(self, test_client: TestClient) -> None:
         """Test liveness probe endpoint."""
         response = test_client.get("/api/v1/health/live")
         assert response.status_code == 200
@@ -98,7 +98,7 @@ class TestHealthEndpoints:
         assert data["status"] == "alive"
         assert "timestamp" in data
 
-    def test_readiness_probe(self, test_client: ClientHelper) -> None:
+    def test_readiness_probe(self, test_client: TestClient) -> None:
         """Test readiness probe endpoint."""
         response = test_client.get("/api/v1/health/ready")
         # Should be 200 for healthy service or 503 for unhealthy
@@ -110,7 +110,7 @@ class TestHealthEndpoints:
         else:
             assert "detail" in data
 
-    def test_stats_endpoint(self, test_client: ClientHelper) -> None:
+    def test_stats_endpoint(self, test_client: TestClient) -> None:
         """Test stats endpoint."""
         response = test_client.get("/api/v1/stats")
         assert response.status_code == 200
@@ -124,7 +124,7 @@ class TestHealthEndpoints:
         assert isinstance(stats_response.memory_store_stats, dict)
         assert isinstance(stats_response.api_stats, dict)
 
-    def test_version_endpoint(self, test_client: ClientHelper) -> None:
+    def test_version_endpoint(self, test_client: TestClient) -> None:
         """Test version endpoint."""
         response = test_client.get("/api/v1/version")
         assert response.status_code == 200
@@ -136,7 +136,7 @@ class TestHealthEndpoints:
         assert "platform" in data
         assert "architecture" in data
 
-    def test_metrics_endpoint_enabled(self, test_client: ClientHelper) -> None:
+    def test_metrics_endpoint_enabled(self, test_client: TestClient) -> None:
         """Test metrics endpoint when enabled."""
         response = test_client.get("/api/v1/metrics")
         # Should be 200 if metrics enabled or 404 if disabled
@@ -148,7 +148,7 @@ class TestHealthEndpoints:
             content = response.text
             assert "# HELP" in content or "# TYPE" in content
 
-    def test_metrics_endpoint_disabled(self, test_client: ClientHelper, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_metrics_endpoint_disabled(self, test_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test metrics endpoint when disabled."""
         from fastapi import HTTPException
 
@@ -170,7 +170,7 @@ class TestHealthEndpoints:
     def test_root_metrics_endpoint_disabled(self) -> None:
         """/metrics should return 404 when metrics are disabled."""
         app = create_app(UnifiedSettings.for_testing())
-        with ClientHelper(app) as client:
+        with TestClient(app) as client:
             resp = client.get("/metrics")
             assert resp.status_code == 404
 
@@ -178,20 +178,20 @@ class TestHealthEndpoints:
 class TestAdminEndpoints:
     """Test admin endpoints."""
 
-    def test_maintenance_mode_status(self, test_client: ClientHelper) -> None:
+    def test_maintenance_mode_status(self, test_client: TestClient) -> None:
         """Test getting maintenance mode status."""
         response = test_client.get("/api/v1/admin/maintenance-mode")
         assert response.status_code == 200
         data = response.json()
         assert data == {"enabled": False}
 
-    def test_maintenance_mode_enable(self, test_client: ClientHelper) -> None:
+    def test_maintenance_mode_enable(self, test_client: TestClient) -> None:
         """Test enabling maintenance mode."""
         response = test_client.post("/api/v1/admin/maintenance-mode/enable")
         assert response.status_code == 204
         assert test_client.app.state.maintenance._enabled is True
 
-    def test_maintenance_mode_disable(self, test_client: ClientHelper) -> None:
+    def test_maintenance_mode_disable(self, test_client: TestClient) -> None:
         """Test disabling maintenance mode."""
         test_client.post("/api/v1/admin/maintenance-mode/enable")
         response = test_client.post("/api/v1/admin/maintenance-mode/disable")
@@ -379,13 +379,13 @@ class TestSchemas:
 class TestMiddleware:
     """Test middleware functionality."""
 
-    def test_cors_headers(self, test_client: ClientHelper) -> None:
+    def test_cors_headers(self, test_client: TestClient) -> None:
         """Test CORS headers are present."""
         test_client.get("/api/v1/health")
         # CORS headers should be present if enabled
         # This depends on the test configuration
 
-    def test_rate_limiting_middleware(self, test_client: ClientHelper) -> None:
+    def test_rate_limiting_middleware(self, test_client: TestClient) -> None:
         """Test rate limiting middleware."""
         # Make multiple requests to trigger rate limiting
         responses = []
@@ -397,7 +397,7 @@ class TestMiddleware:
         for response in responses:
             assert response.status_code in [200, 429]
 
-    def test_maintenance_mode_middleware(self, test_client: ClientHelper) -> None:
+    def test_maintenance_mode_middleware(self, test_client: TestClient) -> None:
         """Test maintenance mode middleware blocks and unblocks requests."""
         mw = test_client.app.state.maintenance
 
@@ -462,18 +462,18 @@ class TestAsyncEndpoints:
 class TestErrorHandling:
     """Test error handling."""
 
-    def test_404_error(self, test_client: ClientHelper) -> None:
+    def test_404_error(self, test_client: TestClient) -> None:
         """Test 404 error handling."""
         response = test_client.get("/api/v1/nonexistent")
         assert response.status_code == 404
 
-    def test_405_error(self, test_client: ClientHelper) -> None:
+    def test_405_error(self, test_client: TestClient) -> None:
         """Test 405 error handling."""
         response = test_client.post("/api/v1/health")
         assert response.status_code == 405
         assert response.headers.get("content-type") == "application/json"
 
-    def test_422_validation_error(self, test_client: ClientHelper) -> None:
+    def test_422_validation_error(self, test_client: TestClient) -> None:
         """Test 422 validation error handling."""
         # Use the memory creation endpoint with invalid payload
         resp = test_client.post("/api/v1/memory/", json={"text": ""})
@@ -502,7 +502,7 @@ class TestApplicationLifecycle:
         from memory_system.core.store import SQLiteMemoryStore
 
         with patch.object(SQLiteMemoryStore, "aclose", fake_close):
-            with ClientHelper(test_app) as _client:
+            with TestClient(test_app) as _client:
                 # startup has run; shutdown will trigger patched aclose
                 assert hasattr(_client.app.state, "store")
 
@@ -512,14 +512,14 @@ class TestApplicationLifecycle:
 class TestDependencyInjection:
     """Test dependency injection."""
 
-    def test_settings_dependency(self, test_client: ClientHelper) -> None:
+    def test_settings_dependency(self, test_client: TestClient) -> None:
         """Test settings dependency is properly injected."""
         response = test_client.get("/api/v1/health")
         assert response.status_code == 200
         # The fact that we get a successful response means
         # the settings dependency was properly injected
 
-    def test_memory_store_dependency(self, test_client: ClientHelper) -> None:
+    def test_memory_store_dependency(self, test_client: TestClient) -> None:
         """Test memory store dependency is properly injected."""
         response = test_client.get("/api/v1/stats")
         assert response.status_code == 200
@@ -560,7 +560,7 @@ class TestConcurrency:
 class TestPerformance:
     """Test performance characteristics."""
 
-    def test_health_endpoint_performance(self, test_client: ClientHelper) -> None:
+    def test_health_endpoint_performance(self, test_client: TestClient) -> None:
         """Test health endpoint performance."""
         start_time = time.time()
 
@@ -578,7 +578,7 @@ class TestPerformance:
         avg_time = total_time / 100
         assert avg_time < 0.1  # 100ms max per request
 
-    def test_stats_endpoint_performance(self, test_client: ClientHelper) -> None:
+    def test_stats_endpoint_performance(self, test_client: TestClient) -> None:
         """Test stats endpoint performance."""
         start_time = time.time()
 
