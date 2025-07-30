@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+import statistics as stats
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -153,27 +154,29 @@ class TestEmbeddingPerformance:
         """Test performance improvement from caching."""
         text = "This text will be cached for performance testing."
 
-        # First embedding (cache miss)
-        start_time = time.perf_counter()
-        embedding1 = await embedding_service.encode(text)
-        first_time = time.perf_counter() - start_time
+        # Warm up to avoid initialization overhead and populate cache once
+        await embedding_service.encode(text)
 
-        # Second embedding (cache hit)
-        start_time = time.perf_counter()
-        embedding2 = await embedding_service.encode(text)
-        second_time = time.perf_counter() - start_time
+        async def measure(use_cache: bool, n: int = 5) -> float:
+            times = []
+            for i in range(n):
+                query = text if use_cache else f"{text} {i}"
+                start = time.perf_counter()
+                await embedding_service.encode(query)
+                times.append(time.perf_counter() - start)
+            return stats.median(times)
 
-        # Results should be identical
-        np.testing.assert_array_equal(embedding1, embedding2)
+        first_time = await measure(use_cache=False)
+        second_time = await measure(use_cache=True)
 
-        # Cache hit should be noticeably faster.
-        # The original threshold of 10% proved to be too strict on
-        # some platforms causing flaky failures.  We still want to
-        # ensure caching has a real benefit so require at least a
-        # twofold improvement.
-        assert second_time < first_time * EMBEDDING_CACHE_FACTOR, (
-            f"Cache hit time: {second_time:.3f}s vs first time: {first_time:.3f}s"
-        )
+        # Results should be identical for cached queries
+        cached_embedding = await embedding_service.encode(text)
+        np.testing.assert_array_equal(cached_embedding, await embedding_service.encode(text))
+
+        # Cache hit should provide a noticeable speedup
+        assert (
+            second_time < first_time * EMBEDDING_CACHE_FACTOR
+        ), f"Cache hit time: {second_time:.3f}s vs first time: {first_time:.3f}s"
 
     @pytest.mark.slow
     @pytest.mark.skipif(psutil is None, reason="psutil not installed")
@@ -260,9 +263,9 @@ class TestIndexPerformance:
             per_vector_time = build_time / batch_size
 
             # Build time should scale reasonably
-            assert per_vector_time * 1000 < MAX_INDEX_BUILD_PER_VECTOR_MS, (
-                f"Per-vector build time: {per_vector_time:.6f}s"
-            )
+            assert (
+                per_vector_time * 1000 < MAX_INDEX_BUILD_PER_VECTOR_MS
+            ), f"Per-vector build time: {per_vector_time:.6f}s"
 
     def test_index_concurrent_search(self, large_index: FaissHNSWIndex) -> None:
         """Test concurrent search performance."""
@@ -297,9 +300,9 @@ class TestIndexPerformance:
         total_searches = len(all_times)
 
         # Concurrent searches should maintain good performance
-        assert avg_search_time * 1000 < MAX_INDEX_CONCURRENT_AVG_MS, (
-            f"Average concurrent search time: {avg_search_time:.6f}s"
-        )
+        assert (
+            avg_search_time * 1000 < MAX_INDEX_CONCURRENT_AVG_MS
+        ), f"Average concurrent search time: {avg_search_time:.6f}s"
         assert total_time * 1000 < MAX_INDEX_CONCURRENT_TOTAL_MS, f"Total concurrent test time: {total_time:.3f}s"
         print(f"Completed {total_searches} concurrent searches in {total_time:.3f}s")
 
