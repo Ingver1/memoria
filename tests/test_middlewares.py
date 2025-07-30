@@ -23,6 +23,7 @@ class _TestResponse:
             return self._resp.json()
         raise AttributeError("json")
 
+
 from memory_system.api.middleware import MaintenanceModeMiddleware, RateLimitingMiddleware
 
 T = TypeVar("T")
