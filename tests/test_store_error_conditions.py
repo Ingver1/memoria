@@ -1,8 +1,8 @@
 from unittest.mock import AsyncMock, patch
 
+import numpy as np
 import pytest
 
-import numpy as np
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.enhanced_store import EnhancedMemoryStore
 from memory_system.core.index import ANNIndexError
