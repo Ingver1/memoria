@@ -320,9 +320,7 @@ class TestIndexPerformance:
 
         final_memory = process.memory_info().rss
         memory_increase = (final_memory - initial_memory) / (1024 * 1024)  # MB
-        memory_per_vector = memory_increase / num_vectors * 1024  # KBassert avg_search_time * 1000 < MAX_INDEX_CONCURRENT_AVG_MS, (
-            f"Average concurrent search time: {avg_search_time:.6f}s"
-) per vector
+        memory_per_vector = memory_increase / num_vectors * 1024  # KB
 
         # Memory usage should be reasonable
         assert memory_per_vector < MAX_INDEX_MEMORY_KB, f"Memory per vector: {memory_per_vector:.2f}KB"
