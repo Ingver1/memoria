@@ -120,7 +120,7 @@ ignore_errors = true
 [tool.ruff]
 line-length = 120
 target-version = "py312"
-required-version = "0.12.4"
+required-version = "0.12.7"
 exclude = ["build/*", "build/", "dist/*"]
 extend-exclude = [
     ".venv",
