@@ -174,9 +174,9 @@ class TestEmbeddingPerformance:
         np.testing.assert_array_equal(cached_embedding, await embedding_service.encode(text))
 
         # Cache hit should provide a noticeable speedup
-        assert (
-            second_time < first_time * EMBEDDING_CACHE_FACTOR
-        ), f"Cache hit time: {second_time:.3f}s vs first time: {first_time:.3f}s"
+        assert second_time < first_time * EMBEDDING_CACHE_FACTOR, (
+            f"Cache hit time: {second_time:.3f}s vs first time: {first_time:.3f}s"
+        )
 
     @pytest.mark.slow
     @pytest.mark.skipif(psutil is None, reason="psutil not installed")
@@ -263,9 +263,9 @@ class TestIndexPerformance:
             per_vector_time = build_time / batch_size
 
             # Build time should scale reasonably
-            assert (
-                per_vector_time * 1000 < MAX_INDEX_BUILD_PER_VECTOR_MS
-            ), f"Per-vector build time: {per_vector_time:.6f}s"
+            assert per_vector_time * 1000 < MAX_INDEX_BUILD_PER_VECTOR_MS, (
+                f"Per-vector build time: {per_vector_time:.6f}s"
+            )
 
     def test_index_concurrent_search(self, large_index: FaissHNSWIndex) -> None:
         """Test concurrent search performance."""
@@ -300,9 +300,9 @@ class TestIndexPerformance:
         total_searches = len(all_times)
 
         # Concurrent searches should maintain good performance
-        assert (
-            avg_search_time * 1000 < MAX_INDEX_CONCURRENT_AVG_MS
-        ), f"Average concurrent search time: {avg_search_time:.6f}s"
+        assert avg_search_time * 1000 < MAX_INDEX_CONCURRENT_AVG_MS, (
+            f"Average concurrent search time: {avg_search_time:.6f}s"
+        )
         assert total_time * 1000 < MAX_INDEX_CONCURRENT_TOTAL_MS, f"Total concurrent test time: {total_time:.3f}s"
         print(f"Completed {total_searches} concurrent searches in {total_time:.3f}s")
 
