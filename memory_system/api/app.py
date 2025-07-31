@@ -25,8 +25,6 @@ except Exception:  # pragma: no cover - optional dependency
     _FastAPIInstrumentor = None
 
 fastapi_instrumentor: "FastAPIInstrumentor | None" = cast("FastAPIInstrumentor | None", _FastAPIInstrumentor)
-from starlette.middleware.base import RequestResponseEndpoint
-from starlette.responses import Response
 from starlette.types import ASGIApp
 
 from memory_system import __version__
