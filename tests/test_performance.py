@@ -263,7 +263,7 @@ class TestIndexPerformance:
             per_vector_time = build_time / batch_size
 
             # Build time should scale reasonably
-             assert (
+            assert (
                 per_vector_time * 1000 < MAX_INDEX_BUILD_PER_VECTOR_MS
             ), f"Per-vector build time: {per_vector_time:.6f}s"
 
