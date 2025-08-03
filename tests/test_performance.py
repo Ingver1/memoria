@@ -174,7 +174,7 @@ class TestEmbeddingPerformance:
         np.testing.assert_array_equal(cached_embedding, await embedding_service.encode(text))
 
         # Cache hit should provide a noticeable speedup
-       assert second_time < first_time * EMBEDDING_CACHE_FACTOR, (
+        assert second_time < first_time * EMBEDDING_CACHE_FACTOR, (
             f"Cache hit time: {second_time:.3f}s vs first time: {first_time:.3f}s"
         )
 
