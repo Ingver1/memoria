@@ -177,7 +177,7 @@ class TestEmbeddingPerformance:
        assert second_time < first_time * EMBEDDING_CACHE_FACTOR, (
             f"Cache hit time: {second_time:.3f}s vs first time: {first_time:.3f}s"
         )
- 
+
     @pytest.mark.slow
     @pytest.mark.skipif(psutil is None, reason="psutil not installed")
     async def test_embedding_memory_usage(self, embedding_service: EnhancedEmbeddingService) -> None:
