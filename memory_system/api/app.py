@@ -8,24 +8,28 @@ FastAPI application setup with:
 
 from __future__ import annotations
 
+import importlib
 import logging
 import os
 from typing import TYPE_CHECKING, Any, cast
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRouter
+from starlette.middleware.base import RequestResponseEndpoint
 
 if TYPE_CHECKING:  # Only for type checking, not at runtime
-    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor as FastAPIInstrumentor
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
+fastapi_instrumentor: "type[FastAPIInstrumentor] | None"
 try:  # pragma: no cover - optional dependency
-    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor as _FastAPIInstrumentor
+    _fastapi_instr_mod = importlib.import_module("opentelemetry.instrumentation.fastapi")
+    fastapi_instrumentor = cast(
+        "type[FastAPIInstrumentor]",
+        getattr(_fastapi_instr_mod, "FastAPIInstrumentor"),
+    )
 except Exception:  # pragma: no cover - optional dependency
-    _FastAPIInstrumentor = None
-
-fastapi_instrumentor: "FastAPIInstrumentor | None" = cast("FastAPIInstrumentor | None", _FastAPIInstrumentor)
-from starlette.types import ASGIApp
+    fastapi_instrumentor = None
 
 from memory_system import __version__
 from memory_system.api.middleware import MaintenanceModeMiddleware
