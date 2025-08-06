@@ -23,7 +23,7 @@ try:  # pragma: no cover - optional dependency during testing
 
     if "app" not in httpx.AsyncClient.__init__.__code__.co_varnames:
 
-        class _AsyncClient(httpx.AsyncClient):  # type: ignore[misc]
+        class _AsyncClient(httpx.AsyncClient):
             def __init__(self, *args: Any, app: Any | None = None, **kwargs: Any) -> None:
                 if app is not None:
                     kwargs["transport"] = ASGITransport(app=app)
