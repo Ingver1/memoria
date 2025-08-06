@@ -8,7 +8,7 @@ from dataclasses import asdict
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
 
-from memory_system.api.schemas import MemoryCreate, MemoryQuery, MemoryRead, MemorySearchResult
+from memory_system.api.schemas import MemoryCreate, MemoryQuery, MemoryRead
 from memory_system.core.store import Memory, SQLiteMemoryStore, get_memory_store
 from memory_system.utils.security import EnhancedPIIFilter
 
@@ -50,16 +50,16 @@ async def list_memories(
     return payload
 
 
-@router.post("/search", response_model=list[MemorySearchResult])
+@router.post("/search", response_model=list[MemoryRead])
 async def search_memories(
     query: MemoryQuery,
     request: Request,
-) -> list[MemorySearchResult]:
+) -> list[MemoryRead]:
     if not query.query:
         raise HTTPException(status_code=422, detail="Query must not be empty")
     store = await _store(request)
     results = await store.search(text_query=query.query, limit=query.top_k)
-    payload = [MemorySearchResult.model_validate(asdict(r)) for r in results]
+    payload = [MemoryRead.model_validate(asdict(r)) for r in results]
     return payload
 
 
