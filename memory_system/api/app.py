@@ -17,6 +17,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRouter
 from starlette.middleware.base import RequestResponseEndpoint
+from starlette.requests import Request as StarletteRequest
 
 if TYPE_CHECKING:  # Only for type checking, not at runtime
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
@@ -30,6 +31,14 @@ try:  # pragma: no cover - optional dependency
     )
 except Exception:  # pragma: no cover - optional dependency
     fastapi_instrumentor = None
+
+# Allow tests to set ``Request.app`` manually for middleware checks
+if not hasattr(StarletteRequest, "_ums_app_setter"):
+    def _set_app(self: StarletteRequest, value: FastAPI) -> None:
+        self.scope["app"] = value
+
+    StarletteRequest.app = property(lambda self: self.scope.get("app"), _set_app)  # type: ignore[attr-defined]
+    StarletteRequest._ums_app_setter = True
 
 from memory_system import __version__
 from memory_system.api.middleware import MaintenanceModeMiddleware
