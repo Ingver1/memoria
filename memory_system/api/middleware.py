@@ -158,9 +158,7 @@ class MaintenanceModeMiddleware(BaseHTTPMiddleware):
         self._enabled = False
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        if self._enabled and not any(
-            request.url.path.startswith(p) for p in self.allowed_paths
-        ):
+        if self._enabled and not any(request.url.path.startswith(p) for p in self.allowed_paths):
             # Return 503 Service Unavailable for blocked requests
             return JSONResponse(
                 status_code=503,
