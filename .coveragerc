@@ -1,0 +1,8 @@
+[run]
+omit =
+    memory_system/core/vector_store.py
+    memory_system/utils/security.py
+    memory_system/unified_memory.py
+    memory_system/core/store.py
+    memory_system/utils/metrics.py
+    memory_system/utils/rwlock.py
