@@ -138,8 +138,9 @@ async def get_stats(
 
 
 @router.get("/metrics", summary="Prometheus metrics")
-async def metrics_endpoint(settings: UnifiedSettings = Depends(_settings)) -> Response:
+async def metrics_endpoint() -> Response:
     """Expose Prometheus metrics if enabled, otherwise 404."""
+    settings = _settings()
     if asyncio.iscoroutine(settings):
         settings = await settings
     if not getattr(settings, "monitoring", None) or not getattr(settings.monitoring, "enable_metrics", False):
