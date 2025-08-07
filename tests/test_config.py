@@ -50,7 +50,7 @@ class TestDatabaseConfig:
     def test_database_config_immutable(self) -> None:
         """Test that DatabaseConfig is immutable."""
         config = DatabaseConfig()
-        with pytest.raises(ValidationError):
+        with pytest.raises(ValueError):
             config.db_path = Path("/new/path")
 
 
@@ -387,7 +387,9 @@ class TestUnifiedSettings:
 
         # Production-ready settings should have no issues
         settings = UnifiedSettings.for_production()
-        settings.security.api_token = "production-token-12345678"
+        settings.security = settings.security.model_copy(
+            update={"api_token": "production-token-12345678"}
+        )
         issues = settings.validate_production_ready()
         assert len(issues) == 0
 
