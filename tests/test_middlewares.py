@@ -101,7 +101,7 @@ def _patch_client(client: TestClient) -> None:
             "asgi": {"version": "3.0", "spec_version": "2.1"},
             "raw_path": url.encode(),
         }
-        request = Request(scope)  # Removed extra arguments for Request instantiation
+        request = Request(scope)
 
         async def call_chain(r: Request) -> Response:
             async def final(req: Request) -> Response:
@@ -115,8 +115,11 @@ def _patch_client(client: TestClient) -> None:
                 return JSONResponse(content=result)
             return result
 
-        loop = getattr(client, "_loop", asyncio.get_event_loop())
-        resp = loop.run_until_complete(call_chain(request))
+        loop = asyncio.new_event_loop()
+        try:
+            resp = loop.run_until_complete(call_chain(request))
+        finally:
+            loop.close()
         return _TestResponse(resp)
 
     # Monkey-patch the get method
