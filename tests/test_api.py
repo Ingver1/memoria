@@ -410,9 +410,9 @@ class TestMiddleware:
         test_client.post("/api/v1/admin/maintenance-mode/enable")
         assert mw._enabled is True
 
-        req = Request()
+        scope = {"type": "http", "path": "/api/v1/health", "headers": []}
+        req = Request(scope)
         req.app = test_client.app
-        req.url = type("URL", (), {"path": "/api/v1/health"})()
 
         async def _next(_request: Request) -> Response:
             return Response(status_code=200)
