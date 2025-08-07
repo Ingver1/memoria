@@ -118,21 +118,12 @@ class SecurityConfig(BaseModel):
 class PerformanceConfig(BaseModel):
     """Tuning knobs for throughput and caching."""
 
-    max_workers: PositiveInt = 4
+    max_workers: int = 4
     cache_size: PositiveInt = 1_000
     cache_ttl_seconds: PositiveInt = 300
     rebuild_interval_seconds: PositiveInt = 3600
 
     model_config = {"frozen": True}
-
-    def __init__(self, **data: Any) -> None:
-        super().__init__(**data)
-        self._workers_range(self.max_workers)
-
-    def __setattr__(self, name: str, value: Any) -> None:  # pragma: no cover
-        if name in self.__dict__ and self.model_config.get("frozen"):
-            raise ValueError("PerformanceConfig is immutable")
-        super().__setattr__(name, value)
 
     @field_validator("max_workers")
     @classmethod
@@ -369,7 +360,7 @@ class UnifiedSettings(BaseSettings):
 
     def save_to_file(self, path: Path) -> None:
         with open(path, "w", encoding="utf-8") as f:
-            json.dump(self.model_dump(exclude={"storage"}), f, indent=2)
+            json.dump(self.model_dump(exclude={"storage"}, mode="json"), f, indent=2)
 
     @classmethod
     def load_from_file(cls, path: Path) -> "UnifiedSettings":
