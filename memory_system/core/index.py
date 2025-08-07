@@ -92,6 +92,7 @@ class FaissHNSWIndex:
         self._cache: dict[tuple[int, int, int], tuple[list[str], list[float]]] = {}
         self._id_map: dict[int, str] = {}
         self._reverse_id_map: dict[str, int] = {}
+        self._vectors: dict[int, NDArray] = {}
         self._warmed_up: bool = False
         log.info("FAISS HNSW index initialised: dim=%d, metric=%s", dim, space)
 
@@ -152,6 +153,8 @@ class FaissHNSWIndex:
                 faiss.normalize_L2(vecs)
             id_arr = np.array([self._string_to_int(i) for i in ids], dtype="int64")
             self.index.add_with_ids(vecs, id_arr)
+            for idx, int_id in enumerate(id_arr):
+                self._vectors[int(int_id)] = vecs[idx]
 
             self._stats.total_vectors += len(ids)
             _VEC_ADDED.inc(len(ids))
@@ -163,20 +166,43 @@ class FaissHNSWIndex:
         # we actually have data stored.
         self._warm_up()
 
+    def _rebuild_from_vectors(self) -> None:
+        metric = faiss.METRIC_INNER_PRODUCT if self.space == "cosine" else faiss.METRIC_L2
+        base = faiss.IndexHNSWFlat(self.dim, self.DEFAULT_HNSW_M, metric)
+        base.hnsw.efConstruction = self.DEFAULT_EF_CONSTRUCTION
+        new_index = faiss.IndexIDMap2(base)
+        if self._vectors:
+            ids = np.array(list(self._vectors.keys()), dtype="int64")
+            vecs = np.vstack(list(self._vectors.values())).astype("float32")
+            new_index.add_with_ids(vecs, ids)
+        self.index = new_index
+        self._stats.total_vectors = len(self._vectors)
+        self._cache.clear()
+        self._warm_up()
+
     def remove_ids(self, ids: Iterable[str]) -> None:
         """Remove vectors by string IDs."""
-        int_ids = np.array([self._string_to_int(i) for i in ids], dtype="int64")
-        selector = faiss.IDSelectorBatch(int_ids.size, faiss.swig_ptr(int_ids))
+        int_ids = [self._reverse_id_map.get(i) for i in ids if i in self._reverse_id_map]
+        if not int_ids:
+            return
+        arr = np.array(int_ids, dtype="int64")
+        selector = faiss.IDSelectorBatch(arr.size, faiss.swig_ptr(arr))
         with self._lock.writer_lock():
-            removed = self.index.remove_ids(selector)
-            self._stats.total_vectors -= int(removed)
-            _VEC_DELETED.inc(int(removed))
-            log.debug("Removed %d vectors", removed)
+            try:
+                removed = self.index.remove_ids(selector)
+            except RuntimeError:
+                removed = 0
             if removed:
-                for _id in int_ids:
-                    sid = self._id_map.pop(int(_id), None)
-                    if sid:
-                        self._reverse_id_map.pop(sid, None)
+                self._stats.total_vectors -= int(removed)
+                _VEC_DELETED.inc(int(removed))
+            for iid in arr:
+                self._vectors.pop(int(iid), None)
+                sid = self._id_map.pop(int(iid), None)
+                if sid:
+                    self._reverse_id_map.pop(sid, None)
+            if removed == 0:
+                self._rebuild_from_vectors()
+            else:
                 self._cache.clear()
 
     # ─────────────────────── Query ────────────────────────
@@ -190,6 +216,9 @@ class FaissHNSWIndex:
         """Search for k nearest neighbors of a vector."""
         if vector.shape[-1] != self.dim:
             raise ANNIndexError(f"dimension mismatch: expected dim={self.dim}, got {vector.shape[-1]}")
+
+        if self.index.ntotal == 0:
+            return [], []
 
         vec32 = self._to_float32(np.asarray(vector))
         vec1d = vec32.flatten()
