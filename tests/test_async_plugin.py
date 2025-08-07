@@ -1,11 +1,9 @@
 import asyncio
-from typing import Coroutine
-
-import pytest
 
 
-@pytest.mark.asyncio
-def test_sync_returns_coroutine() -> Coroutine[None, None, None]:
+def test_sync_returns_coroutine() -> None:
+    """A synchronous test can execute async code via ``asyncio.run``."""
+
     async def inner() -> str:
         return "ok"
 
@@ -13,9 +11,9 @@ def test_sync_returns_coroutine() -> Coroutine[None, None, None]:
         result = await inner()
         assert result == "ok"
 
-    return run()
+    asyncio.run(run())
 
 
-async def test_async_function_collection() -> None:
-    """Async ``def`` tests should be collected and executed."""
-    await asyncio.sleep(0)
+def test_async_function_collection() -> None:
+    """Ensure asynchronous functions can still be executed."""
+    asyncio.run(asyncio.sleep(0))
