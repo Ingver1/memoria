@@ -9,7 +9,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from memory_system.config.settings import UnifiedSettings
+from memory_system.config.settings import DatabaseConfig, UnifiedSettings
 from memory_system.core.enhanced_store import EnhancedMemoryStore
 
 DIM = UnifiedSettings.for_testing().model.vector_dim
@@ -19,8 +19,8 @@ DIM = UnifiedSettings.for_testing().model.vector_dim
 async def test_db_invariants(tmp_path: Path) -> None:
     """Test database column invariants after inserts."""
     cfg = UnifiedSettings.for_testing()
-    # Use database.db_path instead of storage.database_url
-    cfg.database.db_path = tmp_path / "inv.db"
+    # Replace database configuration with a new path
+    cfg.database = DatabaseConfig(db_path=tmp_path / "inv.db")
     store = EnhancedMemoryStore(cfg)
 
     await store.add_memory(text="inv", embedding=np.random.rand(DIM).tolist())
