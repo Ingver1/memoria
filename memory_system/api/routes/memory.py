@@ -9,7 +9,7 @@ from dataclasses import asdict
 from fastapi import APIRouter, HTTPException, Query, Request, status
 
 from memory_system.api.schemas import MemoryCreate, MemoryQuery, MemoryRead
-from memory_system.core.store import Memory, SQLiteMemoryStore, get_memory_store
+from memory_system.core.store import Memory, SQLiteMemoryStore, get_memory_store, get_store
 from memory_system.utils.security import EnhancedPIIFilter
 
 log = logging.getLogger(__name__)
@@ -17,7 +17,11 @@ router = APIRouter(tags=["Memory Management"])
 
 
 async def _store(request: Request) -> SQLiteMemoryStore:
-    return get_memory_store(request)
+    """Return app-bound store or fall back to process singleton."""
+    try:
+        return get_memory_store(request)
+    except AttributeError:
+        return await get_store()
 
 
 @router.post("/", response_model=MemoryRead, status_code=status.HTTP_201_CREATED)
