@@ -26,7 +26,7 @@ try:  # pragma: no cover - optional dependency
     _fastapi_instr_mod = importlib.import_module("opentelemetry.instrumentation.fastapi")
     fastapi_instrumentor = cast(
         "type[FastAPIInstrumentor]",
-        getattr(_fastapi_instr_mod, "FastAPIInstrumentor"),
+        _fastapi_instr_mod.FastAPIInstrumentor,
     )
 except Exception:  # pragma: no cover - optional dependency
     fastapi_instrumentor = None
@@ -129,9 +129,7 @@ def create_app(settings: UnifiedSettings | None = None) -> FastAPI:  # pragma: n
         app.state.store = await get_store(settings.database.db_path)
         app.state.memory_store = app.state.store
         # Dependency bridge ----------------------------------------------------
-        app.dependency_overrides[get_memory_store] = (
-            lambda req: cast(SQLiteMemoryStore, req.app.state.memory_store)
-        )
+        app.dependency_overrides[get_memory_store] = lambda req: cast(SQLiteMemoryStore, req.app.state.memory_store)
         logger.info("SQLiteMemoryStore initialised")
 
     @app.on_event("shutdown")
