@@ -193,7 +193,6 @@ class FaissHNSWIndex:
             except RuntimeError:
                 removed = 0
             if removed:
-                self._stats.total_vectors -= int(removed)
                 _VEC_DELETED.inc(int(removed))
             for iid in arr:
                 self._vectors.pop(int(iid), None)
@@ -203,7 +202,10 @@ class FaissHNSWIndex:
             if removed == 0:
                 self._rebuild_from_vectors()
             else:
+                self._stats.total_vectors = len(self._vectors)
                 self._cache.clear()
+            if removed == 0:
+                self._stats.total_vectors = len(self._vectors)
 
     # ─────────────────────── Query ────────────────────────
     def search(
