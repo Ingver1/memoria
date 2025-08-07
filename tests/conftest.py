@@ -22,8 +22,8 @@ from _pytest.nodes import Item
 
 try:
     from fastapi.testclient import TestClient
-except ImportError:  # FastAPI is optional in some environments
-    pytest.skip("fastapi not installed", allow_module_level=True)
+except Exception:  # FastAPI or its dependencies may be missing
+    TestClient = None  # type: ignore[assignment]
 
 from memory_system import __version__
 from memory_system.api.app import create_app
@@ -95,6 +95,8 @@ test_app.__annotations__ = {"test_settings": object, "return": object}
 @pytest.fixture
 def test_client(test_app: Any) -> TestClient:
     """HTTP client for API tests."""
+    if TestClient is None:
+        pytest.skip("fastapi test client not available")
     return TestClient(test_app)
 
 
