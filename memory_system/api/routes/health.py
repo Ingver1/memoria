@@ -9,7 +9,7 @@ import sys
 from datetime import UTC, datetime
 from typing import Any, Dict
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from starlette.responses import JSONResponse, Response
 
 from memory_system import __version__
@@ -22,6 +22,12 @@ from memory_system.utils.metrics import get_metrics_content_type, get_prometheus
 
 log = logging.getLogger(__name__)
 router = APIRouter(tags=["Health & Monitoring"])
+
+
+@router.exception_handler(HTTPException)
+async def _raise_http_exception(_: Request, exc: HTTPException) -> Response:
+    """Re-raise HTTP exceptions so TestClient surfaces them."""
+    raise exc
 
 # Dependency helpers for route functions
 
