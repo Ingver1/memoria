@@ -387,9 +387,7 @@ class TestUnifiedSettings:
 
         # Production-ready settings should have no issues
         settings = UnifiedSettings.for_production()
-        settings.security = settings.security.model_copy(
-            update={"api_token": "production-token-12345678"}
-        )
+        settings.security = settings.security.model_copy(update={"api_token": "production-token-12345678"})
         issues = settings.validate_production_ready()
         assert len(issues) == 0
 
