@@ -18,7 +18,7 @@ async def test_sqlcipher_encryption(tmp_path: Path) -> None:
     cfg = UnifiedSettings.for_testing()
     # Configure database with SQLCipher and encryption
     cfg.database = DatabaseConfig(db_path=db_file, connection_string=f"sqlite+sqlcipher:///{db_file}")
-    cfg.security.encrypt_at_rest = True
+    cfg.security = cfg.security.model_copy(update={"encrypt_at_rest": True})
 
     store = EnhancedMemoryStore(cfg)
     await store.add_memory(text="secret-string", embedding=[0.0] * cfg.model.vector_dim)
