@@ -339,56 +339,56 @@ class TestEnhancedEmbeddingService:
         assert service._batch_thread.is_alive()
 
     @pytest.mark.asyncio
-    async def test_encode_single_text(self, service: EnhancedEmbeddingService) -> None:
-        """Test encoding single text."""
+    async def test_embed_text_single_text(self, service: EnhancedEmbeddingService) -> None:
+        """Test embedding a single text."""
         text = "This is a test sentence."
-        expected = service._encode_direct([text])
-        result = await service.encode(text)
-        assert isinstance(result, np.ndarray)
-        np.testing.assert_array_equal(result, expected)
-        assert result.shape[0] == 1  # Single text
-        assert result.shape[1] > 0  # Non-zero dimensions
+        expected_embedding = service._embed_direct([text])
+        embedding = await service.embed_text(text)
+        assert isinstance(embedding, np.ndarray)
+        np.testing.assert_array_equal(embedding, expected_embedding)
+        assert embedding.shape[0] == 1  # Single text
+        assert embedding.shape[1] > 0  # Non-zero dimensions
 
     @pytest.mark.asyncio
-    async def test_encode_multiple_texts(self, service: EnhancedEmbeddingService) -> None:
-        """Test encoding multiple texts."""
+    async def test_embed_text_multiple_texts(self, service: EnhancedEmbeddingService) -> None:
+        """Test embedding multiple texts."""
         texts = ["First sentence.", "Second sentence.", "Third sentence."]
-        expected = service._encode_direct(texts)
-        result = await service.encode(texts)
-        assert isinstance(result, np.ndarray)
-        np.testing.assert_array_equal(result, expected)
-        assert result.shape[0] == 3  # Three texts
-        assert result.shape[1] > 0  # Non-zero dimensions
+        expected_embeddings = service._embed_direct(texts)
+        embeddings = await service.embed_text(texts)
+        assert isinstance(embeddings, np.ndarray)
+        np.testing.assert_array_equal(embeddings, expected_embeddings)
+        assert embeddings.shape[0] == 3  # Three texts
+        assert embeddings.shape[1] > 0  # Non-zero dimensions
 
     @pytest.mark.asyncio
-    async def test_encode_empty_text(self, service: EnhancedEmbeddingService) -> None:
-        """Test encoding empty text."""
+    async def test_embed_text_empty_text(self, service: EnhancedEmbeddingService) -> None:
+        """Test embedding empty text."""
         with pytest.raises((ValueError, RuntimeError)):  # Should raise some kind of error
-            await service.encode("")
+            await service.embed_text("")
 
     @pytest.mark.asyncio
-    async def test_encode_caching(self, service: EnhancedEmbeddingService) -> None:
-        """Test that encoding results are cached."""
+    async def test_embed_text_caching(self, service: EnhancedEmbeddingService) -> None:
+        """Test that embeddings are cached."""
         text = "This text will be cached."
         # First call
-        result1 = await service.encode(text)
+        embedding1 = await service.embed_text(text)
         # Second call should use cache
-        result2 = await service.encode(text)
-        np.testing.assert_array_equal(result1, result2)
+        embedding2 = await service.embed_text(text)
+        np.testing.assert_array_equal(embedding1, embedding2)
 
     @pytest.mark.asyncio
-    async def test_encode_timeout(self, service: EnhancedEmbeddingService) -> None:
-        """Test encoding timeout."""
-        # Mock a slow encoding operation
-        with patch.object(service, "_encode_direct") as mock_encode:
+    async def test_embed_text_timeout(self, service: EnhancedEmbeddingService) -> None:
+        """Test embedding timeout."""
+        # Mock a slow embedding operation
+        with patch.object(service, "_embed_direct") as mock_embed
 
             def stub(_texts: list[str]) -> None:
                 asyncio.run(asyncio.sleep(0.1))
                 raise TimeoutError("operation timed out")
 
-            mock_encode.side_effect = stub
+            mock_embed.side_effect = stub
             with pytest.raises(EmbeddingError) as exc_info:
-                await service.encode("test text")
+                await service.embed_text("test text")
             assert "timed out" in str(exc_info.value).lower()
 
     def test_service_stats(self, service: EnhancedEmbeddingService) -> None:
@@ -397,7 +397,48 @@ class TestEnhancedEmbeddingService:
         assert isinstance(stats, dict)
         assert "model" in stats
         assert "dimension" in stats
-        assert "cache" in stats
+        assert "cache" in sasync def test_embed_text_single_text(self, service: EnhancedEmbeddingService) -> None:
+        """Test embedding a single text."""
+        text = "This is a test sentence."
+        expected_embedding = service._embed_direct([text])
+        embedding = await service.embed_text(text)
+        assert isinstance(embedding, np.ndarray)
+        np.testing.assert_array_equal(embedding, expected_embedding)
+        assert embedding.shape[0] == 1  # Single text
+        assert embedding.shape[1] > 0  # Non-zero dimensions
+
+    @pytest.mark.asyncio
+    async def test_embed_text_multiple_texts(self, service: EnhancedEmbeddingService) -> None:
+        """Test embedding multiple texts."""
+        texts = ["First sentence.", "Second sentence.", "Third sentence."]
+        expected_embeddings = service._embed_direct(texts)
+        embeddings = await service.embed_text(texts)
+        assert isinstance(embeddings, np.ndarray)
+        np.testing.assert_array_equal(embeddings, expected_embeddings)
+        assert embeddings.shape[0] == 3  # Three texts
+        assert embeddings.shape[1] > 0  # Non-zero dimensions
+
+    @pytest.mark.asyncio
+    async def test_embed_text_empty_text(self, service: EnhancedEmbeddingService) -> None:
+        """Test embedding empty text."""
+        with pytest.raises((ValueError, RuntimeError)):  # Should raise some kind of error
+            await service.embed_text("")
+
+    @pytest.mark.asyncio
+    async def test_embed_text_caching(self, service: EnhancedEmbeddingService) -> None:
+        """Test that embeddings are cached."""
+        text = "This text will be cached."
+        # First call
+        embedding1 = await service.embed_text(text)
+        # Second call should use cache
+        embedding2 = await service.embed_text(text)
+        np.testing.assert_array_equal(embedding1, embedding2)
+
+    @pytest.mark.asyncio
+    async def test_embed_text_timeout(self, service: EnhancedEmbeddingService) -> None:
+        """Test embedding timeout."""
+        # Mock a slow embedding operation
+        with patch.object(service, "_embed_direct") as mock_embed:tats
         assert "queue_size" in stats
         assert "shutdown" in stats
         assert stats["model"] == service.model_name
@@ -428,8 +469,8 @@ class TestEnhancedEmbeddingService:
         # Should fall back to default model
         assert service.model_name == "all-MiniLM-L6-v2"
         # Should still work
-        result = await service.encode("test text")
-        assert isinstance(result, np.ndarray)
+        embedding = await service.embed_text("test text")
+        assert isinstance(embedding, np.ndarray)
         service.shutdown()
 
 
@@ -826,7 +867,7 @@ class TestCoreIntegration:
         try:
             # Test that both components can work together
             text = "Integration test text"
-            embedding = await embedding_service.encode(text)
+            embedding = await embedding_service.embed_text(text)
             assert isinstance(embedding, np.ndarray)
             await store.close()
             embedding_service.shutdown()
