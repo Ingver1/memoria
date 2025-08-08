@@ -28,7 +28,7 @@ graph TD
 |--------------|----------------------------------------|-----------------------------------------------------|
 | Clean & Chunk| memory_system.utils.security.EnhancedPIIFilter | Language-agnostic, ~2k-token windows (future `memory_system.ingest` module) |
 | Embed        | memory_system.core.embedding.EmbeddingService  | OpenAI by default, swap in Instructor/HuggingFace   |
-| Persist      | memory_system.core.vector_store.AsyncFaissHNSWStore | Raw vector + PK, metadata separate |
+| Persist      | memory_system.core.vector_store.AsyncFaissHNSWStore / `QdrantVectorStore` | Raw vector + PK, metadata separate |
 
 All CPU-bound FAISS calls run in the default thread pool for snappy event loop.
 
@@ -37,12 +37,12 @@ All CPU-bound FAISS calls run in the default thread pool for snappy event loop.
 ## 2. Storage & Index 📦
 | Layer     | Implementation         | Why                                               |
 |-----------|------------------------|---------------------------------------------------|
-| Vector    | FAISS HNSW (m=32)      | Good recall/latency for ≤5M vectors on single box |
+| Vector    | FAISS HNSW (m=32) / Qdrant | Good recall/latency or managed service        |
 | Metadata  | SQLite JSON1           | Lightweight, enables rich queries                 |
 | Back-ups  | Background replicate() | Compressed snapshot every N minutes               |
 
 **Persistence:**
-- The FAISS index is saved to disk after each memory is added and reloaded on start if the index file exists, ensuring vector search state survives restarts.
+- The FAISS index is saved to disk after each memory is added and reloaded on start if the index file exists, ensuring vector search state survives restarts. Qdrant persists remotely.
 
 **Compaction:**
 - Removes tombstoned vectors
@@ -72,7 +72,7 @@ All endpoints use FastAPI + OpenTelemetryMiddleware for full span tracing.
 | Component | Tech                                       |
 |-----------|--------------------------------------------|
 | Metrics   | prometheus_client (latency, faiss_queries) |
-| Tracing   | OTEL SDK → OTLP HTTP → Tempo/Jaeger        |
+| Tracing   | OTEL SDK → OTLP HTTP → Tempo/Jaeger       |
 | Logs      | logging.yaml → plaintext/JSON (LOG_JSON=1) |
 
 ---
@@ -87,7 +87,7 @@ All endpoints use FastAPI + OpenTelemetryMiddleware for full span tracing.
 ---
 
 ## Extending
-- Swap FAISS for Qdrant: implement `AbstractVectorStore`
+- Swap vector backend: implement `AbstractVectorStore` (FAISS and Qdrant included)
 - Plug PostgreSQL metadata backend: use psycopg3 + JSONB
 - Add web-crawler ingest: subclass `BaseIngestor`
 
