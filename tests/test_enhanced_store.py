@@ -67,6 +67,11 @@ async def test_add_and_search(store: EnhancedMemoryStore) -> None:
     assert len(res) == 1
     assert res[0].text == "hello world"
 
+res_with_dist = await store.semantic_search(vector=vec, k=1, return_distance=True)
+    assert len(res_with_dist) == 1
+    assert res_with_dist[0][0].text == "hello world"
+    assert isinstance(res_with_dist[0][1], float)
+
 
 @pytest.mark.asyncio
 async def test_search_empty_store(store: EnhancedMemoryStore) -> None:
