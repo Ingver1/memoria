@@ -66,6 +66,7 @@ class TestModelConfig:
         assert config.hnsw_m == 32
         assert config.hnsw_ef_construction == 200
         assert config.hnsw_ef_search == 100
+        assert config.hnsw_autotune is False
         assert config.vector_dim == 384
 
     def test_model_config_custom_values(self) -> None:
@@ -76,6 +77,7 @@ class TestModelConfig:
             hnsw_m=16,
             hnsw_ef_construction=100,
             hnsw_ef_search=50,
+            hnsw_autotune=True,
             vector_dim=768,
         )
         assert config.model_name == "custom-model"
@@ -83,6 +85,7 @@ class TestModelConfig:
         assert config.hnsw_m == 16
         assert config.hnsw_ef_construction == 100
         assert config.hnsw_ef_search == 50
+        assert config.hnsw_autotune is True
         assert config.vector_dim == 768
 
 
