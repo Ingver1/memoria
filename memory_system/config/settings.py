@@ -7,7 +7,7 @@ import logging.config
 import os
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, cast
+from typing import Any, Literal, cast
 from urllib.parse import quote
 
 from cryptography.fernet import Fernet, InvalidToken
@@ -44,6 +44,10 @@ class DatabaseConfig(BaseModel):
     vec_path: Path = Path("data/memory.vectors")
     cache_path: Path = Path("data/memory.cache")
     connection_pool_size: PositiveInt = 10
+    backend: Literal["faiss", "qdrant"] = "faiss"
+    qdrant_url: str = "http://localhost:6333"
+    qdrant_api_key: str | None = None
+    qdrant_collection: str = "memory"
 
     model_config = {"frozen": True}
 
