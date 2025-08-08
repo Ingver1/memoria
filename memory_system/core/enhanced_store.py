@@ -50,7 +50,7 @@ class EnhancedMemoryStore:
             self._memory_count = self._index.stats().total_vectors
         else:
             self._memory_count = 0
-            async def _save_index() -> None:
+        async def _save_index() -> None:
             await asyncio.to_thread(self._index.save, str(vec_path))
         self._store.add_commit_hook(_save_index)
         self._closed = False
