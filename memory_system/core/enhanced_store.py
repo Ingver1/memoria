@@ -19,6 +19,7 @@ __all__ = ["EnhancedMemoryStore", "HealthComponent"]
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.index import FaissHNSWIndex
 from memory_system.core.store import Memory, SQLiteMemoryStore
+from memory_system.core.summarization import SummaryStrategy
 
 
 @dataclass
@@ -177,7 +178,12 @@ class EnhancedMemoryStore:
         return await self._store.search(limit=1000)
 
     # Long-term memory maintenance API
-    async def consolidate_memories(self, *, threshold: float = 0.83) -> list[Memory]:
+    async def consolidate_memories(
+        self,
+        *,
+        threshold: float = 0.83,
+        strategy: str | SummaryStrategy = "head2tail",
+    ) -> list[Memory]:
         """Cluster similar items, create summary memories, remove originals."""
         from memory_system.core.maintenance import consolidate_store
 
@@ -186,6 +192,7 @@ class EnhancedMemoryStore:
             self._index,
             threshold=threshold,
             save_path=str(self.settings.database.vec_path),
+            strategy=strategy,
         )
 
     async def forget_memories(
