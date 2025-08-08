@@ -167,7 +167,7 @@ class SQLiteMemoryStore:
         self._acquired.add(conn)
         return conn
 
-    async def _release(self, conn: aiosqliteг.Connection) -> None:
+    async def _release(self, conn: aiosqlite.Connection) -> None:
         """Return ``conn`` to the pool or close it if the pool is full."""
         self._acquired.discard(conn)
         try:
