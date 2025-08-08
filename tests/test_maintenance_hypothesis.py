@@ -10,11 +10,12 @@ from collections.abc import Sequence
 
 import numpy as np
 import pytest
-from hypothesis import HealthCheck, given, settings, strategies as st
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 
+from memory_system.core.index import FaissHNSWIndex
 from memory_system.core.maintenance import consolidate_store, forget_old_memories
 from memory_system.core.store import Memory, SQLiteMemoryStore
-from memory_system.core.index import FaissHNSWIndex
 
 
 async def _add_memories_with_vectors(
@@ -30,7 +31,7 @@ async def _add_memories_with_vectors(
     if importances is None:
         importances = [0.0] * len(texts)
     mems: list[Memory] = []
-    for text, imp in zip(texts, importances):
+    for text, imp in zip(texts, importances, strict=True):
         mem = Memory.new(text, importance=float(imp))
         await store.add(mem)
         mems.append(mem)
@@ -73,7 +74,7 @@ async def test_consolidation_keeps_store_and_index_in_sync(
 async def test_forgetting_removes_lowest_decay_scores(
     store: SQLiteMemoryStore, index: FaissHNSWIndex, fake_embed, data: list[tuple[str, float]]
 ) -> None:
-    texts, importances = zip(*data)
+    texts, importances = zip(*data, strict=True)
     mems = await _add_memories_with_vectors(
         store, index, texts, importances=importances, embed=fake_embed
     )
