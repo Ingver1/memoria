@@ -6,7 +6,6 @@ from types import SimpleNamespace
 from typing import Any, Awaitable, Callable, TypeVar, cast
 
 from fastapi import FastAPI, Request
-from fastapi.testclient import TestClient
 from starlette.responses import JSONResponse, Response
 
 from memory_system.api.middleware import (
@@ -56,7 +55,7 @@ def create_app() -> FastAPI:
     return app
 
 
-def _patch_client(client: TestClient) -> None:
+def _patch_client(client: Any) -> None:
     async def _build_response(handler: Callable[..., Awaitable[Any]], req: Request) -> Response:
         sig = getattr(handler, "__signature__", None) or inspect.signature(handler)
         kwargs: dict[str, Any] = {}
@@ -128,25 +127,43 @@ def _patch_client(client: TestClient) -> None:
 
 def test_rate_limit_exceeded() -> None:
     app = create_app()
-    with TestClient(app) as client:
-        _patch_client(client)
+    client = SimpleNamespace(app=app)
+    _patch_client(client)
 
         client.get("/ping")
-        client.get("/ping")
-        resp = client.get("/ping")
+    client.get("/ping")
+    resp = client.get("/ping")
 
-        assert resp.status_code == 429
+    assert resp.status_code == 429
+
+
+def test_rate_limit_by_token() -> None:
+    app = create_app()
+    client = SimpleNamespace(app=app)
+    _patch_client(client)
+
+    headers1 = {"X-API-Token": "alpha"}
+    headers2 = {"X-API-Token": "beta"}
+
+    client.get("/ping", headers=headers1)
+    client.get("/ping", headers=headers1)
+    resp = client.get("/ping", headers=headers1)
+    assert resp.status_code == 429
+
+    # Different token should have its own bucket
+    resp = client.get("/ping", headers=headers2)
+    assert resp.status_code == 200
 
 
 def test_maintenance_mode_blocks() -> None:
     app = create_app()
-    with TestClient(app) as client:
-        _patch_client(client)
+    client = SimpleNamespace(app=app)
+    _patch_client(client)
 
-        resp = client.get("/ping")
-        assert resp.status_code == 200
+    resp = client.get("/ping")
+    assert resp.status_code == 200
 
-        app.state.maintenance.enable()
+    app.state.maintenance.enable()
 
-        resp = client.get("/ping")
-        assert resp.status_code == 503
+    resp = client.get("/ping")
+    assert resp.status_code == 503
