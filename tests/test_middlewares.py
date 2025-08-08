@@ -129,8 +129,7 @@ def test_rate_limit_exceeded() -> None:
     app = create_app()
     client = SimpleNamespace(app=app)
     _patch_client(client)
-
-        client.get("/ping")
+    client.get("/ping")
     client.get("/ping")
     resp = client.get("/ping")
 
