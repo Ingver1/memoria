@@ -34,6 +34,7 @@ except Exception:  # pragma: no cover - optional dependency
 
 # Allow tests to set ``Request.app`` manually for middleware checks
 if not hasattr(StarletteRequest, "_ums_app_setter"):
+
     def _set_app(self: StarletteRequest, value: FastAPI) -> None:
         self.scope["app"] = value
 
