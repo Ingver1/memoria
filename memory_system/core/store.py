@@ -48,6 +48,7 @@ class Memory:
     metadata: Dict[str, Any] | None = None
 
     def __eq__(self, other: object) -> bool:
+        """Compare two memories by all fields."""
         if not isinstance(other, Memory):
             return NotImplemented
         return (
@@ -68,6 +69,7 @@ class Memory:
         emotional_intensity: float = 0.0,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> "Memory":
+        """Return a new :class:`Memory` with a generated UUID."""
         if not 0.0 <= importance <= 1.0:
             raise ValueError("importance must be between 0 and 1")
         if not -1.0 <= valence <= 1.0:
@@ -107,6 +109,7 @@ class SQLiteMemoryStore:
     """
 
     def __init__(self, dsn: str | Path = "file:memories.db?mode=rwc", *, pool_size: int = 5) -> None:
+        """Initialise the store with a SQLite DSN and connection pool size."""
         if isinstance(dsn, Path):
             self._path = dsn
             self._dsn = f"file:{dsn}?mode=rwc"
@@ -147,6 +150,7 @@ class SQLiteMemoryStore:
     # Low‑level connection helpers
     # ---------------------------------------------------------------------
     async def _acquire(self) -> aiosqlite.Connection:
+        """Obtain a connection from the pool, creating one if necessary."""
         try:
             conn = self._pool.get_nowait()
         except asyncio.QueueEmpty:
@@ -162,7 +166,8 @@ class SQLiteMemoryStore:
         self._acquired.add(conn)
         return conn
 
-    async def _release(self, conn: aiosqlite.Connection) -> None:
+    async def _release(self, conn: aiosqliteг.Connection) -> None:
+        """Return ``conn`` to the pool or close it if the pool is full."""
         self._acquired.discard(conn)
         try:
             self._pool.put_nowait(conn)
@@ -254,6 +259,7 @@ class SQLiteMemoryStore:
 
     # -------------------------------------
     async def add(self, mem: Memory) -> None:
+        """Persist a new :class:`Memory` to the database."""
         await self.initialise()
         conn = await self._acquire()
         try:
@@ -281,6 +287,7 @@ class SQLiteMemoryStore:
             await self._release(conn)
 
     async def get(self, memory_id: str) -> Optional[Memory]:
+        """Fetch a memory by its ID."""
         await self.initialise()
         conn = await self._acquire()
         try:
@@ -505,6 +512,7 @@ async def lifespan_context(app: "FastAPI") -> AsyncIterator[None]:  # pragma: no
 
 
 def get_memory_store(request: "Request") -> SQLiteMemoryStore:  # pragma: no cover
+    """Return the SQLiteMemoryStore attached to the FastAPI request."""
     return cast(SQLiteMemoryStore, request.app.state.memory_store)
 
 
