@@ -49,6 +49,12 @@ async def test_enhanced_store_add_search_list_stats(tmp_path: Path) -> None:
         results = await store.semantic_search(vector=emb1, k=1)
         assert results and results[0].id == mem1.id
 
+        results_with_vec = await store.semantic_search(vector=emb1, k=1, include_embeddings=True)
+        assert results_with_vec and results_with_vec[0][0].id == mem1.id
+        returned_vec = results_with_vec[0][1]
+        assert isinstance(returned_vec, list)
+        assert np.allclose(returned_vec, np.asarray(emb1, dtype=np.float32))
+
         stats = await store.get_stats()
         assert stats["total_memories"] == 2
         assert stats["index_size"] == 2
