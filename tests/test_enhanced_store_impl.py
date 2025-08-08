@@ -12,6 +12,7 @@ from memory_system.core.enhanced_store import EnhancedMemoryStore
 async def test_enhanced_store_add_search_list_stats(tmp_path: Path) -> None:
     """Test adding memories, searching, listing and retrieving stats from enhanced store."""
     os.environ["DATABASE__DB_PATH"] = str(tmp_path / "mem.db")
+    os.environ["DATABASE__VEC_PATH"] = str(tmp_path / "mem.vectors")
     settings = UnifiedSettings.for_testing()
     store = EnhancedMemoryStore(settings)
     try:
@@ -58,5 +59,13 @@ async def test_enhanced_store_add_search_list_stats(tmp_path: Path) -> None:
         stats = await store.get_stats()
         assert stats["total_memories"] == 2
         assert stats["index_size"] == 2
+
+    await store.close()
+
+        assert settings.database.vec_path.exists()
+
+        store = EnhancedMemoryStore(settings)
+        results_after_reload = await store.semantic_search(vector=emb1, k=1)
+        assert results_after_reload and results_after_reload[0].id == mem1.id
     finally:
         await store.close()
