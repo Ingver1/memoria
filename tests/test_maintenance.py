@@ -1,13 +1,14 @@
-from hypothesis import given, strategies as st
-import numpy as np
-import pytest
 from typing import Sequence
 
-from memory_system.core.maintenance import consolidate_store, forget_old_memories
-from memory_system.core.store import Memory
-from memory_system.core.index import FaissHNSWIndex
-from memory_system.core.store import SQLiteMemoryStore
+import numpy as np
+import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 from hypothesis.extra import numpy as npst
+
+from memory_system.core.index import FaissHNSWIndex
+from memory_system.core.maintenance import consolidate_store, forget_old_memories
+from memory_system.core.store import Memory, SQLiteMemoryStore
 
 pytestmark = pytest.mark.asyncio
 
@@ -37,7 +38,7 @@ async def _add_with_vectors(
     if importance is None:
         importance = [0.0] * len(texts)
     mems: list[Memory] = []
-    for text, imp in zip(texts, importance):
+    for text, imp in zip(texts, importance, strict=True):
         mem = Memory.new(text, importance=imp)
         await store.add(mem)
         vec = embed(text)
@@ -91,7 +92,7 @@ async def test_concat_strategy(store, index, fake_embed):
 )
 async def test_property_forgetting(store, index, random_texts, fake_embed, data):
     # Create memories with random importance scores
-    texts, importances = zip(*data)
+    texts, importances = zip(*data, strict=True)
     mems = await _add_with_vectors(store, index, texts, importance=importances, embed=fake_embed)
 
     # Forget memories with low importance after consolidation
