@@ -7,7 +7,7 @@ import logging.config
 import os
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 from urllib.parse import quote
 
 from cryptography.fernet import Fernet, InvalidToken
@@ -360,7 +360,7 @@ class UnifiedSettings(BaseSettings):
 
     def get_config_summary(self) -> dict[str, Any]:
         def scrub(obj: BaseModel) -> dict[str, Any]:
-            data = obj.model_dump()
+            data: dict[str, Any] = cast(dict[str, Any], obj.model_dump())
             data.pop("api_token", None)
             data.pop("encryption_key", None)
             if isinstance(obj, SecurityConfig):
