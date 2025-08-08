@@ -332,8 +332,8 @@ class TestUnifiedSettings:
             # Test that the generated key is valid
             Fernet(settings.security.encryption_key.encode())
 
-    url = settings.get_database_url()
-        assert url.endswith(f"?cipher_secret={quote(settings.security.encryption_key)}")
+            url = settings.get_database_url()
+            assert url.endswith(f"?cipher_secret={quote(settings.security.encryption_key)}")
 
     def test_unified_settings_for_testing(self) -> None:
         """Test testing preset configuration."""
