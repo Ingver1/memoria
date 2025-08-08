@@ -12,8 +12,11 @@ import inspect
 import logging
 import os
 import tempfile
+import asyncio
+import uuid
 from typing import Any, List
 
+import numpy as np
 import pytest
 from _pytest.config import Config
 from _pytest.fixtures import FixtureRequest
@@ -28,6 +31,8 @@ except Exception:  # FastAPI or its dependencies may be missing
 from memory_system import __version__
 from memory_system.api.app import create_app
 from memory_system.config.settings import UnifiedSettings
+from memory_system.core.index import FaissHNSWIndex
+from memory_system.core.store import SQLiteMemoryStore
 
 # ...existing code...
 
@@ -133,6 +138,69 @@ def _mem_benchmark(benchmark: Any) -> Any:
 
 
 _mem_benchmark.__annotations__ = {"benchmark": object, "return": object}
+
+
+@pytest.fixture
+async def store(tmp_path: Path) -> SQLiteMemoryStore:
+    """SQLite-backed memory store for tests."""
+    db_path = tmp_path / "mem.db"
+    st = SQLiteMemoryStore(db_path)
+    await st.initialise()
+    try:
+        yield st
+    finally:
+        await st.aclose()
+
+
+store.__annotations__ = {"tmp_path": Path, "return": SQLiteMemoryStore}
+
+
+@pytest.fixture
+def index() -> FaissHNSWIndex:
+    """3D index to match the fake embedder."""
+    return FaissHNSWIndex(dim=3)
+
+
+index.__annotations__ = {"return": FaissHNSWIndex}
+
+
+@pytest.fixture
+def fake_embed(monkeypatch) -> Any:
+    """Deterministic embedder for tests."""
+    import memory_system.core.maintenance as maint
+
+    def _embed(texts):
+        if isinstance(texts, str):
+            texts = [texts]
+        vecs = []
+        for t in texts:
+            tl = t.lower()
+            if "cat" in tl:
+                v = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+            elif "sky" in tl:
+                v = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+            else:
+                v = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+            n = np.linalg.norm(v)
+            if n:
+                v = (v / n).astype(np.float32)
+            vecs.append(v)
+        return np.vstack(vecs) if len(vecs) > 1 else vecs[0]
+
+    monkeypatch.setattr(maint, "embed_text", _embed, raising=True)
+    return _embed
+
+
+fake_embed.__annotations__ = {"monkeypatch": object, "return": object}
+
+
+@pytest.fixture
+def random_texts() -> list:
+    """Provide a list of random texts."""
+    return [f"Random text number {i}" for i in range(10)]
+
+
+random_texts.__annotations__ = {"return": list}
 
 # tests/test_basic.py
 import pytest
