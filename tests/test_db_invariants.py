@@ -34,6 +34,16 @@ async def test_db_invariants(tmp_path: Path) -> None:
         await store._store._release(conn)
     text = rows[0]["text"]
 
+    # ensure index on created_at exists
+    conn = await store._store._acquire()
+    try:
+        cursor = await conn.execute("PRAGMA index_list('memories')")
+        indexes = await cursor.fetchall()
+    finally:
+        await store._store._release(conn)
+    index_names = {row["name"] for row in indexes}
+    assert "idx_memories_created_at" in index_names
+
     # column text must never be NULL
     assert text is not None
 
