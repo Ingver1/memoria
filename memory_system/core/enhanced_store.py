@@ -134,17 +134,17 @@ class EnhancedMemoryStore:
     async def semantic_search(
         self,
         *,
-        vector: list[float],
+        embedding: list[float],
         k: int = 5,
         return_distance: bool = False,
         ef_search: int | None = None,
     ) -> list[Any]:
-        """Perform a semantic vector search.
+        """Perform a semantic embedding search.
 
         Parameters
         ----------
-        vector:
-            Query vector.
+        embedding:
+            Query embedding.
         k:
             Number of nearest neighbours to return.
         return_distance:
@@ -157,9 +157,9 @@ class EnhancedMemoryStore:
         -------
         list[Any]
             A list of memories, optionally paired with their distance from the
-            query vector.
+            query embedding.
         """
-        ids, dists = self._index.search(np.asarray(vector, dtype=np.float32), k=k, ef_search=ef_search)
+        ids, dists = self._index.search(np.asarray(embedding, dtype=np.float32), k=k, ef_search=ef_search)
         results: list[Any] = []
         for _id, dist in zip(ids, dists, strict=False):
             mem = await self._store.get(_id)

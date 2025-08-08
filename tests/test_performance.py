@@ -86,12 +86,12 @@ class TestEmbeddingPerformance:
         text = "This is a test sentence for performance evaluation."
 
         # Warm up
-        await embedding_service.encode(text)
+        await embedding_service.embed_text(text)
 
         # Measure performance
         start_time = time.perf_counter()
         for _ in range(10):
-            embedding = await embedding_service.encode(text)
+            embedding = await embedding_service.embed_text(text)
             assert embedding.shape[1] == 384
 
         end_time = time.perf_counter()
@@ -108,7 +108,7 @@ class TestEmbeddingPerformance:
 
         # Measure batch performance
         start_time = time.perf_counter()
-        embeddings = await embedding_service.encode(texts)
+        embeddings = await embedding_service.embed_text(texts)
         end_time = time.perf_counter()
 
         batch_time = end_time - start_time
@@ -125,13 +125,13 @@ class TestEmbeddingPerformance:
     async def test_concurrent_embedding_performance(self, embedding_service: EnhancedEmbeddingService) -> None:
         """Test performance under concurrent load."""
 
-        async def embed_text(text_id: int) -> np.ndarray:
+        async def embed(text_id: int) -> np.ndarray:
             text = f"Concurrent test text {text_id}"
-            return await embedding_service.encode(text)
+            return await embedding_service.embed_text(text)
 
         # Create concurrent tasks
         num_tasks = 20
-        tasks = [embed_text(i) for i in range(num_tasks)]
+        tasks = [embed(i) for i in range(num_tasks)]
 
         # Measure concurrent performance
         start_time = time.perf_counter()
@@ -155,14 +155,14 @@ class TestEmbeddingPerformance:
         text = "This text will be cached for performance testing."
 
         # Warm up to avoid initialization overhead and populate cache once
-        await embedding_service.encode(text)
+        await embedding_service.embed_text(text)
 
         async def measure(use_cache: bool, n: int = 5) -> float:
             times = []
             for i in range(n):
                 query = text if use_cache else f"{text} {i}"
                 start = time.perf_counter()
-                await embedding_service.encode(query)
+                await embedding_service.embed_text(query)
                 times.append(time.perf_counter() - start)
             return stats.median(times)
 
@@ -170,8 +170,8 @@ class TestEmbeddingPerformance:
         second_time = await measure(use_cache=True)
 
         # Results should be identical for cached queries
-        cached_embedding = await embedding_service.encode(text)
-        np.testing.assert_array_equal(cached_embedding, await embedding_service.encode(text))
+        cached_embedding = await embedding_service.embed_text(text)
+        np.testing.assert_array_equal(cached_embedding, await embedding_service.embed_text(text))
 
         # Cache hit should provide a noticeable speedup
         assert (
@@ -190,7 +190,7 @@ class TestEmbeddingPerformance:
         texts = [f"Memory test text {i}" for i in range(100)]
 
         for text in texts:
-            await embedding_service.encode(text)
+            await embedding_service.embed_text(text)
 
         final_memory = process.memory_info().rss
         memory_increase = (final_memory - initial_memory) / (1024 * 1024)  # MB

@@ -25,7 +25,7 @@ from memory_system.core.store import Memory, SQLiteMemoryStore
 
 
 def _cos_sim(a: np.ndarray, b: np.ndarray) -> float:
-    """Cosine similarity for two 1D vectors (assumed L2-normalized)."""
+    """Cosine similarity for two 1D embeddings (assumed L2-normalized)."""
     return float(np.dot(a, b))
 
 
@@ -113,12 +113,12 @@ async def consolidate_store(
 
     # Batch embeddings (faster than per-item).
     texts = [m.text for m in all_mems]
-    vecs = embed_text(texts)  # shape: (N, D)
-    if isinstance(vecs, np.ndarray) and vecs.ndim == 1:
-        vecs = vecs.reshape(1, -1)
-    assert vecs.shape[0] == len(all_mems), "Embedding batch size mismatch"
+    embeddings = embed_text(texts)  # shape: (N, D)
+    if isinstance(embeddings, np.ndarray) and embeddings.ndim == 1:
+        embeddings = embeddings.reshape(1, -1)
+    assert embeddings.shape[0] == len(all_mems), "Embedding batch size mismatch"
 
-    clusters = cluster_memories([vecs[i] for i in range(vecs.shape[0])], threshold)
+    clusters = cluster_memories([embeddings[i] for i in range(embeddings.shape[0])], threshold)
 
     created: List[Memory] = []
     ids_to_remove: List[str] = []
@@ -143,19 +143,19 @@ async def consolidate_store(
             },
         )
 
-        # Persist new memory & add vector to ANN index.
+        # Persist new memory & add embedding to ANN index.
         await store.add(summary_mem)
-        summary_vec = embed_text(summary_text)
-        if summary_vec.ndim == 1:
-            summary_vec = np.asarray([summary_vec], dtype=np.float32)
-        index.add_vectors([summary_mem.id], summary_vec.astype(np.float32, copy=False))
+        summary_embedding = embed_text(summary_text)
+        if summary_embedding.ndim == 1:
+            summary_embedding = np.asarray([summary_embedding], dtype=np.float32)
+        index.add_vectors([summary_mem.id], summary_embedding.astype(np.float32, copy=False))
         created.append(summary_mem)
 
         # Schedule originals for removal.
         ids_to_remove.extend(m.id for m in cluster_mems)
 
     if ids_to_remove:
-        # Remove vectors first, then rows.
+        # Remove embeddings first, then rows.
         index.remove_ids(ids_to_remove)
         for mid in ids_to_remove:
             try:

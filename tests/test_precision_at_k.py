@@ -1,6 +1,6 @@
 """
 Evaluates semantic_search precision@k with simple synthetic neighbours.
-Goal: at least 0.8 precision when querying near-identical vectors.
+Goal: at least 0.8 precision when querying near-identical embeddings.
 """
 
 import random
@@ -13,11 +13,11 @@ import pytest
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.enhanced_store import EnhancedMemoryStore
 
-DIM = UnifiedSettings.for_testing().model.vector_dim
+EMBEDDING_DIM = UnifiedSettings.for_testing().model.vector_dim
 
 
-def near(vec: List[float], eps: float = 0.0) -> List[float]:
-    return [float(x) + random.uniform(-eps, eps) for x in vec]
+def near(embedding: List[float], eps: float = 0.0) -> List[float]:
+    return [float(x) + random.uniform(-eps, eps) for x in embedding]
 
 
 @pytest.mark.asyncio
@@ -25,8 +25,8 @@ async def test_precision_at_k(tmp_path: Path) -> None:
     cfg = UnifiedSettings.for_testing()
     store = EnhancedMemoryStore(cfg)
 
-    # create 20 clusters of similar vectors
-    base = [np.random.rand(DIM).tolist() for _ in range(20)]
+    # create 20 clusters of similar embeddings
+    base = [np.random.rand(EMBEDDING_DIM).tolist() for _ in range(20)]
     for root in base:
         for _ in range(5):
             await store.add_memory(text="cluster", embedding=near(root))
@@ -35,7 +35,7 @@ async def test_precision_at_k(tmp_path: Path) -> None:
     hits, total = 0, 0
     for _ in range(100):
         q = near(random.choice(base))
-        res = await store.semantic_search(vector=q, k=5)
+        res = await store.semantic_search(embedding=q, k=5)
         total += 5
         hits += sum(r.text == "cluster" for r in res)
 

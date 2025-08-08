@@ -23,7 +23,7 @@ from memory_system.core.enhanced_store import EnhancedMemoryStore
 from memory_system.utils.metrics import EMBEDDING_QUEUE_LENGTH
 
 DIM = UnifiedSettings.for_testing().model.vector_dim
-VECTOR = np.random.rand(DIM).astype("float32").tolist()
+EMBEDDING = np.random.rand(DIM).astype("float32").tolist()
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -40,7 +40,7 @@ async def bench_store() -> AsyncGenerator[EnhancedMemoryStore, None]:
 def test_semantic_search_speed(benchmark: Any, bench_store: EnhancedMemoryStore) -> None:
     def _run() -> None:
         get_or_create_loop()
-        asyncio.run(bench_store.semantic_search(vector=VECTOR, k=5))
+        asyncio.run(bench_store.semantic_search(embedding=EMBEDDING, k=5))
 
     benchmark(_run)
 
@@ -51,11 +51,11 @@ async def test_embedding_queue_limit() -> None:
     cfg.performance.queue_max_size = 1
     svc = EmbeddingService(cfg.model.model_name, cfg)
     try:
-        t1 = asyncio.create_task(svc.encode("a"))
+        t1 = asyncio.create_task(svc.embed_text("a"))
         await asyncio.sleep(0.01)
         assert EMBEDDING_QUEUE_LENGTH._value.get() == 1
         with pytest.raises(EmbeddingError):
-            await svc.encode("b")
+            await svc.embed_text("b")
         await t1
     finally:
         svc.shutdown()

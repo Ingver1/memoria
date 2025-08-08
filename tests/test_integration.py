@@ -87,7 +87,7 @@ class TestEndToEndMemoryWorkflow:
 
         # Step 1: Generate embeddings
         texts = [mem["text"] for mem in memories]
-        embeddings = await embedding_service.encode(texts)
+        embeddings = await embedding_service.embed_text(texts)
 
         assert embeddings.shape[0] == len(memories)
         assert embeddings.shape[1] == 384
@@ -109,7 +109,7 @@ class TestEndToEndMemoryWorkflow:
 
         # Step 5: Search for similar memories
         query_text = "deep learning and neural networks"
-        query_embedding = await embedding_service.encode(query_text)
+        query_embedding = await embedding_service.embed_text(query_text)
 
         result_ids, distances = index.search(query_embedding.flatten(), k=3)
 
@@ -164,7 +164,7 @@ class TestEndToEndMemoryWorkflow:
             all_memories.extend(group_memories)
 
         texts = [mem["text"] for mem in all_memories]
-        embeddings = await embedding_service.encode(texts)
+        embeddings = await embedding_service.embed_text(texts)
 
         memory_ids = [mem["id"] for mem in all_memories]
 
@@ -182,7 +182,7 @@ class TestEndToEndMemoryWorkflow:
         }
 
         for domain, query in test_queries.items():
-            query_embedding = await embedding_service.encode(query)
+            query_embedding = await embedding_service.embed_text(query)
             result_ids, distances = index.search(query_embedding.flatten(), k=5)
 
             # Check that results are relevant to the domain
@@ -213,7 +213,7 @@ class TestEndToEndMemoryWorkflow:
         ]
 
         texts = [mem["text"] for mem in memories]
-        embeddings = await embedding_service.encode(texts)
+        embeddings = await embedding_service.embed_text(texts)
 
         # Store memories
         for i, memory in enumerate(memories):
@@ -239,7 +239,7 @@ class TestEndToEndMemoryWorkflow:
 
             # Test search on loaded index
             query_text = "persistence and durability"
-            query_embedding = await embedding_service.encode(query_text)
+            query_embedding = await embedding_service.embed_text(query_text)
 
             result_ids, distances = new_index.search(query_embedding.flatten(), k=2)
 
@@ -270,7 +270,7 @@ class TestEndToEndMemoryWorkflow:
 
             # Generate embeddings for batch
             texts = [mem["text"] for mem in batch_memories]
-            embeddings = await embedding_service.encode(texts)
+            embeddings = await embedding_service.embed_text(texts)
 
             # Add to storage (sequential within batch to avoid conflicts)
             for i, memory in enumerate(batch_memories):
@@ -310,7 +310,7 @@ class TestEndToEndMemoryWorkflow:
         # Test concurrent searches
         async def search_memories(query_text: str) -> Any:
             """Perform concurrent searches."""
-            query_embedding = await embedding_service.encode(query_text)
+            query_embedding = await embedding_service.embed_text(query_text)
             result_ids, distances = index.search(query_embedding.flatten(), k=3)
             return result_ids, distances
 

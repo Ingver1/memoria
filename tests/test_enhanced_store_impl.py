@@ -47,10 +47,10 @@ async def test_enhanced_store_add_search_list_stats(tmp_path: Path) -> None:
         memories = await store.list_memories()
         assert len(memories) == 2
 
-        results = await store.semantic_search(vector=emb1, k=1)
+        results = await store.semantic_search(embedding=emb1, k=1)
         assert results and results[0].id == mem1.id
 
-        results_with_dist = await store.semantic_search(vector=emb1, k=1, return_distance=True)
+        results_with_dist = await store.semantic_search(embedding=emb1, k=1, return_distance=True)
         assert results_with_dist and results_with_dist[0][0].id == mem1.id
         returned_dist = results_with_dist[0][1]
         assert isinstance(returned_dist, float)
@@ -66,7 +66,7 @@ async def test_enhanced_store_add_search_list_stats(tmp_path: Path) -> None:
 
     store = EnhancedMemoryStore(settings)
     try:
-        results_after_reload = await store.semantic_search(vector=emb1, k=1)
+        results_after_reload = await store.semantic_search(embedding=emb1, k=1)
         assert results_after_reload and results_after_reload[0].id == mem1.id
     finally:
         await store.close()

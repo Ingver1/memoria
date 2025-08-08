@@ -56,7 +56,7 @@ class EmbeddingJob:
 class EmbeddingService:
     """Thread-safe, cache-aware embedding service.
 
-    Public API consists of the `encode` method (async) and a few internal helpers.
+    Public API consists of the `embed_text` method (async) and a few internal helpers.
     All heavy lifting happens in a single background thread to keep the asyncio event loop responsive.
     """
 
@@ -155,13 +155,13 @@ class EmbeddingService:
             # Process batch outside the lock
             try:
                 texts = [job.text for job in batch]
-                vectors = self._encode_direct(texts)  # synchronous call
-                for job, vec in zip(batch, vectors, strict=False):
+                embeddings = self._embed_direct(texts)  # synchronous call
+                for job, embedding in zip(batch, embeddings, strict=False):
                     if not job.future.done():
                         loop = job.future.get_loop()
                         loop.call_soon_threadsafe(
                             job.future.set_result,
-                            np.asarray(vec),
+                            np.asarray(embedding),
                         )
             except Exception as exc:
                 MET_ERRORS_TOTAL.labels(type="embedding", component="batch_loop").inc()
@@ -176,19 +176,19 @@ class EmbeddingService:
 
     # Public API
 
-    async def encode(self, text: str | Sequence[str]) -> np.ndarray:
-        """Return a vector embedding for the given text (string or sequence of strings)."""
+    async def embed_text(self, text: str | Sequence[str]) -> np.ndarray:
+        """Return an embedding for the given text (string or sequence of strings)."""
         if isinstance(text, str):
             # Single text -> returns shape (1, dim) array
-            return await self._encode_single(text)
+            return await self._embed_single(text)
         else:
             # Sequence of texts -> returns shape (n, dim) array
-            return await self._encode_multi(list(text))
+            return await self._embed_multi(list(text))
 
     # Internal async helpers
 
-    async def _encode_single(self, text: str) -> np.ndarray:
-        """Encode a single string into a 1 x dim embedding vector (as numpy array)."""
+    async def _embed_single(self, text: str) -> np.ndarray:
+        """Embed a single string into a 1 x dim embedding vector (as numpy array)."""
         if not text:
             raise ValueError("text must not be empty")
         # Attempt cache lookup first
@@ -210,30 +210,30 @@ class EmbeddingService:
             EMBEDDING_QUEUE_LENGTH.set(len(self._queue))
             self._queue_condition.notify()
         try:
-            vec = await asyncio.wait_for(future, timeout=30.0)
+            embedding = await asyncio.wait_for(future, timeout=30.0)
         except TimeoutError:
             future.cancel()
             raise EmbeddingError("Embedding timed out") from None
         # Cache the new embedding result for future reuse
-        self.cache.put(key, vec)
-        return vec.reshape(1, -1)
+        self.cache.put(key, embedding)
+        return embedding.reshape(1, -1)
 
-    async def _encode_multi(self, texts: list[str]) -> np.ndarray:
-        """Encode a list of texts into an array of embeddings."""
+    async def _embed_multi(self, texts: list[str]) -> np.ndarray:
+        """Embed a list of texts into an array of embeddings."""
         # For multiple texts, we can process them directly (and possibly cache each)
-        vectors = []
+        embeddings = []
         for text in texts:
-            vec = await self._encode_single(text)
-            vectors.append(vec)  # each vec is 1 x dim
+            embedding = await self._embed_single(text)
+            embeddings.append(embedding)  # each embedding is 1 x dim
         # Concatenate results into one array
-        return np.vstack(vectors)
+        return np.vstack(embeddings)
 
-    def _encode_direct(self, texts: list[str]) -> np.ndarray:
-        """Directly encode a batch of texts (runs in background thread)."""
+    def _embed_direct(self, texts: list[str]) -> np.ndarray:
+        """Directly embed a batch of texts (runs in background thread)."""
         if self._model is None:
             raise EmbeddingError("Embedding model is not loaded")
-        vec = self._model.encode(texts)
-        return np.asarray(vec, dtype=np.float32)
+        embedding = self._model.encode(texts)
+        return np.asarray(embedding, dtype=np.float32)
 
     def _cache_key(self, text: str) -> str:
         """Compute a cache key for a given text input."""
