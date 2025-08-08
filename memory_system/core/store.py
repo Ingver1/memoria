@@ -130,6 +130,7 @@ class SQLiteMemoryStore:
         self._pool_size = pool_size
         self._pool: asyncio.LifoQueue[aiosqlite.Connection] = asyncio.LifoQueue(maxsize=pool_size)
         self._conn = object()  # placeholder for tests
+        self._acquired: set[aiosqlite.Connection] = set()
         try:
             self._loop = asyncio.get_running_loop()
         except RuntimeError:  # no running loop
@@ -143,7 +144,7 @@ class SQLiteMemoryStore:
     # ---------------------------------------------------------------------
     async def _acquire(self) -> aiosqlite.Connection:
         try:
-            return self._pool.get_nowait()
+            conn = self._pool.get_nowait()
         except asyncio.QueueEmpty:
             if self._created < self._pool_size:
                 conn = await aiosqlite.connect(self._dsn, uri=True, timeout=30)
@@ -152,10 +153,13 @@ class SQLiteMemoryStore:
                 await conn.execute("PRAGMA synchronous=NORMAL")
                 conn.row_factory = aiosqlite.Row
                 self._created += 1
-                return conn
-            return await self._pool.get()
+                else:
+                conn = await self._pool.get()
+        self._acquired.add(conn)
+        return conn
 
     async def _release(self, conn: aiosqlite.Connection) -> None:
+        self._acquired.discard(conn)
         try:
             self._pool.put_nowait(conn)
         except asyncio.QueueFull:
@@ -211,11 +215,15 @@ class SQLiteMemoryStore:
             logger.info("SQLiteMemoryStore initialised (dsn=%s)", self._dsn)
 
     async def aclose(self) -> None:
-        """Close all pooled connections."""
+        """Close all pooled connections and any acquired ones."""
         while not self._pool.empty():
             conn = await self._pool.get()
             await conn.close()
-            self._created = 0
+            for conn in list(self._acquired):
+            await conn.close()
+        self._acquired.clear()
+        self._created = 0
+        self._initialised = False
 
     async def close(self) -> None:
         """Compatibility alias for ``aclose`` used in tests."""
