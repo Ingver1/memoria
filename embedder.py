@@ -27,7 +27,7 @@ def embed(text: str | list[str]) -> np.ndarray:
         if len(text) == 1:
             return np.zeros(model_dim, dtype=np.float32)
         raise ValueError("text cannot be empty")
-        
+
     vecs = _model.encode(text)
     vecs = np.asarray(vecs, dtype=np.float32)
     norms = np.linalg.norm(vecs, axis=1, keepdims=True)
