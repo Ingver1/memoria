@@ -42,7 +42,7 @@ if not hasattr(StarletteRequest, "_ums_app_setter"):
     StarletteRequest._ums_app_setter = True
 
 from memory_system import __version__
-from memory_system.api.middleware import MaintenanceModeMiddleware
+from memory_system.api.middleware import MaintenanceModeMiddleware, RateLimitingMiddleware
 from memory_system.api.routes import admin as admin_routes
 from memory_system.api.routes import health as health_routes
 from memory_system.api.routes import memory as memory_routes
@@ -105,6 +105,12 @@ def create_app(settings: UnifiedSettings | None = None) -> FastAPI:  # pragma: n
         return await maintenance.dispatch(request, call_next)
 
     app.state.maintenance = maintenance
+
+    # Rate limiting middleware
+    app.add_middleware(
+        RateLimitingMiddleware,
+        max_requests=settings.security.rate_limit_per_minute,
+    )
 
     # CORS (can be tightened in prod)
     app.add_middleware(
