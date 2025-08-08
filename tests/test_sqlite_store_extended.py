@@ -1,8 +1,8 @@
 import asyncio
 import json
 from pathlib import Path
-from typing import Any, Dict, List
 
+import aiosqlite
 import pytest
 
 from memory_system.core.store import Memory, SQLiteMemoryStore
@@ -67,3 +67,63 @@ async def test_search_no_results(tmp_path: Path) -> None:
     store = SQLiteMemoryStore(str(tmp_path / "db.sqlite"))
     results = await store.search("nothing")
     assert results == []
+
+
+@pytest.mark.asyncio
+async def test_fts_prefix_query(tmp_path: Path) -> None:
+    store = SQLiteMemoryStore(str(tmp_path / "db.sqlite"))
+    await store.add(Memory.new("prefixmatch"))
+    results = await store.search("pref*")
+    assert len(results) == 1
+    assert results[0].text == "prefixmatch"
+
+
+@pytest.mark.asyncio
+async def test_migration_creates_fts(tmp_path: Path) -> None:
+    db_path = tmp_path / "db.sqlite"
+    # create legacy schema without FTS
+    async with aiosqlite.connect(db_path.as_posix()) as conn:
+        await conn.execute(
+            """
+            CREATE TABLE memories (
+                id TEXT PRIMARY KEY,
+                text TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                importance REAL DEFAULT 0,
+                valence REAL DEFAULT 0,
+                emotional_intensity REAL DEFAULT 0,
+                metadata JSON
+            );
+            """
+        )
+        mem = Memory.new("legacy text")
+        await conn.execute(
+            "INSERT INTO memories (id, text, created_at, importance, valence, emotional_intensity, metadata)"
+            " VALUES (?, ?, ?, ?, ?, ?, json(?))",
+            (
+                mem.id,
+                mem.text,
+                mem.created_at.isoformat(),
+                mem.importance,
+                mem.valence,
+                mem.emotional_intensity,
+                json.dumps(mem.metadata) if mem.metadata else "null",
+            ),
+        )
+        await conn.commit()
+
+    store = SQLiteMemoryStore(db_path.as_posix())
+    results = await store.search("legacy")
+    assert results and results[0].text == "legacy text"
+
+    # ensure triggers keep FTS in sync
+    await store.add(Memory.new("new memory"))
+    res_new = await store.search("new")
+    assert any(r.text == "new memory" for r in res_new)
+
+    async with aiosqlite.connect(db_path.as_posix()) as conn:
+        cur = await conn.execute("SELECT count(*) FROM memories")
+        mem_count = (await cur.fetchone())[0]
+        cur = await conn.execute("SELECT count(*) FROM memories_fts")
+        fts_count = (await cur.fetchone())[0]
+        assert fts_count == mem_count
