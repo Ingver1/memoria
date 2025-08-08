@@ -68,6 +68,12 @@ class ModelConfig(BaseModel):
     hnsw_ef_search: PositiveInt = 100
     hnsw_autotune: bool = False
     vector_dim: PositiveInt = 384
+    index_type: str = "HNSW"
+    use_gpu: bool = False
+    ivf_nlist: PositiveInt = 100
+    ivf_nprobe: PositiveInt = 8
+    pq_m: PositiveInt = 16
+    pq_bits: PositiveInt = 8
 
     model_config = {"frozen": True}
 
