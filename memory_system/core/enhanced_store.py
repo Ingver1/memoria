@@ -159,11 +159,9 @@ class EnhancedMemoryStore:
             A list of memories, optionally paired with their distance from the
             query vector.
         """
-        ids, dists = self._index.search(
-            np.asarray(vector, dtype=np.float32), k=k, ef_search=ef_search
-        )
+        ids, dists = self._index.search(np.asarray(vector, dtype=np.float32), k=k, ef_search=ef_search)
         results: list[Any] = []
-        for _id, dist in zip(ids, dists):
+        for _id, dist in zip(ids, dists, strict=False):
             mem = await self._store.get(_id)
             if mem is None:
                 continue
