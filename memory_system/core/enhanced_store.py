@@ -140,7 +140,8 @@ class EnhancedMemoryStore:
             if mem is None:
                 continue
             if include_embeddings:
-                results.append((mem, vector))
+                vec = self._index.get_vector(mem.id)
+                results.append((mem, vec.tolist() if vec is not None else None))
             else:
                 results.append(mem)
         return results
