@@ -14,8 +14,11 @@ from typing import Any
 
 import numpy as np
 from cryptography.fernet import Fernet
+import logging
 
 __all__ = ["EnhancedMemoryStore", "HealthComponent"]
+
+log = logging.getLogger(__name__)
 
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.index import FaissHNSWIndex
@@ -43,13 +46,36 @@ class EnhancedMemoryStore:
         # Underlying storage components
         dsn = settings.get_database_url()
         self._store = SQLiteMemoryStore(dsn)
-        self._index = FaissHNSWIndex(dim=settings.model.vector_dim)
+        self._index = FaissHNSWIndex(
+            dim=settings.model.vector_dim,
+            M=settings.model.hnsw_m,
+            ef_construction=settings.model.hnsw_ef_construction,
+            ef_search=settings.model.hnsw_ef_search,
+        )
         vec_path = settings.database.vec_path
         if vec_path.exists():
             self._index.load(str(vec_path))
             self._memory_count = self._index.stats().total_vectors
         else:
             self._memory_count = 0
+            if settings.model.hnsw_autotune:
+                sample = np.random.rand(128, settings.model.vector_dim).astype(np.float32)
+                M, ef_c, ef_s = self._index.auto_tune(sample)
+                object.__setattr__(settings.model, "hnsw_m", M)
+                object.__setattr__(settings.model, "hnsw_ef_construction", ef_c)
+                object.__setattr__(settings.model, "hnsw_ef_search", ef_s)
+                log.info(
+                    "Auto-tuned HNSW params: M=%d ef_construction=%d ef_search=%d",
+                    M,
+                    ef_c,
+                    ef_s,
+                )
+                self._index = FaissHNSWIndex(
+                    dim=settings.model.vector_dim,
+                    M=M,
+                    ef_construction=ef_c,
+                    ef_search=ef_s,
+                )
 
         async def _save_index() -> None:
             await asyncio.to_thread(self._index.save, str(vec_path))
