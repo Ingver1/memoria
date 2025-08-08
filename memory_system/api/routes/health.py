@@ -24,10 +24,13 @@ log = logging.getLogger(__name__)
 router = APIRouter(tags=["Health & Monitoring"])
 
 
-@router.exception_handler(HTTPException)
 async def _raise_http_exception(_: Request, exc: HTTPException) -> Response:
     """Re-raise HTTP exceptions so TestClient surfaces them."""
     raise exc
+
+
+# Register the exception handler with the router
+router.add_exception_handler(HTTPException, _raise_http_exception)
 
 
 # Dependency helpers for route functions
