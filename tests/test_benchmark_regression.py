@@ -8,6 +8,7 @@ pytest_asyncio is used for async fixtures.
 import asyncio
 from typing import Any, AsyncGenerator, Callable
 
+import numpy as np
 import pytest
 import pytest_asyncio
 
@@ -16,11 +17,9 @@ from memory_system.utils.loop import get_or_create_loop
 # Skip this test module if pytest-benchmark is unavailable
 pytest.importorskip("pytest_benchmark")
 
-import numpy as np
-
 from memory_system.config.settings import UnifiedSettings
-from memory_system.core.enhanced_store import EnhancedMemoryStore
 from memory_system.core.embedding import EmbeddingError, EmbeddingService
+from memory_system.core.enhanced_store import EnhancedMemoryStore
 from memory_system.utils.metrics import EMBEDDING_QUEUE_LENGTH
 
 DIM = UnifiedSettings.for_testing().model.vector_dim
