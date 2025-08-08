@@ -402,7 +402,6 @@ def configure_logging(settings: UnifiedSettings | None = None) -> None:
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
 
-
     if settings.security.filter_pii:
         from memory_system.utils.security import PIILoggingFilter
 
