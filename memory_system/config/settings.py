@@ -403,6 +403,12 @@ def configure_logging(settings: UnifiedSettings | None = None) -> None:
     )
 
 
+    if settings.security.filter_pii:
+        from memory_system.utils.security import PIILoggingFilter
+
+        logging.getLogger().addFilter(PIILoggingFilter())
+
+
 def get_settings(env: str | None = None) -> UnifiedSettings:
     env = env or os.getenv("AI_ENV", "development")
     if env == "production":
