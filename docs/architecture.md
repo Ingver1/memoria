@@ -41,6 +41,9 @@ All CPU-bound FAISS calls run in the default thread pool for snappy event loop.
 | Metadata  | SQLite JSON1           | Lightweight, enables rich queries                 |
 | Back-ups  | Background replicate() | Compressed snapshot every N minutes               |
 
+**Persistence:**
+- The FAISS index is saved to disk after each memory is added and reloaded on start if the index file exists, ensuring vector search state survives restarts.
+
 **Compaction:**
 - Removes tombstoned vectors
 - Shrinks .index blob with FAISS in-place merge
