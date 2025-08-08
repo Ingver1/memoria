@@ -439,7 +439,8 @@ async def get_store(path: str | Path | None = None) -> SQLiteMemoryStore:
 
     global _STORE
     async with _STORE_LOCK:
-        global _STORE
+        # Providing a new *path* closes the existing store and creates a
+        # fresh singleton instance pointing at the new location.
         if _STORE is not None and path is not None and _STORE._path != Path(path):
             await _STORE.aclose()
             _STORE = None
