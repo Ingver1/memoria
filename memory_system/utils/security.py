@@ -221,14 +221,14 @@ class CryptoContext:
     def encrypt(self, data: bytes | str) -> str:
         if isinstance(data, str):
             data = data.encode()
-        token = self._active_key.as_fernet().encrypt(data)
+        token: bytes = self._active_key.as_fernet().encrypt(data)
         _audit_logger.info("encrypt", extra={"by": self._active_key.metadata.key_id, "size": len(data)})
         return token.decode()
 
     def decrypt(self, token: str) -> bytes:
         for key in self._cache.values():
             try:
-                data = key.as_fernet().decrypt(token.encode())
+                data: bytes = key.as_fernet().decrypt(token.encode())
                 _audit_logger.info("decrypt", extra={"key": key.metadata.key_id, "size": len(data)})
                 return data
             except InvalidToken:
