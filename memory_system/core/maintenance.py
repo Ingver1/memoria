@@ -20,6 +20,7 @@ import numpy as np
 from embedder import embed as embed_text
 from memory_system.core.index import FaissHNSWIndex
 from memory_system.core.store import Memory, SQLiteMemoryStore
+from memory_system.core.summarization import STRATEGIES, SummaryStrategy
 
 # ----------------------------- small utils -----------------------------
 
@@ -67,24 +68,34 @@ def cluster_memories(
     return clusters
 
 
-def summarize_cluster(memories: Sequence[Memory]) -> Tuple[str, float]:
-    """
-    Produce a short summary text and an average importance for the cluster.
+def summarize_cluster(
+    memories: Sequence[Memory],
+    *,
+    strategy: str | SummaryStrategy = "head2tail",
+) -> Tuple[str, float]:
+    """Summarise a cluster of memories and compute its average importance.
 
-    Strategy:
-      – take up to two highest-importance texts and join them with an ellipsis;
-      – compute the mean importance as the summary's importance.
+    Parameters
+    ----------
+    memories:
+        Sequence of :class:`Memory` objects in the cluster.
+    strategy:
+        Strategy name or callable controlling how texts are summarised.
+        The default ``"head2tail"`` joins the two most important texts with an
+        ellipsis.  Custom callables may be supplied for experimentation.
     """
     if not memories:
         return "", 0.0
 
-    top = sorted(
-        memories,
-        key=lambda m: (m.importance, m.created_at),
-        reverse=True,
-    )[:2]
+    if isinstance(strategy, str):
+        try:
+            fn = STRATEGIES[strategy]
+        except KeyError as exc:
+            raise ValueError(f"Unknown summary strategy: {strategy}") from exc
+    else:
+        fn = strategy
 
-    summary_text = " … ".join(m.text.strip() for m in top)
+    summary_text = fn(memories)
     avg_importance = float(np.mean([m.importance for m in memories]))
     return summary_text, avg_importance
 
@@ -99,6 +110,7 @@ async def consolidate_store(
     threshold: float = 0.83,
     max_fetch: int = 100_000,
     save_path: Optional[str] = None,
+    strategy: str | SummaryStrategy = "head2tail",
 ) -> List[Memory]:
     """
     Cluster similar memories, create a summary memory per cluster, then delete
@@ -129,7 +141,7 @@ async def consolidate_store(
             continue
 
         cluster_mems = [all_mems[i] for i in group]
-        summary_text, importance = summarize_cluster(cluster_mems)
+        summary_text, importance = summarize_cluster(cluster_mems, strategy=strategy)
         if not summary_text:
             continue
 
