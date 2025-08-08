@@ -175,6 +175,32 @@ class SQLiteMemoryStore:
             conn = await self._acquire()
             try:
                 await conn.execute(self._CREATE_SQL)
+                # Ensure FTS virtual table and triggers exist
+                await conn.executescript(
+                    """
+                    CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(text);
+                    CREATE TRIGGER IF NOT EXISTS memories_ai AFTER INSERT ON memories BEGIN
+                        INSERT INTO memories_fts(rowid, text) VALUES (new.rowid, new.text);
+                    END;
+                    CREATE TRIGGER IF NOT EXISTS memories_ad AFTER DELETE ON memories BEGIN
+                        DELETE FROM memories_fts WHERE rowid = old.rowid;
+                    END;
+                    CREATE TRIGGER IF NOT EXISTS memories_au AFTER UPDATE ON memories BEGIN
+                        DELETE FROM memories_fts WHERE rowid = old.rowid;
+                        INSERT INTO memories_fts(rowid, text) VALUES (new.rowid, new.text);
+                    END;
+                    """
+                )
+                # Migration: backfill FTS table if empty or out of sync
+                cur = await conn.execute("SELECT count(*) FROM memories")
+                mem_count = (await cur.fetchone())[0]
+                cur = await conn.execute("SELECT count(*) FROM memories_fts")
+                fts_count = (await cur.fetchone())[0]
+                if mem_count != fts_count:
+                    await conn.execute("DELETE FROM memories_fts")
+                    await conn.execute(
+                        "INSERT INTO memories_fts(rowid, text) SELECT rowid, text FROM memories"
+                    )
                 await conn.execute(
                     "CREATE INDEX IF NOT EXISTS idx_memories_created_at ON memories(created_at)"
                 )
@@ -274,29 +300,37 @@ class SQLiteMemoryStore:
         metadata_filters: Optional[Dict[str, Any]] = None,
         limit: int = 20,
     ) -> List[Memory]:
-        """Simple LIKE + JSON1 metadata search (no vectors here)."""
+        """Full-text + JSON1 metadata search (no vectors here)."""
         await self.initialise()
         conn = await self._acquire()
         try:
-            # build WHERE clause
-            clauses: List[str] = []
             params: List[Any] = []
             if text_query:
-                clauses.append("text LIKE ?")
-                params.append(f"%{text_query}%")
-            if metadata_filters:
-                for key, val in metadata_filters.items():
-                    clauses.append("json_extract(metadata, ?) = ?")
-                    params.extend([f"$.{key}", val])
-
-            # construct final SQL
-            sql = "SELECT id, text, created_at, importance, valence, emotional_intensity, metadata FROM memories"
-            if clauses:
-                sql += " WHERE " + " AND ".join(clauses)
-            sql += " ORDER BY created_at DESC LIMIT ?"
+                sql = (
+                    "SELECT m.id, m.text, m.created_at, m.importance, m.valence, "
+                    "m.emotional_intensity, m.metadata "
+                    "FROM memories_fts JOIN memories m ON m.rowid = memories_fts.rowid "
+                    "WHERE memories_fts MATCH ?"
+                )
+                params.append(text_query)
+                if metadata_filters:
+                    for key, val in metadata_filters.items():
+                        sql += " AND json_extract(m.metadata, ?) = ?"
+                        params.extend([f"$.{key}", val])
+                sql += " ORDER BY bm25(memories_fts) LIMIT ?"
+            else:
+                clauses: List[str] = []
+                if metadata_filters:
+                    for key, val in metadata_filters.items():
+                        clauses.append("json_extract(metadata, ?) = ?")
+                        params.extend([f"$.{key}", val])
+                sql = (
+                    "SELECT id, text, created_at, importance, valence, emotional_intensity, metadata FROM memories"
+                )
+                if clauses:
+                    sql += " WHERE " + " AND ".join(clauses)
+                sql += " ORDER BY created_at DESC LIMIT ?"
             params.append(limit)
-
-            # execute and map results
             cursor = await conn.execute(sql, params)
             rows = await cursor.fetchall()
             return [self._row_to_memory(r) for r in rows]
