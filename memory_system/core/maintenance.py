@@ -13,7 +13,7 @@ SQLite store and FAISS HNSW index.
 from __future__ import annotations
 
 import datetime as dt
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Sequence, Tuple
 
 import numpy as np
 
@@ -109,7 +109,6 @@ async def consolidate_store(
     *,
     threshold: float = 0.83,
     max_fetch: int = 100_000,
-    save_path: Optional[str] = None,
     strategy: str | SummaryStrategy = "head2tail",
 ) -> List[Memory]:
     """
@@ -176,14 +175,6 @@ async def consolidate_store(
                 # If a row is already gone, keep going.
                 pass
 
-    if save_path:
-        # Persist the FAISS index (and ID map) to disk.
-        try:
-            index.save(save_path)
-        except Exception:
-            # Non-fatal; callers may choose to log this.
-            pass
-
     return created
 
 
@@ -214,7 +205,6 @@ async def forget_old_memories(
     min_total: int = 1_000,
     retain_fraction: float = 0.85,
     max_fetch: int = 150_000,
-    save_path: Optional[str] = None,
 ) -> int:
     """
     Forget the lowest-scoring memories until we drop to the target size.
@@ -251,11 +241,5 @@ async def forget_old_memories(
                 await store.delete_memory(mid)
             except Exception:
                 pass
-
-    if save_path:
-        try:
-            index.save(save_path)
-        except Exception:
-            pass
 
     return len(ids_to_forget)
