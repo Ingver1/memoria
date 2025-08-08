@@ -333,9 +333,7 @@ class TestUnifiedSettings:
             Fernet(settings.security.encryption_key.encode())
 
     url = settings.get_database_url()
-            assert url.endswith(
-                f"?cipher_secret={quote(settings.security.encryption_key)}"
-            )
+        assert url.endswith(f"?cipher_secret={quote(settings.security.encryption_key)}")
 
     def test_unified_settings_for_testing(self) -> None:
         """Test testing preset configuration."""
@@ -380,9 +378,7 @@ class TestUnifiedSettings:
         assert str(settings.database.db_path) in url
 
 key = Fernet.generate_key().decode()
-        secure_settings = UnifiedSettings(
-            security=SecurityConfig(encrypt_at_rest=True, encryption_key=key)
-        )
+        secure_settings = UnifiedSettings(security=SecurityConfig(encrypt_at_rest=True, encryption_key=key))
         secure_url = secure_settings.get_database_url()
         assert secure_url.startswith("sqlite+sqlcipher:///")
         assert secure_url.endswith(f"?cipher_secret={quote(key)}")
