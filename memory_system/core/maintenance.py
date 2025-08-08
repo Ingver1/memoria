@@ -13,16 +13,16 @@ SQLite store and FAISS HNSW index.
 from __future__ import annotations
 
 import datetime as dt
-from typing import Sequence, List, Tuple, Dict, Optional
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
-from memory_system.core.store import Memory, SQLiteMemoryStore
-from memory_system.core.index import FaissHNSWIndex
 from embedder import embed as embed_text
-
+from memory_system.core.index import FaissHNSWIndex
+from memory_system.core.store import Memory, SQLiteMemoryStore
 
 # ----------------------------- small utils -----------------------------
+
 
 def _cos_sim(a: np.ndarray, b: np.ndarray) -> float:
     """Cosine similarity for two 1D vectors (assumed L2-normalized)."""
@@ -34,6 +34,7 @@ def _now_utc() -> dt.datetime:
 
 
 # ----------------------------- clustering -----------------------------
+
 
 def cluster_memories(
     embeddings: Sequence[np.ndarray],
@@ -89,6 +90,7 @@ def summarize_cluster(memories: Sequence[Memory]) -> Tuple[str, float]:
 
 
 # ------------------------ consolidation / forgetting -------------------
+
 
 async def consolidate_store(
     store: SQLiteMemoryStore,
