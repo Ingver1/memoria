@@ -15,8 +15,8 @@ UMS is a plug-and-play semantic memory service for LLM agents. It’s small, fas
 | Feature               | UMS (v1.0)           | MemOS (Preview)         |
 |-----------------------|----------------------|-------------------------|
 | Install size          | ~180 MB Docker       | 2+ GB multi-service     |
-| Storage backend       | SQLite + FAISS       | Custom “MemCube”        |
-| Encryption-at-rest    | ✅ SQLCipher         | ❌ Coming Q4 2025      |
+| Storage backend       | SQLite + FAISS/Qdrant | Custom “MemCube”       |
+| Encryption-at-rest    | ✅ SQLCipher         | ❌ Coming Q4 2025       |
 | Test coverage         | 100% unit/integration| Unknown                 |
 | Deployment            | pip, Docker, serverless | k8s Operator (beta)  |
 | Hardware requirements | 1 CPU / 1 GB RAM     | 8 CPUs / 16 GB RAM      |
@@ -29,7 +29,7 @@ UMS is a plug-and-play semantic memory service for LLM agents. It’s small, fas
 
 ## 🔑 Key Features
 
-- **Async FastAPI + FAISS HNSW**: blazing fast semantic search
+- **Async FastAPI + FAISS HNSW or Qdrant**: blazing fast semantic search
 - **SQLCipher encryption**: secure at rest
 - **API-token auth & rate limits**: secure in transit
 - **Prometheus metrics & health checks**: easy monitoring
@@ -93,6 +93,9 @@ pytest -q -m "not perf"
 | Env var                  | Default                | Description           |
 |--------------------------|------------------------|-----------------------|
 | AI_DATABASE__URL         | sqlite:///./data/memory.db | DB path / DSN     |
+| AI_DATABASE__BACKEND     | faiss                  | Vector store backend  |
+| AI_DATABASE__QDRANT_URL  | http://localhost:6333  | Qdrant endpoint       |
+| AI_DATABASE__QDRANT_COLLECTION | memory           | Qdrant collection     |
 | AI_SECURITY__ENCRYPT_AT_REST | false              | Enable SQLCipher      |
 | AI_MODEL__VECTOR_DIM     | 384                    | Embedding dimension   |
 | AI_PERF__MAX_WORKERS     | 4                      | Async workers         |
@@ -104,7 +107,7 @@ Copy `.env.example` → `.env` and tweak values.
 
 | Env var             | Default | Description                                 |
 |---------------------|---------|---------------------------------------------|
-| UMS_INDEX_TYPE      | HNSW    | FAISS index type (`HNSW` or `IVFFLAT`)       |
+| UMS_INDEX_TYPE      | HNSW    | FAISS index type (`HNSW` or `IVFFLAT`)      |
 | UMS_USE_GPU         | 0       | Move index to GPU if `1` and GPUs available |
 | UMS_IVF_NLIST       | 100     | Number of clusters for `IVFFLAT`            |
 | UMS_IVF_NPROBE      | 8       | Search probes (`nprobe`) for `IVFFLAT`      |
