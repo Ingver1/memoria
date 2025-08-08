@@ -19,7 +19,7 @@ from memory_system.core.enhanced_store import EnhancedMemoryStore
 
 pytestmark = pytest.mark.property
 
-VECTOR_DIM = UnifiedSettings.for_testing().model.vector_dim
+EMBEDDING _DIM = UnifiedSettings.for_testing().model.vector_dim
 
 
 def _float32_arrays() -> SearchStrategy[List[float]]:
@@ -27,8 +27,8 @@ def _float32_arrays() -> SearchStrategy[List[float]]:
     return (
         st.lists(
             st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
-            min_size=VECTOR_DIM,
-            max_size=VECTOR_DIM,
+            min_size=EMBEDDING_DIM,
+            max_size=EMBEDDING_DIM,
         )
         .map(np.float32)
         .map(list)
@@ -45,9 +45,9 @@ async def store() -> AsyncGenerator[EnhancedMemoryStore, None]:
 
 @given(vec=_float32_arrays())
 @settings(max_examples=20, suppress_health_check=[HealthCheck.function_scoped_fixture])
-async def test_roundtrip_vector(store: EnhancedMemoryStore, vec: List[float]) -> None:
-    """Adding then searching the same vector must return exactly one hit."""
+async def test_roundtrip_embedding(store: EnhancedMemoryStore, vec: List[float]) -> None:
+    """Adding then searching the same embedding must return exactly one hit."""
     await store.add_memory(text="prop-test", embedding=vec)
-    hits = await store.semantic_search(vector=vec, k=1)
+    hits = await store.semantic_search(embedding=vec, k=1)
     assert len(hits) == 1
     assert hits[0].text == "prop-test"
