@@ -175,6 +175,9 @@ class SQLiteMemoryStore:
             conn = await self._acquire()
             try:
                 await conn.execute(self._CREATE_SQL)
+                await conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_memories_created_at ON memories(created_at)"
+                )
                 await conn.commit()
                 self._initialised = True
             finally:
