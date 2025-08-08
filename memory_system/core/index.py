@@ -63,11 +63,21 @@ class IndexStats:
 
 # ────────────────────────── Main class ────────────────────────────
 class FaissHNSWIndex:
-    """High-level wrapper over faiss.IndexHNSWFlat with ID mapping and stats."""
+    """High-level wrapper over FAISS indices with ID mapping and stats.
+
+    Historically this class exposed only :class:`faiss.IndexHNSWFlat`. It now
+    supports a small subset of alternative FAISS index types and can optionally
+    move the index to GPU memory. Behaviour defaults to the previous HNSW CPU
+    setup so existing deployments keep working out of the box.
+    """
 
     DEFAULT_EF_CONSTRUCTION: int = int(os.getenv("UMS_EF_CONSTRUCTION", "128"))
     DEFAULT_HNSW_M: int = int(os.getenv("UMS_HNSW_M", "32"))
     DEFAULT_EF_SEARCH: int = int(os.getenv("UMS_EF_SEARCH", "32"))
+    DEFAULT_INDEX_TYPE: str = os.getenv("UMS_INDEX_TYPE", "HNSW").upper()
+    DEFAULT_USE_GPU: bool = os.getenv("UMS_USE_GPU", "0") == "1"
+    DEFAULT_IVF_NLIST: int = int(os.getenv("UMS_IVF_NLIST", "100"))
+    DEFAULT_IVF_NPROBE: int = int(os.getenv("UMS_IVF_NPROBE", "8"))
 
     def __init__(
         self,
@@ -76,20 +86,37 @@ class FaissHNSWIndex:
         ef_construction: int | None = None,
         M: int | None = None,
         space: str = "cosine",
+        index_type: str | None = None,
+        use_gpu: bool | None = None,
     ) -> None:
         """Initialise the FAISS index wrapper."""
         self.dim = dim
         self.space = space
         self._lock = RWLock()
+        self.index_type = (index_type or self.DEFAULT_INDEX_TYPE).upper()
+        self.use_gpu = use_gpu if use_gpu is not None else self.DEFAULT_USE_GPU
 
         # Build underlying FAISS index
         metric = faiss.METRIC_INNER_PRODUCT if space == "cosine" else faiss.METRIC_L2
-        base = faiss.IndexHNSWFlat(dim, M or self.DEFAULT_HNSW_M, metric)
-        base.hnsw.efConstruction = ef_construction or self.DEFAULT_EF_CONSTRUCTION
+        if self.index_type in {"IVF", "IVFFLAT"}:
+            quantizer = faiss.IndexFlatL2(dim) if metric == faiss.METRIC_L2 else faiss.IndexFlatIP(dim)
+            base = faiss.IndexIVFFlat(quantizer, dim, self.DEFAULT_IVF_NLIST, metric)
+            self.ef_search = self.DEFAULT_IVF_NPROBE
+            base.nprobe = self.ef_search
+        else:  # default to HNSW
+            base = faiss.IndexHNSWFlat(dim, M or self.DEFAULT_HNSW_M, metric)
+            base.hnsw.efConstruction = ef_construction or self.DEFAULT_EF_CONSTRUCTION
+            self.ef_search = self.DEFAULT_EF_SEARCH
+            base.hnsw.efSearch = self.ef_search
+
+        if self.use_gpu:
+            try:
+                base = faiss.index_cpu_to_all_gpus(base)
+                log.info("FAISS index moved to GPU")
+            except Exception:
+                log.warning("Failed to move FAISS index to GPU; using CPU index")
 
         self.index: faiss.IndexIDMap2 = faiss.IndexIDMap2(base)
-        self.ef_search: int = self.DEFAULT_EF_SEARCH
-        base.hnsw.efSearch = self.ef_search
 
         self._stats = IndexStats(dim=dim)
         self._cache: dict[tuple[int, int, int], tuple[list[str], list[float]]] = {}
@@ -97,7 +124,9 @@ class FaissHNSWIndex:
         self._reverse_id_map: dict[str, int] = {}
         self._vectors: dict[int, NDArray] = {}
         self._warmed_up: bool = False
-        log.info("FAISS HNSW index initialised: dim=%d, metric=%s", dim, space)
+        log.info(
+            "FAISS %s index initialised: dim=%d, metric=%s", self.index_type, dim, space
+        )
 
     # ────────────────────────── Internal ──────────────────────────
     def _warm_up(self) -> None:
@@ -155,6 +184,9 @@ class FaissHNSWIndex:
             if self.space == "cosine":
                 faiss.normalize_L2(vecs)
             id_arr = np.array([self._string_to_int(i) for i in ids], dtype="int64")
+            if not self.index.is_trained:
+                # Indices like IVF require training before adding vectors
+                self.index.train(vecs)
             self.index.add_with_ids(vecs, id_arr)
             for idx, int_id in enumerate(id_arr):
                 self._vectors[int(int_id)] = vecs[idx]
@@ -172,12 +204,27 @@ class FaissHNSWIndex:
     def _rebuild_from_vectors(self) -> None:
         """Reconstruct the FAISS index from vectors kept in memory."""
         metric = faiss.METRIC_INNER_PRODUCT if self.space == "cosine" else faiss.METRIC_L2
-        base = faiss.IndexHNSWFlat(self.dim, self.DEFAULT_HNSW_M, metric)
-        base.hnsw.efConstruction = self.DEFAULT_EF_CONSTRUCTION
+        if self.index_type in {"IVF", "IVFFLAT"}:
+            quantizer = faiss.IndexFlatL2(self.dim) if metric == faiss.METRIC_L2 else faiss.IndexFlatIP(self.dim)
+            base = faiss.IndexIVFFlat(quantizer, self.dim, self.DEFAULT_IVF_NLIST, metric)
+            base.nprobe = self.ef_search
+        else:
+            base = faiss.IndexHNSWFlat(self.dim, self.DEFAULT_HNSW_M, metric)
+            base.hnsw.efConstruction = self.DEFAULT_EF_CONSTRUCTION
+            base.hnsw.efSearch = self.ef_search
+
+        if self.use_gpu:
+            try:
+                base = faiss.index_cpu_to_all_gpus(base)
+            except Exception:
+                log.warning("Failed to move rebuilt FAISS index to GPU; using CPU index")
+
         new_index = faiss.IndexIDMap2(base)
         if self._vectors:
             ids = np.array(list(self._vectors.keys()), dtype="int64")
             vecs = np.vstack(list(self._vectors.values())).astype("float32")
+            if not new_index.is_trained:
+                new_index.train(vecs)
             new_index.add_with_ids(vecs, ids)
         self.index = new_index
         self._stats.total_vectors = len(self._vectors)
@@ -241,8 +288,11 @@ class FaissHNSWIndex:
             faiss.normalize_L2(vec)
 
         if ef_search is not None:
-            # IndexIDMap2 does not expose the HNSW params directly
-            faiss.downcast_index(self.index.index).hnsw.efSearch = ef_search
+            if self.index_type in {"IVF", "IVFFLAT"}:
+                faiss.extract_index_ivf(self.index).nprobe = ef_search
+            else:
+                # IndexIDMap2 does not expose the HNSW params directly
+                faiss.downcast_index(self.index.index).hnsw.efSearch = ef_search
             self.ef_search = ef_search
 
         start = perf_counter()
@@ -282,7 +332,12 @@ class FaissHNSWIndex:
     # ─────────────────────── Rebuild / IO ────────────────────────
     def rebuild(self, vectors: NDArray, ids: Sequence[str]) -> bool:
         """Recreate the FAISS index from scratch in a transactional way. Returns True if successful."""
-        temp = FaissHNSWIndex(self.dim, space=self.space)
+        temp = FaissHNSWIndex(
+            self.dim,
+            space=self.space,
+            index_type=self.index_type,
+            use_gpu=self.use_gpu,
+        )
         try:
             temp.add_vectors(ids, vectors)
             with self._lock.writer_lock():
