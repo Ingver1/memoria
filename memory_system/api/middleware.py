@@ -101,9 +101,10 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
 
     @staticmethod
     def _get_user_id(request: Request) -> str:
-        """Derive a stable ID from the Authorization header or client IP."""
-        auth = request.headers.get("authorization") or getattr(request.client, "host", "unknown")
-        return hashlib.sha256(str(auth).encode()).hexdigest()
+        """Derive a stable ID from ``X-API-Token`` or the client IP address."""
+        token = request.headers.get("X-API-Token")
+        identifier = token or getattr(request.client, "host", "unknown")
+        return hashlib.sha256(str(identifier).encode()).hexdigest()
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         # Skip rate limiting for bypassed endpoints
@@ -121,7 +122,11 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
                 retry_after = int(bucket[0] + self.window - now) + 1
                 return JSONResponse(
                     status_code=429,
-                    content={"detail": "Rate limit exceeded", "retry_after": retry_after},
+                    content={"detail": "Rate limit ex"""Derive a stable ID from ``X-API-Token`` or the client IP address."""
+        token = request.headers.get("X-API-Token")
+        identifier = token or getattr(request.client, "host", "unknown")
+        return hashlib.sha256(str(identifier).encode()).hexdigest()
+                  ceeded", "retry_after": retry_after},
                     headers={"Retry-After": str(retry_after)},
                 )
             bucket.append(now)
