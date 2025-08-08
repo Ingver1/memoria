@@ -10,10 +10,10 @@ from __future__ import annotations
 # ────────────────────────── stdlib imports ──────────────────────────
 import asyncio
 import datetime as dt
+import inspect
 import json
 import logging
 import uuid
-import inspect
 from collections.abc import AsyncIterator
 
 # ───────────────────────── local imports ───────────────────────────
@@ -26,6 +26,7 @@ import aiosqlite
 
 if TYPE_CHECKING:  # pragma: no cover - optional FastAPI import for type hints
     from fastapi import FastAPI, Request
+
     from memory_system.core.index import FaissHNSWIndex
 
 logger = logging.getLogger(__name__)
