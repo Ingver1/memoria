@@ -44,6 +44,7 @@ __all__ = [
     "LocalKeyBackend",
     "PIIPatterns",
     "EnhancedPIIFilter",
+    "PIILoggingFilter",
     "SecureTokenManager",
     "PasswordManager",
     "EncryptionManager",
@@ -366,6 +367,21 @@ class EnhancedPIIFilter:
     def reset_stats(self) -> None:
         for k in self.stats:
             self.stats[k] = 0
+
+
+class PIILoggingFilter(logging.Filter):
+    """Logging filter that redacts PII from log messages."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._pii = EnhancedPIIFilter()
+
+    def filter(self, record: logging.LogRecord) -> bool:  # pragma: no cover - simple
+        message = record.getMessage()
+        redacted, _, _ = self._pii.redact(str(message))
+        record.msg = redacted
+        record.args = ()
+        return True
 
 
 class SecureTokenManager:
