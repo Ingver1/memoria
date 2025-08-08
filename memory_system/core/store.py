@@ -153,7 +153,7 @@ class SQLiteMemoryStore:
                 await conn.execute("PRAGMA synchronous=NORMAL")
                 conn.row_factory = aiosqlite.Row
                 self._created += 1
-                else:
+            else:
                 conn = await self._pool.get()
         self._acquired.add(conn)
         return conn
@@ -202,12 +202,8 @@ class SQLiteMemoryStore:
                 fts_count = (await cur.fetchone())[0]
                 if mem_count != fts_count:
                     await conn.execute("DELETE FROM memories_fts")
-                    await conn.execute(
-                        "INSERT INTO memories_fts(rowid, text) SELECT rowid, text FROM memories"
-                    )
-                await conn.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_memories_created_at ON memories(created_at)"
-                )
+                    await conn.execute("INSERT INTO memories_fts(rowid, text) SELECT rowid, text FROM memories")
+                await conn.execute("CREATE INDEX IF NOT EXISTS idx_memories_created_at ON memories(created_at)")
                 await conn.commit()
                 self._initialised = True
             finally:
@@ -219,7 +215,7 @@ class SQLiteMemoryStore:
         while not self._pool.empty():
             conn = await self._pool.get()
             await conn.close()
-            for conn in list(self._acquired):
+        for conn in list(self._acquired):
             await conn.close()
         self._acquired.clear()
         self._created = 0
@@ -332,9 +328,7 @@ class SQLiteMemoryStore:
                     for key, val in metadata_filters.items():
                         clauses.append("json_extract(metadata, ?) = ?")
                         params.extend([f"$.{key}", val])
-                sql = (
-                    "SELECT id, text, created_at, importance, valence, emotional_intensity, metadata FROM memories"
-                )
+                sql = "SELECT id, text, created_at, importance, valence, emotional_intensity, metadata FROM memories"
                 if clauses:
                     sql += " WHERE " + " AND ".join(clauses)
                 sql += " ORDER BY created_at DESC LIMIT ?"
