@@ -100,6 +100,42 @@ pytest -q -m "not perf"
 
 Copy `.env.example` → `.env` and tweak values.
 
+## 🔐 Encryption Options
+
+UMS offers two ways to protect stored data. The `text` column can be encrypted
+individually, or the entire SQLite database file can be secured.
+
+### Fernet field encryption
+
+Only the `text` column is encrypted before being written to disk using a
+[Fernet](https://cryptography.io/en/latest/fernet/) key. Supply your own key via
+[`AI_SECURITY__ENCRYPTION_KEY`](memory_system/config/settings.py#L77).
+
+```bash
+AI_DATABASE__URL=sqlite:///./data/memory.db
+AI_SECURITY__ENCRYPTION_KEY=<base64-key>
+```
+
+### SQLCipher full-database encryption
+
+Set [`AI_SECURITY__ENCRYPT_AT_REST`](memory_system/config/settings.py#L76) to
+`true` to encrypt the entire SQLite file with SQLCipher. This switches the DSN
+to `sqlite+sqlcipher` and reuses the
+[`AI_SECURITY__ENCRYPTION_KEY`](memory_system/config/settings.py#L77).
+
+```bash
+AI_SECURITY__ENCRYPT_AT_REST=true
+AI_DATABASE__URL=sqlite+sqlcipher:///./data/memory.db
+```
+
+### Choosing an approach
+
+- **Fernet field encryption** – minimal overhead and works anywhere SQLite is
+  available. Use when only the `text` payload needs protection.
+- **SQLCipher** – protects the entire database (metadata, indices). Choose when
+  host or disk access is untrusted; requires the SQLCipher driver and adds a
+  small performance cost.
+
 ---
 
 ## 🛡 Security Model
