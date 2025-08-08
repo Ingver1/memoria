@@ -14,10 +14,9 @@ from memory_system.config.settings import SecurityConfig, UnifiedSettings
 
 def _make_app(rate_limit: int = 2) -> FastAPI:
     settings = UnifiedSettings(
-        security=SecurityConfig(
-            api_token="test-token-123", rate_limit_per_minute=rate_limit, filter_pii=True
-        )
+        security=SecurityConfig(api_token="test-token-123", rate_limit_per_minute=rate_limit, filter_pii=True)
     )
+
     async def _dummy_get_store(path):  # pragma: no cover - simple stub
         class _Store:
             async def ping(self) -> None:
@@ -32,7 +31,9 @@ def _make_app(rate_limit: int = 2) -> FastAPI:
     return create_app(settings)
 
 
-def _run(app: FastAPI, method: str, path: str, *, headers: dict[str, str] | None = None, json_body: dict | None = None) -> SimpleNamespace:
+def _run(
+    app: FastAPI, method: str, path: str, *, headers: dict[str, str] | None = None, json_body: dict | None = None
+) -> SimpleNamespace:
     body = b""
     headers_list = [(k.lower().encode(), v.encode()) for k, v in (headers or {}).items()]
     if json_body is not None:
