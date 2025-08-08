@@ -4,6 +4,7 @@ import json
 import os
 import tempfile
 from pathlib import Path
+from urllib.parse import quote
 
 import pytest
 from cryptography.fernet import Fernet
@@ -331,6 +332,11 @@ class TestUnifiedSettings:
             # Test that the generated key is valid
             Fernet(settings.security.encryption_key.encode())
 
+    url = settings.get_database_url()
+            assert url.endswith(
+                f"?cipher_secret={quote(settings.security.encryption_key)}"
+            )
+
     def test_unified_settings_for_testing(self) -> None:
         """Test testing preset configuration."""
         settings = UnifiedSettings.for_testing()
@@ -372,6 +378,14 @@ class TestUnifiedSettings:
         url = settings.get_database_url()
         assert url.startswith("sqlite:///")
         assert str(settings.database.db_path) in url
+
+key = Fernet.generate_key().decode()
+        secure_settings = UnifiedSettings(
+            security=SecurityConfig(encrypt_at_rest=True, encryption_key=key)
+        )
+        secure_url = secure_settings.get_database_url()
+        assert secure_url.startswith("sqlite+sqlcipher:///")
+        assert secure_url.endswith(f"?cipher_secret={quote(key)}")
 
     def test_unified_settings_validate_production_ready(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test production readiness validation."""
