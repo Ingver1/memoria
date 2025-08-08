@@ -44,7 +44,7 @@ _QUERY_ERR = prometheus_counter("ums_ann_query_errors_total", "Errors while quer
 
 
 # ────────────────────────── Exceptions ───────────────────────────
-class ANNIndexError(StorageError, ValueError):  # type: ignore[misc]
+class ANNIndexError(StorageError, ValueError):
     """Raised for duplicate IDs, dimension mismatch, or internal FAISS errors."""
 
 
