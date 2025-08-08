@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from memory_system.core.store import Memory, SQLiteMemoryStore
+from memory_system.core.store import Memory, SQLiteMemoryStore, get_store
 
 
 @pytest.fixture
@@ -90,3 +90,37 @@ async def test_json_error_handling(store: SQLiteMemoryStore) -> None:
         await store.add(bad)
 
     assert await _count(store) == 0
+
+
+@pytest.mark.asyncio
+async def test_get_store_recreates_on_path_change(tmp_path: Path) -> None:
+    """Supplying a different path recreates the singleton store."""
+    from memory_system.core import store as store_mod
+
+    # Ensure global store is reset before the test
+    if store_mod._STORE is not None:
+        await store_mod._STORE.aclose()
+        store_mod._STORE = None
+
+    path1 = tmp_path / "one.db"
+    store1 = await get_store(path1)
+
+    closed = False
+    original_aclose = store1.aclose
+
+    async def wrapped_aclose() -> None:
+        nonlocal closed
+        closed = True
+        await original_aclose()
+
+    store1.aclose = wrapped_aclose  # type: ignore[assignment]
+
+    path2 = tmp_path / "two.db"
+    store2 = await get_store(path2)
+
+    assert closed, "Original store should be closed when path changes"
+    assert store2 is not store1
+    assert store2._path == path2
+
+    await store2.aclose()
+    store_mod._STORE = None
