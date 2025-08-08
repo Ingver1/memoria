@@ -29,7 +29,7 @@ async def store() -> AsyncGenerator[EnhancedMemoryStore, None]:
     await s.close()
 
 
-def _rand_vec(dim: int, seed: int = 42) -> list[float]:
+def _rand_embedding(dim: int, seed: int = 42) -> list[float]:
     rng = np.random.default_rng(seed)
     arr = rng.random(dim)
     if isinstance(arr, np.ndarray):
@@ -42,7 +42,7 @@ def _rand_vec(dim: int, seed: int = 42) -> list[float]:
 @pytest.mark.asyncio
 async def test_add_and_search(store: EnhancedMemoryStore) -> None:
     """Test adding a memory and searching for it."""
-    vec = _rand_vec(store.settings.model.vector_dim)
+    embedding = _rand_embedding(store.settings.model.vector_dim)
     ts = time.time()
 
     # 1) add a memory
@@ -51,7 +51,7 @@ async def test_add_and_search(store: EnhancedMemoryStore) -> None:
         role="user",
         tags=["demo"],
         importance=0.2,
-        embedding=vec,
+        embedding=embedding,
         created_at=ts,
         updated_at=ts,
         valence=0.0,
@@ -62,12 +62,12 @@ async def test_add_and_search(store: EnhancedMemoryStore) -> None:
     assert stats["total_memories"] == 1
     assert stats["index_size"] == 1
 
-    # 2) search using the same vector
-    res = await store.semantic_search(vector=vec, k=1)
+    # 2) search using the same embedding
+    res = await store.semantic_search(embedding=embedding, k=1)
     assert len(res) == 1
     assert res[0].text == "hello world"
 
-    res_with_dist = await store.semantic_search(vector=vec, k=1, return_distance=True)
+    res_with_dist = await store.semantic_search(embedding=embedding, k=1, return_distance=True)
     assert len(res_with_dist) == 1
     assert res_with_dist[0][0].text == "hello world"
     assert isinstance(res_with_dist[0][1], float)
@@ -76,25 +76,25 @@ async def test_add_and_search(store: EnhancedMemoryStore) -> None:
 @pytest.mark.asyncio
 async def test_search_empty_store(store: EnhancedMemoryStore) -> None:
     """Test searching when store is empty."""
-    vec = _rand_vec(store.settings.model.vector_dim)
-    res = await store.semantic_search(vector=vec, k=1)
+    embedding = _rand_embedding(store.settings.model.vector_dim)
+    res = await store.semantic_search(embedding=embedding, k=1)
     assert res == []
 
 
 @pytest.mark.asyncio
-async def test_invalid_vector_length(store: EnhancedMemoryStore) -> None:
-    """Test that invalid vector lengths are rejected."""
-    # vector shorter than required 384 elements
-    bad_vec = [0.1, 0.2, 0.3]
+async def test_invalid_embedding_length(store: EnhancedMemoryStore) -> None:
+    """Test that invalid embedding lengths are rejected."""
+    # embedding shorter than required 384 elements
+    bad_embedding = [0.1, 0.2, 0.3]
     with pytest.raises(ANNIndexError):
-        await store.semantic_search(vector=bad_vec, k=1)
+        await store.semantic_search(embedding=bad_embedding, k=1)
 
 
 # Optional extended check
 @pytest.mark.asyncio
-async def test_duplicate_vectors_rejected(store: EnhancedMemoryStore) -> None:
+async def test_duplicate_embeddings_rejected(store: EnhancedMemoryStore) -> None:
     dim = store.settings.model.vector_dim
-    v1 = _rand_vec(dim, seed=1)
+    v1 = _rand_embedding(dim, seed=1)
     now = time.time()
 
     # add the first memory
