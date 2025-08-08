@@ -66,6 +66,7 @@ class ModelConfig(BaseModel):
     hnsw_m: PositiveInt = 32
     hnsw_ef_construction: PositiveInt = 200
     hnsw_ef_search: PositiveInt = 100
+    hnsw_autotune: bool = False
     vector_dim: PositiveInt = 384
 
     model_config = {"frozen": True}
