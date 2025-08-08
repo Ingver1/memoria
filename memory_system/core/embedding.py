@@ -61,6 +61,7 @@ class EmbeddingService:
     """
 
     def __init__(self, model_name: str, settings: UnifiedSettings | None = None) -> None:
+        """Initialise the service and start the batching thread."""
         self.model_name = model_name
         self.settings = settings or UnifiedSettings.for_development()
         self._model_lock = threading.RLock()
@@ -226,14 +227,14 @@ class EmbeddingService:
             embedding = await self._embed_single(text)
             embeddings.append(embedding)  # each embedding is 1 x dim
         # Concatenate results into one array
-        return np.vstack(embeddings)
+        return cast(np.ndarray, np.vstack(vectors))
 
     def _embed_direct(self, texts: list[str]) -> np.ndarray:
         """Directly embed a batch of texts (runs in background thread)."""
         if self._model is None:
             raise EmbeddingError("Embedding model is not loaded")
         embedding = self._model.encode(texts)
-        return np.asarray(embedding, dtype=np.float32)
+        return cast(np.ndarray, np.asarray(vec, dtype=np.float32))
 
     def _cache_key(self, text: str) -> str:
         """Compute a cache key for a given text input."""
@@ -250,6 +251,7 @@ class EmbeddingService:
 
     # Convenience synchronous wrapper used in tests
     def shutdown(self) -> None:
+        """Synchronously close the service for test helpers."""
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
