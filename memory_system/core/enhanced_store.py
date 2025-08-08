@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import datetime as dt
 import time
 import uuid
@@ -48,6 +49,9 @@ class EnhancedMemoryStore:
             self._memory_count = self._index.stats().total_vectors
         else:
             self._memory_count = 0
+            async def _save_index() -> None:
+            await asyncio.to_thread(self._index.save, str(vec_path))
+        self._store.add_commit_hook(_save_index)
         self._closed = False
 
     async def get_health(self) -> HealthComponent:
@@ -191,7 +195,6 @@ class EnhancedMemoryStore:
             self._store,
             self._index,
             threshold=threshold,
-            save_path=str(self.settings.database.vec_path),
             strategy=strategy,
         )
 
@@ -209,5 +212,4 @@ class EnhancedMemoryStore:
             self._index,
             min_total=min_total,
             retain_fraction=retain_fraction,
-            save_path=str(self.settings.database.vec_path),
         )
