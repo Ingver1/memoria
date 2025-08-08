@@ -37,6 +37,7 @@ class EnhancedMemoryStore:
     """Enhanced memory store with health checking and stats."""
 
     def __init__(self, settings: UnifiedSettings) -> None:
+        """Initialise the store components using ``settings``."""
         self.settings = settings
         self._start_time = time.time()
         # Underlying storage components
@@ -177,6 +178,7 @@ class EnhancedMemoryStore:
         return results
 
     async def list_memories(self, user_id: str | None = None) -> list[Memory]:
+        """List memories, optionally filtering by ``user_id``."""
         if user_id:
             return await self._store.search(metadata_filters={"user_id": user_id})
         return await self._store.search(limit=1000)
