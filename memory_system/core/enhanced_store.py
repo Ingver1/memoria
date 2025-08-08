@@ -175,3 +175,32 @@ class EnhancedMemoryStore:
         if user_id:
             return await self._store.search(metadata_filters={"user_id": user_id})
         return await self._store.search(limit=1000)
+
+    # Long-term memory maintenance API
+    async def consolidate_memories(self, *, threshold: float = 0.83) -> list[Memory]:
+        """Cluster similar items, create summary memories, remove originals."""
+        from memory_system.core.maintenance import consolidate_store
+
+        return await consolidate_store(
+            self._store,
+            self._index,
+            threshold=threshold,
+            save_path=str(self.settings.database.vec_path),
+        )
+
+    async def forget_memories(
+        self,
+        *,
+        min_total: int = 1_000,
+        retain_fraction: float = 0.85,
+    ) -> int:
+        """Forget lowest-value memories using age-aware decay scoring."""
+        from memory_system.core.maintenance import forget_old_memories
+
+        return await forget_old_memories(
+            self._store,
+            self._index,
+            min_total=min_total,
+            retain_fraction=retain_fraction,
+            save_path=str(self.settings.database.vec_path),
+        )
