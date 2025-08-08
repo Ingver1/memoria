@@ -7,7 +7,7 @@ import logging
 import platform
 import sys
 from datetime import UTC, datetime
-from typing import Any, Dict
+from typing import Any, Dict, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from starlette.responses import JSONResponse, Response
@@ -145,7 +145,7 @@ async def get_stats(
             "api_version": "v1",
         },
     )
-    return payload.model_dump()
+    return cast(Dict[str, Any], payload.model_dump())
 
 
 @router.get("/metrics", summary="Prometheus metrics")
