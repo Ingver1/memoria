@@ -19,7 +19,7 @@ from memory_system.core.enhanced_store import EnhancedMemoryStore
 
 pytestmark = pytest.mark.property
 
-EMBEDDING _DIM = UnifiedSettings.for_testing().model.vector_dim
+EMBEDDING_DIM = UnifiedSettings.for_testing().model.vector_dim
 
 
 def _float32_arrays() -> SearchStrategy[List[float]]:
