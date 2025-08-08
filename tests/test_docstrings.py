@@ -1,6 +1,7 @@
 import subprocess
 import sys
 
+
 def test_docstrings() -> None:
     """Ensure memory_system.core has docstrings via ruff's D1 checks."""
     result = subprocess.run(
