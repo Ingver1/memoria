@@ -11,6 +11,20 @@ from hypothesis.extra import numpy as npst
 
 pytestmark = pytest.mark.asyncio
 
+# Helper used by property tests
+async def _add_with_vectors(store, index, texts, *, importance=None, embed):
+    importance = importance or [0.0] * len(texts)
+    mems = []
+    for text, imp in zip(texts, importance, strict=False):
+        mem = Memory.new(text, importance=float(imp))
+        await store.add(mem)
+        vec = embed(text)
+        if getattr(vec, "ndim", 1) == 1:
+            vec = np.asarray([vec], dtype=np.float32)
+        index.add_vectors([mem.id], vec.astype(np.float32, copy=False))
+        mems.append(mem)
+    return mems
+
 # Helper to add memories with pre-computed vectors
 async def _add_with_vectors(
     store: SQLiteMemoryStore,
