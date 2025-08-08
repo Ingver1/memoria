@@ -38,7 +38,7 @@ if not hasattr(StarletteRequest, "_ums_app_setter"):
     def _set_app(self: StarletteRequest, value: FastAPI) -> None:
         self.scope["app"] = value
 
-    StarletteRequest.app = property(lambda self: self.scope.get("app"), _set_app)  # type: ignore[attr-defined]
+    StarletteRequest.app = property(lambda self: self.scope.get("app"), _set_app)
     StarletteRequest._ums_app_setter = True
 
 from memory_system import __version__
@@ -162,7 +162,7 @@ def create_app(settings: UnifiedSettings | None = None) -> FastAPI:  # pragma: n
 
     @app.get("/")
     async def service_root() -> dict[str, Any]:
-        return await health_routes.root()
+        return cast(dict[str, Any], await health_routes.root())
 
     @app.get("/health")
     async def health_alias() -> Response:
