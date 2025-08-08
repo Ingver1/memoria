@@ -13,18 +13,20 @@ import datetime as dt
 import json
 import logging
 import uuid
+import inspect
 from collections.abc import AsyncIterator
 
 # ───────────────────────── local imports ───────────────────────────
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, cast
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, cast
 
 # ─────────────────────── third-party imports ───────────────────────
 import aiosqlite
 
 if TYPE_CHECKING:  # pragma: no cover - optional FastAPI import for type hints
     from fastapi import FastAPI, Request
+    from memory_system.core.index import FaissHNSWIndex
 
 logger = logging.getLogger(__name__)
 
@@ -138,6 +140,8 @@ class SQLiteMemoryStore:
         self._initialised: bool = False
         self._lock = asyncio.Lock()  # protects initialisation & pool resize
         self._created = 0  # number of currently open connections
+        # Hooks executed after a successful commit
+        self._commit_hooks: list[Callable[[], Any]] = []
 
     # ---------------------------------------------------------------------
     # Low‑level connection helpers
@@ -165,6 +169,29 @@ class SQLiteMemoryStore:
         except asyncio.QueueFull:
             await conn.close()
             self._created -= 1
+
+    # ------------------------------------------------------------------
+    # Commit hooks
+    # ------------------------------------------------------------------
+    def add_commit_hook(self, hook: Callable[[], Any]) -> None:
+        """Register a hook executed after each successful commit."""
+        self._commit_hooks.append(hook)
+
+    def remove_commit_hook(self, hook: Callable[[], Any]) -> None:
+        """Remove a previously registered commit hook."""
+        try:
+            self._commit_hooks.remove(hook)
+        except ValueError:
+            pass
+
+    async def _run_commit_hooks(self) -> None:
+        for hook in list(self._commit_hooks):
+            try:
+                result = hook()
+                if inspect.isawaitable(result):
+                    await result
+            except Exception:
+                logger.exception("commit hook failed")
 
     # ------------------------------------------------------------------
     # Public lifecycle
@@ -244,6 +271,7 @@ class SQLiteMemoryStore:
                 ),
             )
             await conn.commit()
+            await self._run_commit_hooks()
         except Exception:
             await conn.rollback()
             await conn.close()
@@ -389,6 +417,7 @@ class SQLiteMemoryStore:
         try:
             await conn.execute("DELETE FROM memories WHERE id = ?", (memory_id,))
             await conn.commit()
+            await self._run_commit_hooks()
         finally:
             await self._release(conn)
 
@@ -414,6 +443,7 @@ class SQLiteMemoryStore:
                     (json.dumps(metadata), memory_id),
                 )
             await conn.commit()
+            await self._run_commit_hooks()
             cursor = await conn.execute(
                 "SELECT * FROM memories WHERE id = ?",
                 (memory_id,),
@@ -441,6 +471,24 @@ class SQLiteMemoryStore:
 ###############################################################################
 
 from contextlib import asynccontextmanager
+
+
+@asynccontextmanager
+async def persist_index_on_commit(
+    store: "SQLiteMemoryStore",
+    index: "FaissHNSWIndex",
+    path: str,
+) -> AsyncIterator[None]:
+    """Ensure FAISS index is saved whenever the store commits."""
+
+    async def _save() -> None:
+        await asyncio.to_thread(index.save, path)
+
+    store.add_commit_hook(_save)
+    try:
+        yield
+    finally:
+        store.remove_commit_hook(_save)
 
 
 @asynccontextmanager
@@ -499,6 +547,7 @@ from memory_system.core.enhanced_store import (
 __all__ = [
     "Memory",
     "SQLiteMemoryStore",
+    "persist_index_on_commit",
     "get_store",
     "EnhancedMemoryStore",
     "HealthComponent",
