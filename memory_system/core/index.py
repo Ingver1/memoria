@@ -124,9 +124,7 @@ class FaissHNSWIndex:
         self._reverse_id_map: dict[str, int] = {}
         self._vectors: dict[int, NDArray] = {}
         self._warmed_up: bool = False
-        log.info(
-            "FAISS %s index initialised: dim=%d, metric=%s", self.index_type, dim, space
-        )
+        log.info("FAISS %s index initialised: dim=%d, metric=%s", self.index_type, dim, space)
 
     # ────────────────────────── Internal ──────────────────────────
     def _warm_up(self) -> None:
