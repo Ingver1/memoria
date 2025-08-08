@@ -158,7 +158,7 @@ class EmbeddingService:
                 vectors = self._encode_direct(texts)  # synchronous call
                 for job, vec in zip(batch, vectors, strict=False):
                     if not job.future.done():
-                        loop = joEMBEDDING_QUEUE_LENGTH.set(len(self._queue))b.future.get_loop()
+                        loop = job.future.get_loop()
                         loop.call_soon_threadsafe(
                             job.future.set_result,
                             np.asarray(vec),
