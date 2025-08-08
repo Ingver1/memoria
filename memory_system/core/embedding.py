@@ -24,7 +24,7 @@ import numpy as np
 from memory_system.config.settings import UnifiedSettings
 from memory_system.utils.cache import SmartCache
 from memory_system.utils.loop import get_or_create_loop
-from memory_system.utils.metrics import MET_ERRORS_TOTAL
+from memory_system.utils.metrics import EMBEDDING_QUEUE_LENGTH, MET_ERRORS_TOTAL
 from sentence_transformers import SentenceTransformer
 
 __all__ = ["EmbeddingError", "EmbeddingJob", "EnhancedEmbeddingService"]
@@ -77,6 +77,7 @@ class EmbeddingService:
         self._queue_lock = threading.RLock()
         self._queue_condition = threading.Condition(self._queue_lock)
         self._shutdown = threading.Event()
+        EMBEDDING_QUEUE_LENGTH.set(0)
 
         # Background batch processing thread handle
         self._batch_thread: threading.Thread | None = None
@@ -150,13 +151,14 @@ class EmbeddingService:
                 # Slice a batch from the queue
                 batch = self._queue[:batch_size]
                 self._queue = self._queue[batch_size:]
+                EMBEDDING_QUEUE_LENGTH.set(len(self._queue))
             # Process batch outside the lock
             try:
                 texts = [job.text for job in batch]
                 vectors = self._encode_direct(texts)  # synchronous call
                 for job, vec in zip(batch, vectors, strict=False):
                     if not job.future.done():
-                        loop = job.future.get_loop()
+                        loop = joEMBEDDING_QUEUE_LENGTH.set(len(self._queue))b.future.get_loop()
                         loop.call_soon_threadsafe(
                             job.future.set_result,
                             np.asarray(vec),
@@ -201,7 +203,11 @@ class EmbeddingService:
         future: asyncio.Future[np.ndarray] = loop.create_future()
         job = EmbeddingJob(text=text, future=future)
         with self._queue_condition:
+            if len(self._queue) >= self.settings.performance.queue_max_size:
+                EMBEDDING_QUEUE_LENGTH.set(len(self._queue))
+                raise EmbeddingError("Embedding queue is full")
             self._queue.append(job)
+            EMBEDDING_QUEUE_LENGTH.set(len(self._queue))
             self._queue_condition.notify()
         try:
             vec = await asyncio.wait_for(future, timeout=30.0)
