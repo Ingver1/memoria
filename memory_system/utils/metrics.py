@@ -32,6 +32,12 @@ LAT_SEARCH = Histogram("ums_search_latency_seconds", "Vector search latency")
 LAT_EMBEDDING = Histogram("ums_embedding_latency_seconds", "Embedding generation latency")
 MET_POOL_EXHAUSTED = Counter("ums_pool_exhausted_total", "Connection pool exhausted events")
 
+# Cache and queue metrics
+CACHE_HITS_TOTAL = Counter("ums_cache_hits_total", "Cache hits")
+CACHE_MISSES_TOTAL = Counter("ums_cache_misses_total", "Cache misses")
+CACHE_HIT_RATE = Gauge("ums_cache_hit_rate", "Cache hit rate")
+EMBEDDING_QUEUE_LENGTH = Gauge("ums_embedding_queue_length", "Embedding queue length")
+
 # System metrics gauges
 SYSTEM_CPU = Gauge("system_cpu_percent", "CPU usage percentage")
 SYSTEM_MEM = Gauge("system_mem_percent", "Memory usage percentage")
