@@ -100,6 +100,18 @@ pytest -q -m "not perf"
 
 Copy `.env.example` → `.env` and tweak values.
 
+### FAISS index options
+
+| Env var             | Default | Description                                 |
+|---------------------|---------|---------------------------------------------|
+| UMS_INDEX_TYPE      | HNSW    | FAISS index type (`HNSW` or `IVFFLAT`)       |
+| UMS_USE_GPU         | 0       | Move index to GPU if `1` and GPUs available |
+| UMS_IVF_NLIST       | 100     | Number of clusters for `IVFFLAT`            |
+| UMS_IVF_NPROBE      | 8       | Search probes (`nprobe`) for `IVFFLAT`      |
+| UMS_EF_CONSTRUCTION | 128     | HNSW: graph construction depth              |
+| UMS_HNSW_M          | 32      | HNSW: number of bi-directional links        |
+| UMS_EF_SEARCH       | 32      | HNSW: search depth (`efSearch`)             |
+
 ## 🔐 Encryption Options
 
 UMS offers two ways to protect stored data. The `text` column can be encrypted
