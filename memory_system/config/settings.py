@@ -168,7 +168,7 @@ class APIConfig(BaseModel):
     @classmethod
     def _validate_port(cls, value: int) -> int:
         if value < 0 or value > 65_535 or (value != 0 and value < 1024):
-            raise ValueError("port must be between 1024 and 65535")
+            raise ValueError("port must be 0 or between 1024 and 65535")
         return value
 
 
@@ -309,7 +309,8 @@ class UnifiedSettings(BaseSettings):
         )
 
     def get_database_url(self) -> str:
-        return f"sqlite:///{self.database.db_path}"
+        scheme = "sqlite+sqlcipher" if self.security.encrypt_at_rest else "sqlite"
+        return f"{scheme}:///{self.database.db_path}"
 
     def validate_production_ready(self) -> list[str]:
         """Return any configuration issues that make the app unsafe for production.
