@@ -15,6 +15,7 @@ torch>=2.2
 # Database
 psycopg2-binary>=2.9.7
 redis>=5.0
+qdrant-client>=1.9
 
 # Utilities
 python-dotenv>=1.0
