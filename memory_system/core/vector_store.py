@@ -30,7 +30,7 @@ import uuid
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import faiss
 import numpy as _np
@@ -38,7 +38,6 @@ from numpy.typing import NDArray
 
 from memory_system.utils.exceptions import StorageError, ValidationError
 from memory_system.utils.rwlock import AsyncRWLock
-from typing import cast
 
 _LOGGER = logging.getLogger(__name__)
 
