@@ -377,7 +377,7 @@ class TestUnifiedSettings:
         assert url.startswith("sqlite:///")
         assert str(settings.database.db_path) in url
 
-key = Fernet.generate_key().decode()
+        key = Fernet.generate_key().decode()
         secure_settings = UnifiedSettings(security=SecurityConfig(encrypt_at_rest=True, encryption_key=key))
         secure_url = secure_settings.get_database_url()
         assert secure_url.startswith("sqlite+sqlcipher:///")
