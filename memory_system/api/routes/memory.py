@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import asdict
+from typing import cast
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
 
@@ -40,7 +41,7 @@ async def create_memory(
     await store.add(mem)
     log.info("Created memory %s", mem.id)
     mem_read = MemoryRead.model_validate(asdict(mem))
-    return mem_read
+    return cast(MemoryRead, mem_read)
 
 
 @router.get("/", response_model=list[MemoryRead])
