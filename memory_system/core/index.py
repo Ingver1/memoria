@@ -44,13 +44,15 @@ _QUERY_ERR = prometheus_counter("ums_ann_query_errors_total", "Errors while quer
 
 
 # ────────────────────────── Exceptions ───────────────────────────
-class ANNIndexError(StorageError, ValueError):
+class ANNIndexError(StorageError, ValueError):  # type: ignore[misc]
     """Raised for duplicate IDs, dimension mismatch, or internal FAISS errors."""
 
 
 # ─────────────────────────── Dataclass ────────────────────────────
 @dataclass(slots=True)
 class IndexStats:
+    """Basic statistics about the FAISS index."""
+
     dim: int
     total_vectors: int = 0
     total_queries: int = 0
@@ -75,6 +77,7 @@ class FaissHNSWIndex:
         M: int | None = None,
         space: str = "cosine",
     ) -> None:
+        """Initialise the FAISS index wrapper."""
         self.dim = dim
         self.space = space
         self._lock = RWLock()
@@ -167,6 +170,7 @@ class FaissHNSWIndex:
         self._warm_up()
 
     def _rebuild_from_vectors(self) -> None:
+        """Reconstruct the FAISS index from vectors kept in memory."""
         metric = faiss.METRIC_INNER_PRODUCT if self.space == "cosine" else faiss.METRIC_L2
         base = faiss.IndexHNSWFlat(self.dim, self.DEFAULT_HNSW_M, metric)
         base.hnsw.efConstruction = self.DEFAULT_EF_CONSTRUCTION
