@@ -5,6 +5,12 @@ from __future__ import annotations
 import time
 from typing import Any
 
+from memory_system.utils.metrics import (
+    CACHE_HIT_RATE,
+    CACHE_HITS_TOTAL,
+    CACHE_MISSES_TOTAL,
+)
+
 
 class SmartCache:
     """In-memory cache with optional max size and time-to-live (TTL) support."""
@@ -26,11 +32,20 @@ class SmartCache:
         # Counters for basic statistics
         self._hits = 0
         self._misses = 0
+        self._met_hit_rate = CACHE_HIT_RATE
+        self._met_hits = CACHE_HITS_TOTAL
+        self._met_misses = CACHE_MISSES_TOTAL
+
+    def _update_metrics(self) -> None:
+        total = self._hits + self._misses
+        self._met_hit_rate.set(self._hits / total if total else 0.0)
 
     def get(self, key: str) -> Any:
         """Retrieve a value from the cache by key, honoring TTL if set."""
         if key not in self._data:
             self._misses += 1
+            self._met_misses.inc()
+            self._update_metrics()
             return None
         if self.ttl > 0:
             age = time.time() - self._timestamps.get(key, 0)
@@ -38,8 +53,12 @@ class SmartCache:
                 self._data.pop(key, None)
                 self._timestamps.pop(key, None)
                 self._misses += 1
+                self._met_misses.inc()
+                self._update_metrics()
                 return None
         self._hits += 1
+        self._met_hits.inc()
+        self._update_metrics()
         return self._data[key]
 
     def put(self, key: str, value: Any) -> None:
@@ -51,6 +70,7 @@ class SmartCache:
             self._timestamps.pop(oldest_key, None)
         self._data[key] = value
         self._timestamps[key] = time.time()
+        self._update_metrics()
 
     def clear(self) -> None:
         """Clear all items from the cache."""
