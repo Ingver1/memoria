@@ -75,9 +75,7 @@ async def test_forgetting_removes_lowest_decay_scores(
     store: SQLiteMemoryStore, index: FaissHNSWIndex, fake_embed, data: list[tuple[str, float]]
 ) -> None:
     texts, importances = zip(*data, strict=True)
-    mems = await _add_memories_with_vectors(
-        store, index, texts, importances=importances, embed=fake_embed
-    )
+    mems = await _add_memories_with_vectors(store, index, texts, importances=importances, embed=fake_embed)
 
     total = len(mems)
     deleted = await forget_old_memories(store, index, min_total=0, retain_fraction=0.5)
