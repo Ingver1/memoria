@@ -29,6 +29,7 @@ async def _raise_http_exception(_: Request, exc: HTTPException) -> Response:
     """Re-raise HTTP exceptions so TestClient surfaces them."""
     raise exc
 
+
 # Dependency helpers for route functions
 
 
