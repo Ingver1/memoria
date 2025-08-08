@@ -130,18 +130,39 @@ class EnhancedMemoryStore:
         *,
         vector: list[float],
         k: int = 5,
-        include_embeddings: bool = False,
+        return_distance: bool = False,
         ef_search: int | None = None,
     ) -> list[Any]:
-        ids, _dists = self._index.search(np.asarray(vector, dtype=np.float32), k=k, ef_search=ef_search)
+        """Perform a semantic vector search.
+
+        Parameters
+        ----------
+        vector:
+            Query vector.
+        k:
+            Number of nearest neighbours to return.
+        return_distance:
+            When ``True`` return a ``(Memory, distance)`` tuple for each hit.
+            Otherwise only :class:`Memory` instances are returned.
+        ef_search:
+            Controls HNSW search quality.
+
+        Returns
+        -------
+        list[Any]
+            A list of memories, optionally paired with their distance from the
+            query vector.
+        """
+        ids, dists = self._index.search(
+            np.asarray(vector, dtype=np.float32), k=k, ef_search=ef_search
+        )
         results: list[Any] = []
-        for _id in ids:
+        for _id, dist in zip(ids, dists):
             mem = await self._store.get(_id)
             if mem is None:
                 continue
-            if include_embeddings:
-                vec = self._index.get_vector(mem.id)
-                results.append((mem, vec.tolist() if vec is not None else None))
+            if return_distance:
+                results.append((mem, float(dist)))
             else:
                 results.append(mem)
         return results
