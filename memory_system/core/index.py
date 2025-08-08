@@ -265,6 +265,16 @@ class FaissHNSWIndex:
         self._cache[key] = (ids, dists)
         return ids, dists
 
+    def get_vector(self, id: str) -> NDArray | None:
+        """Return stored vector for ``id`` if present."""
+        int_id = self._reverse_id_map.get(id)
+        if int_id is None:
+            return None
+        vec = self._vectors.get(int_id)
+        if vec is None:
+            return None
+        return vec.copy()
+
     # ─────────────────────── Rebuild / IO ────────────────────────
     def rebuild(self, vectors: NDArray, ids: Sequence[str]) -> bool:
         """Recreate the FAISS index from scratch in a transactional way. Returns True if successful."""
