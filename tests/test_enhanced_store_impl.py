@@ -59,12 +59,13 @@ async def test_enhanced_store_add_search_list_stats(tmp_path: Path) -> None:
         stats = await store.get_stats()
         assert stats["total_memories"] == 2
         assert stats["index_size"] == 2
+    finally:
+        await store.close()
 
-    await store.close()
+    assert settings.database.vec_path.exists()
 
-        assert settings.database.vec_path.exists()
-
-        store = EnhancedMemoryStore(settings)
+    store = EnhancedMemoryStore(settings)
+    try:
         results_after_reload = await store.semantic_search(vector=emb1, k=1)
         assert results_after_reload and results_after_reload[0].id == mem1.id
     finally:
