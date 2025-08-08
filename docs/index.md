@@ -1,14 +1,25 @@
 # Unified Memory System
-   
+
    Enterprise-grade memory system with vector search, FastAPI and monitoring.
-   
+
    ## Features
-   
+
    - Asynchronous storage and retrieval APIs
    - Semantic search via FAISS HNSW + cosine similarity  
    - PII filtering, encryption-at-rest, automated backups
    - FastAPI layer with auth, CORS, Prometheus metrics, rate limiting
    - Logs automatically scrub PII when enabled
+   - Pluggable summarization strategies for memory consolidation
+
+### Summarization strategies
+
+Clusters can be condensed using different approaches:
+
+- `head2tail` *(default)* – join the two highest-importance texts with an ellipsis.
+- `concat` – concatenate all texts in the cluster.
+
+Callers may also provide custom callables implementing their own summarization
+logic when invoking the maintenance APIs.
 
 ## Database Encryption
 
