@@ -29,8 +29,9 @@ async def _raise_http_exception(_: Request, exc: HTTPException) -> Response:
     raise exc
 
 
-# Register the exception handler with the router
-router.add_exception_handler(HTTPException, _raise_http_exception)
+# Register the exception handler with the router if supported
+if hasattr(router, "add_exception_handler"):
+    router.add_exception_handler(HTTPException, _raise_http_exception)
 
 
 # Dependency helpers for route functions
