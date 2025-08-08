@@ -7,7 +7,8 @@
    - Asynchronous storage and retrieval APIs
    - Semantic search via FAISS HNSW + cosine similarity  
    - PII filtering, encryption-at-rest, automated backups
-   - FastAPI layer with auth, CORS, Prometheus metrics
+   - FastAPI layer with auth, CORS, Prometheus metrics, rate limiting
+   - Logs automatically scrub PII when enabled
 
 ## Database Encryption
 
