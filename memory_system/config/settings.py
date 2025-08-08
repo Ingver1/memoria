@@ -123,12 +123,16 @@ class SecurityConfig(BaseModel):
 
 
 class PerformanceConfig(BaseModel):
-    """Tuning knobs for throughput and caching."""
+    """Tuning knobs for throughput and caching.
+
+    ``queue_max_size`` limits the number of pending embedding jobs.
+    """
 
     max_workers: int = 4
     cache_size: PositiveInt = 1_000
     cache_ttl_seconds: PositiveInt = 300
     rebuild_interval_seconds: PositiveInt = 3600
+    queue_max_size: PositiveInt = 1_000
 
     model_config = {"frozen": True}
 
