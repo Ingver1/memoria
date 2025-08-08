@@ -11,6 +11,12 @@ from fastapi.testclient import TestClient
 
 from memory_system.api.app import create_app
 from memory_system.config.settings import UnifiedSettings
+from memory_system.utils.cache import SmartCache
+from memory_system.utils.metrics import (
+    CACHE_HIT_RATE,
+    CACHE_HITS_TOTAL,
+    CACHE_MISSES_TOTAL,
+)
 
 
 @pytest.fixture(scope="session")
@@ -29,3 +35,17 @@ def test_metrics_endpoint_disabled(client: TestClient) -> None:
     resp = client.get("/metrics")
     assert resp.status_code in (404, 403)
     assert b"# HELP" not in resp.content
+
+
+def test_cache_metrics_tracking() -> None:
+    cache = SmartCache(max_size=10, ttl=1)
+    hits_before = CACHE_HITS_TOTAL._value.get()
+    misses_before = CACHE_MISSES_TOTAL._value.get()
+
+    assert cache.get("x") is None
+    cache.put("x", 1)
+    assert cache.get("x") == 1
+
+    assert CACHE_HITS_TOTAL._value.get() == hits_before + 1
+    assert CACHE_MISSES_TOTAL._value.get() == misses_before + 1
+    assert CACHE_HIT_RATE._value.get() == cache.get_stats()["hit_rate"]
