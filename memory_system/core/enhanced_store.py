@@ -41,7 +41,12 @@ class EnhancedMemoryStore:
         dsn = settings.get_database_url()
         self._store = SQLiteMemoryStore(dsn)
         self._index = FaissHNSWIndex(dim=settings.model.vector_dim)
-        self._memory_count = 0
+        vec_path = settings.database.vec_path
+        if vec_path.exists():
+            self._index.load(str(vec_path))
+            self._memory_count = self._index.stats().total_vectors
+        else:
+            self._memory_count = 0
         self._closed = False
 
     async def get_health(self) -> HealthComponent:
@@ -122,6 +127,7 @@ class EnhancedMemoryStore:
         )
         await self._store.add(mem)
         self._index.add_vectors([mem.id], np.asarray([embedding], dtype=np.float32))
+        self._index.save(str(self.settings.database.vec_path))
         self._memory_count += 1
         return mem
 
