@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+from urllib.parse import quote
 
 from cryptography.fernet import Fernet, InvalidToken
 from pydantic import (
