@@ -230,7 +230,7 @@ async def forget_old_memories(
         )
 
     # Keep the top-K by score; forget the rest.
-    sorted_ids = sorted(scores, key=scores.get, reverse=True)
+    sorted_ids = sorted(scores, key=lambda k: scores[k], reverse=True)
     keep_count = max(min_total, int(total * retain_fraction))
     ids_to_forget = sorted_ids[keep_count:]
 
