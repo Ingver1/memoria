@@ -34,9 +34,11 @@ from typing import Any
 
 import faiss
 import numpy as _np
+from numpy.typing import NDArray
 
 from memory_system.utils.exceptions import StorageError, ValidationError
 from memory_system.utils.rwlock import AsyncRWLock
+from typing import cast
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,13 +50,19 @@ class AbstractVectorStore(ABC):
     """Interface that concrete stores must implement."""
 
     @abstractmethod
-    async def add(self, vectors: Sequence[list[float]], metadata: Sequence[dict[str, Any]]) -> list[str]: ...
+    async def add(self, vectors: Sequence[list[float]], metadata: Sequence[dict[str, Any]]) -> list[str]:
+        """Add vectors with associated metadata and return their IDs."""
+        ...
 
     @abstractmethod
-    async def search(self, vector: list[float], k: int = 5) -> list[tuple[str, float]]: ...
+    async def search(self, vector: list[float], k: int = 5) -> list[tuple[str, float]]:
+        """Search for nearest neighbours of ``vector``."""
+        ...
 
     @abstractmethod
-    async def delete(self, ids: Sequence[str]) -> None: ...
+    async def delete(self, ids: Sequence[str]) -> None:
+        """Remove vectors identified by ``ids``."""
+        ...
 
     @abstractmethod
     async def flush(self) -> None:
@@ -77,6 +85,7 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
         index_path: Path,
         maintenance_interval: int = 900,
     ) -> None:
+        """Create a store backed by a FAISS index on disk."""
         self._dim = dim
         self._index_path = index_path
         self._rwlock = AsyncRWLock()
@@ -116,6 +125,7 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
     # Public methods
     # ---------------------------------------------------------------------
     async def add(self, vectors: Sequence[list[float]], metadata: Sequence[dict[str, Any]]) -> list[str]:
+        """Store vectors with associated metadata and return new IDs."""
         if len(vectors) != len(metadata):
             raise ValueError("vectors and metadata length mismatch")
 
@@ -130,6 +140,7 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
         return ids
 
     async def search(self, vector: list[float], k: int = 5) -> list[tuple[str, float]]:
+        """Return ``k`` nearest vector IDs and distances for ``vector``."""
         async with self._rwlock.reader_lock():
             D, indices = self._index.search(_to_faiss_array([vector]), k)
         matches: list[tuple[str, float]] = []
@@ -142,6 +153,7 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
         return matches
 
     async def delete(self, ids: Sequence[str]) -> None:
+        """Remove vectors by ``ids`` from the index and metadata store."""
         async with self._rwlock.writer_lock():
             id_array = _to_faiss_ids(ids)
             selector = faiss.IDSelectorBatch(id_array.size, faiss.swig_ptr(id_array))
@@ -150,12 +162,14 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
                 self._metadata.pop(_id, None)
 
     async def flush(self) -> None:  # noqa: D401 (imperative)
+        """Persist the FAISS index and metadata to disk."""
         async with self._rwlock.writer_lock():
             await self._loop.run_in_executor(None, faiss.write_index, self._index, str(self._index_path))
             # simple metadata persistence
             (self._index_path.with_suffix(".meta.json")).write_text(json.dumps(self._metadata))
 
     async def close(self) -> None:
+        """Stop background tasks and flush the index to disk."""
         self._stop_event.set()
         if self._maintenance_task:
             await self._maintenance_task
@@ -193,18 +207,24 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
 # ---------------------------------------------------------------------------
 # ––– Utility helpers –––
 # ---------------------------------------------------------------------------
-def _to_faiss_array(vectors: Sequence[Sequence[float]]) -> _np.ndarray:
-    arr = _np.array(vectors, dtype="float32")
+def _to_faiss_array(vectors: Sequence[Sequence[float]]) -> NDArray[_np.float32]:
+    """Convert a sequence of vectors to a 2-D float32 NumPy array."""
+    arr = cast(NDArray[_np.float32], _np.array(vectors, dtype=_np.float32))
     if arr.ndim == 1:
         arr = arr.reshape(1, -1)
     return arr
 
 
-def _to_faiss_ids(ids: Sequence[str]) -> _np.ndarray:
-    return _np.array([uuid.UUID(_id).int & ((1 << 64) - 1) for _id in ids], dtype="int64")
+def _to_faiss_ids(ids: Sequence[str]) -> NDArray[_np.int64]:
+    """Map UUID strings to FAISS-compatible ``int64`` identifiers."""
+    return cast(
+        NDArray[_np.int64],
+        _np.array([uuid.UUID(_id).int & ((1 << 64) - 1) for _id in ids], dtype=_np.int64),
+    )
 
 
 def _from_faiss_id(idx: int) -> str:
+    """Convert an ``int`` FAISS ID back to a UUID string."""
     return str(uuid.UUID(int=idx))
 
 
@@ -226,6 +246,7 @@ class VectorStore:
     """Very small local vector store used only for tests."""
 
     def __init__(self, base_path: Path, *, dim: int) -> None:
+        """Initialise the store at ``base_path`` with vectors of dimension ``dim``."""
         self._base_path = Path(base_path)
         self._dim = dim
         self._bin_path = self._base_path.with_suffix(".bin")
@@ -239,7 +260,7 @@ class VectorStore:
         self._conn.commit()
 
     # ------------------------------------------------------------------
-    def _validate_vector(self, vector: _Seq[float] | np.ndarray) -> np.ndarray:
+    def _validate_vector(self, vector: _Seq[float] | np.ndarray) -> NDArray[np.float32]:
         """Validate ``vector`` and convert it to ``np.float32`` array."""
 
         if isinstance(vector, np.ndarray):
@@ -247,9 +268,9 @@ class VectorStore:
                 raise ValidationError("vector dtype must be float32")
             if vector.ndim != 1:
                 raise ValidationError("vector must be 1-D")
-            arr = vector.astype(np.float32, copy=False)
+            arr: NDArray[np.float32] = vector.astype(np.float32, copy=False)
         else:
-            arr = np.asarray(vector, dtype=np.float32)
+            arr = cast(NDArray[np.float32], np.asarray(vector, dtype=np.float32))
             if arr.ndim != 1:
                 raise ValidationError("vector must be 1-D")
 
@@ -261,6 +282,7 @@ class VectorStore:
         return arr
 
     def add_vector(self, vector_id: str, vector: _Seq[float] | np.ndarray) -> None:
+        """Add a single vector under ``vector_id``."""
         with self._db_lock:
             if self._conn.execute("SELECT 1 FROM vectors WHERE id=?", (vector_id,)).fetchone():
                 raise ValidationError("duplicate id")
@@ -274,7 +296,7 @@ class VectorStore:
                 (vector_id, offset),
             )
 
-    def get_vector(self, vector_id: str) -> np.ndarray:
+    def get_vector(self, vector_id: str) -> NDArray[np.float32]:
         """Return the stored vector for ``vector_id``."""
         with self._db_lock:
             row = self._conn.execute(
@@ -286,36 +308,43 @@ class VectorStore:
             offset = row[0]
             self._file.seek(offset)
             buf = self._file.read(self._dim * 4)
-            arr = _array.array("f")
+            arr: _array.array[float] = _array.array("f")
             arr.frombytes(buf)
-            return np.asarray(arr, dtype=np.float32)
+            vec = cast(NDArray[np.float32], np.asarray(arr, dtype=np.float32))
+            return vec
 
     def remove_vector(self, vector_id: str) -> None:
+        """Delete the vector associated with ``vector_id``."""
         with self._db_lock:
             cur = self._conn.execute("DELETE FROM vectors WHERE id=?", (vector_id,))
             if cur.rowcount == 0:
                 raise StorageError("Vector not found")
 
     def list_ids(self) -> list[str]:
+        """Return all stored vector IDs."""
         with self._db_lock:
             rows = self._conn.execute("SELECT id FROM vectors").fetchall()
             return [r[0] for r in rows]
 
     async def flush(self) -> None:
+        """Persist vectors and metadata to disk."""
         with self._db_lock:
             self._conn.commit()
             self._file.flush()
 
     async def async_flush(self) -> None:  # compatibility helper
+        """Async wrapper around :meth:`flush` for API parity."""
         await self.flush()
 
     async def replicate(self) -> None:
+        """Create a timestamped backup of the data file."""
         await self.flush()
         ts = int(time.time())
         bak_path = self._bin_path.with_suffix(f".{ts}.bak")
         shutil.copy2(self._bin_path, bak_path)
 
     def close(self) -> None:
+        """Flush and close underlying file and database handles."""
         with self._db_lock:
             self._conn.commit()
             self._conn.close()
