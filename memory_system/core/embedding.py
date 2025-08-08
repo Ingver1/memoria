@@ -227,14 +227,14 @@ class EmbeddingService:
             embedding = await self._embed_single(text)
             embeddings.append(embedding)  # each embedding is 1 x dim
         # Concatenate results into one array
-        return cast(np.ndarray, np.vstack(vectors))
+        return cast(np.ndarray, np.vstack(embeddings))
 
     def _embed_direct(self, texts: list[str]) -> np.ndarray:
         """Directly embed a batch of texts (runs in background thread)."""
         if self._model is None:
             raise EmbeddingError("Embedding model is not loaded")
         embedding = self._model.encode(texts)
-        return cast(np.ndarray, np.asarray(vec, dtype=np.float32))
+        return cast(np.ndarray, np.asarray(embedding, dtype=np.float32))
 
     def _cache_key(self, text: str) -> str:
         """Compute a cache key for a given text input."""

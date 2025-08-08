@@ -12,6 +12,7 @@ from memory_system.core.store import Memory, SQLiteMemoryStore
 
 pytestmark = pytest.mark.asyncio
 
+
 # Helper used by property tests
 async def _add_with_vectors(store, index, texts, *, importance=None, embed):
     importance = importance or [0.0] * len(texts)
@@ -25,6 +26,7 @@ async def _add_with_vectors(store, index, texts, *, importance=None, embed):
         index.add_vectors([mem.id], vec.astype(np.float32, copy=False))
         mems.append(mem)
     return mems
+
 
 # Helper to add memories with pre-computed vectors
 async def _add_with_vectors(
@@ -48,10 +50,12 @@ async def _add_with_vectors(
         mems.append(mem)
     return mems
 
+
 # Fixture for generating random text
 @pytest.fixture
 def random_texts():
     return [f"Text number {i}" for i in range(10)]
+
 
 # Property-based test for consolidation on random data
 @given(st.lists(st.text(), min_size=2, max_size=10))
@@ -85,11 +89,7 @@ async def test_concat_strategy(store, index, fake_embed):
 
 
 # Property-based test for forgetting low-scored memories
-@given(
-    st.lists(
-        st.tuples(st.text(), st.floats(min_value=0.0, max_value=1.0)), min_size=5, max_size=20
-    )
-)
+@given(st.lists(st.tuples(st.text(), st.floats(min_value=0.0, max_value=1.0)), min_size=5, max_size=20))
 async def test_property_forgetting(store, index, random_texts, fake_embed, data):
     # Create memories with random importance scores
     texts, importances = zip(*data, strict=True)

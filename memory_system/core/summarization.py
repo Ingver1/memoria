@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Protocol, Sequence, Dict
+from typing import Dict, Protocol, Sequence
 
 from memory_system.core.store import Memory
 
