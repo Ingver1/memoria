@@ -72,7 +72,13 @@ class ModelConfig(BaseModel):
 
 
 class SecurityConfig(BaseModel):
-    """Security related options."""
+    """Security related options.
+
+    The ``encryption_key`` is validated as a Fernet key and is used for
+    application level encryption. When ``encrypt_at_rest`` is enabled this
+    key is also passed to SQLCipher as the ``cipher_secret`` that protects
+    the SQLite database file.
+    """
 
     encrypt_at_rest: bool = False
     encryption_key: str = ""
@@ -310,8 +316,17 @@ class UnifiedSettings(BaseSettings):
         )
 
     def get_database_url(self) -> str:
+        """Return the database DSN for the configured storage backend.
+
+        When ``security.encrypt_at_rest`` is ``True`` the DSN uses the
+        ``sqlite+sqlcipher`` scheme and appends the SQLCipher key via the
+        ``cipher_secret`` query parameter.
+        """
         scheme = "sqlite+sqlcipher" if self.security.encrypt_at_rest else "sqlite"
-        return f"{scheme}:///{self.database.db_path}"
+        url = f"{scheme}:///{self.database.db_path}"
+        if self.security.encrypt_at_rest:
+            url = f"{url}?cipher_secret={quote(self.security.encryption_key)}"
+        return url
 
     def validate_production_ready(self) -> list[str]:
         """Return any configuration issues that make the app unsafe for production.
