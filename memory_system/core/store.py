@@ -34,7 +34,7 @@ class _LibSQLRow(dict):
     """Row object that supports both index and key access."""
 
     def __init__(self, columns: Sequence[str], values: Sequence[Any]) -> None:
-        super().__init__(zip(columns, values))
+        super().__init__(zip(columns, values, strict=True))
         self._values = list(values)
 
     def __getitem__(self, item: Any) -> Any:  # type: ignore[override]
@@ -77,6 +77,7 @@ class _LibSQLConnection:
 
     async def close(self) -> None:
         await self._client.close()
+
 
 if TYPE_CHECKING:  # pragma: no cover - optional FastAPI import for type hints
     from fastapi import FastAPI, Request
@@ -224,7 +225,7 @@ class SQLiteMemoryStore:
                 conn = self._pool.get_nowait()
             except asyncio.QueueEmpty:
                 if _create_libsql_client is None:  # pragma: no cover - optional dep
-                    raise RuntimeError("libsql-client is not installed")
+                    raise RuntimeError("libsql-client is not installed") from None
                 raw = await _create_libsql_client(self._dsn)
                 conn = _LibSQLConnection(raw)
                 self._created += 1
@@ -516,10 +517,7 @@ class SQLiteMemoryStore:
         conn = await self._acquire()
         try:
             params: tuple[Any, ...]
-            sql = (
-                "SELECT id, text, created_at, importance, valence, emotional_intensity, level, metadata "
-                "FROM memories"
-            )
+            sql = "SELECT id, text, created_at, importance, valence, emotional_intensity, level, metadata FROM memories"
             if level is not None:
                 sql += " WHERE level = ? ORDER BY created_at DESC LIMIT ?"
                 params = (level, n)
