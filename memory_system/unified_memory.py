@@ -478,9 +478,7 @@ def _score_decay(m: Memory, weights: ListBestWeights) -> float:
 
     base = _score_best(m, weights)
     last = _last_accessed(m)
-    age_days = max(
-        0.0, (_dt.datetime.utcnow().replace(tzinfo=_dt.timezone.utc) - last).total_seconds() / 86_400.0
-    )
+    age_days = max(0.0, (_dt.datetime.utcnow().replace(tzinfo=_dt.timezone.utc) - last).total_seconds() / 86_400.0)
     return base * math.exp(-age_days / 30.0)
 
 
