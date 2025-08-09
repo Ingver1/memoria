@@ -5,6 +5,7 @@ import json
 import logging
 from types import SimpleNamespace
 
+import pytest
 from fastapi import FastAPI, Request
 
 from memory_system.api import app as app_module
@@ -29,6 +30,9 @@ def _make_app(rate_limit: int = 2) -> FastAPI:
 
     app_module.get_store = _dummy_get_store
     return create_app(settings)
+
+
+pytestmark = pytest.mark.needs_fastapi
 
 
 def _run(

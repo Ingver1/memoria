@@ -26,6 +26,9 @@ from memory_system.core.vector_store import VectorStore
 from memory_system.utils.security import EncryptionManager, EnhancedPIIFilter
 
 
+pytestmark = [pytest.mark.needs_fastapi, pytest.mark.needs_httpx]
+
+
 class TestEndToEndMemoryWorkflow:
     """Test complete end-to-end memory management workflow."""
 

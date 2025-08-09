@@ -1,7 +1,8 @@
 import logging
 
-import numpy as np
 import pytest
+
+np = pytest.importorskip("numpy")
 
 from embedder import _model, embed
 

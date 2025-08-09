@@ -3,6 +3,7 @@ Adds a memory through REST, retrieves it, asserts round-trip integrity.
 Uses TestClient instead of HTTPX to stay in-process and fast.
 """
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -11,6 +12,9 @@ from memory_system.core.store import lifespan_context
 
 app = FastAPI(lifespan=lifespan_context)
 app.include_router(memory_router, prefix="/api/v1/memory")
+
+
+pytestmark = [pytest.mark.needs_fastapi, pytest.mark.needs_httpx]
 
 
 def test_add_and_get_memory() -> None:

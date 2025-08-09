@@ -1,5 +1,6 @@
-import numpy as np
 import pytest
+
+np = pytest.importorskip("numpy")
 
 from memory_system.core.index import FaissHNSWIndex
 from memory_system.core.store import Memory, SQLiteMemoryStore, persist_index_on_commit

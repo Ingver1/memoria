@@ -7,9 +7,10 @@ via an exact semantic search; the store must never raise or lose data.
 
 from typing import AsyncGenerator, List
 
-import numpy as np
 import pytest
 import pytest_asyncio
+
+np = pytest.importorskip("numpy")
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from hypothesis.strategies import SearchStrategy

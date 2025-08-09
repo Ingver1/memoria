@@ -1,9 +1,10 @@
 from typing import Sequence
 
-import numpy as np
 import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
+
+np = pytest.importorskip("numpy")
 
 from memory_system.core.index import FaissHNSWIndex
 from memory_system.core.maintenance import consolidate_store, forget_old_memories

@@ -12,6 +12,9 @@ from memory_system.config.settings import UnifiedSettings
 from memory_system.core.store import lifespan_context
 
 
+pytestmark = [pytest.mark.needs_fastapi, pytest.mark.needs_httpx]
+
+
 @pytest_asyncio.fixture
 async def async_client() -> AsyncGenerator[httpx.AsyncClient, None]:
     app = FastAPI(lifespan=lifespan_context)

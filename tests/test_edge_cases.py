@@ -9,6 +9,9 @@ from memory_system.core.store import Memory, SQLiteMemoryStore
 from memory_system.core.vector_store import VectorStore
 
 
+pytestmark = [pytest.mark.needs_fastapi, pytest.mark.needs_httpx]
+
+
 @pytest.mark.asyncio
 async def test_sqlite_store_large_volume(tmp_path: Path) -> None:
     """Store and retrieve a large number of memories."""

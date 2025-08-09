@@ -5,6 +5,8 @@ from fastapi.testclient import TestClient
 
 from memory_system.api.app import create_app
 
+pytestmark = [pytest.mark.needs_fastapi, pytest.mark.needs_httpx]
+
 
 @pytest.fixture()
 def client() -> Iterator[TestClient]:
