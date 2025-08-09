@@ -268,10 +268,12 @@ class TestSchemas:
         assert update.text is None
         assert update.role is None
         assert update.tags is None
+        assert update.valence is None
+        assert update.emotional_intensity is None
         assert update.valence_delta is None
         assert update.emotional_intensity_delta is None
 
-        # Partial update
+        # Partial update via deltas
         update = MemoryUpdate(
             text="Updated text",
             valence_delta=0.2,
@@ -282,6 +284,11 @@ class TestSchemas:
         assert update.tags is None
         assert abs(update.valence_delta - 0.2) < 1e-9
         assert abs(update.emotional_intensity_delta + 0.1) < 1e-9
+
+        # Absolute update values
+        update = MemoryUpdate(valence=-0.3, emotional_intensity=0.8)
+        assert update.valence == pytest.approx(-0.3)
+        assert update.emotional_intensity == pytest.approx(0.8)
 
     def test_memory_query_schema(self) -> None:
         """Test MemoryQuery schema."""
@@ -471,6 +478,21 @@ class TestAsyncEndpoints:
 
 class TestMemoryEndpoints:
     """Test memory API endpoints."""
+
+    def test_update_accepts_absolute_values(self, test_client: TestClient) -> None:
+        """Patch route should accept absolute emotion values."""
+        resp = test_client.post("/api/v1/memory/", json={"text": "hello"})
+        assert resp.status_code == 201
+        mem_id = resp.json()["id"]
+
+        resp = test_client.patch(
+            f"/api/v1/memory/{mem_id}",
+            json={"valence": 0.4, "emotional_intensity": 0.7},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["valence"] == pytest.approx(0.4)
+        assert data["arousal"] == pytest.approx(0.7)
 
     def test_best_memories_endpoint(self, test_client: TestClient) -> None:
         """Ensure best memories endpoint respects limit parameter."""
