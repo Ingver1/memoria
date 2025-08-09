@@ -263,5 +263,5 @@ def _get_dynamics() -> SimpleNamespace:
         if dyn is None:
             raise AttributeError
         return dyn
-    except Exception:  # pragma: no cover - optional settings
+    except (ImportError, AttributeError):  # pragma: no cover - optional settings
         return SimpleNamespace(initial_intensity=0.0, reinforce_delta=0.1, decay_rate=30.0)
