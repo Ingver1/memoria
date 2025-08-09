@@ -2,8 +2,8 @@
 
 import pytest
 
-from memory_system import unified_memory as um
 from memory_system import memory_helpers as mh
+from memory_system import unified_memory as um
 
 
 @pytest.mark.asyncio
