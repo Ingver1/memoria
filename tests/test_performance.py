@@ -21,6 +21,7 @@ from memory_system.config.settings import UnifiedSettings
 from memory_system.core.embedding import EnhancedEmbeddingService
 from memory_system.core.index import FaissHNSWIndex
 from memory_system.core.store import Memory, SQLiteMemoryStore
+from memory_system.core.enhanced_store import EnhancedMemoryStore
 from memory_system.core.vector_store import VectorStore
 from memory_system.utils.cache import SmartCache
 from memory_system.utils.security import (
@@ -579,6 +580,32 @@ class TestSecurityPerformance:
             decrypted = encryption_manager.decrypt(encrypted)
 
             assert decrypted == data
+
+
+@pytest.mark.asyncio
+async def test_dynamic_ef_search_tuning() -> None:
+    """Ensure ef_search adapts based on recall measurements."""
+    settings = UnifiedSettings.for_testing()
+    store = EnhancedMemoryStore(settings)
+    try:
+        vec = np.random.rand(settings.model.vector_dim).astype(np.float32)
+        mem = await store.add_memory(text="probe", embedding=vec.tolist())
+
+        # Force low recall by expecting a missing id
+        store.add_control_query(vec.tolist(), [mem.id, "missing"])
+        start_ef = store._index.ef_search
+        await store._evaluate_recall()
+        assert store._index.ef_search > start_ef
+
+        # Now expect perfect recall and ensure ef_search can decrease
+        store._control_queries.clear()
+        store.add_control_query(vec.tolist(), [mem.id])
+        store._index.search(vec, k=1, ef_search=store._index.ef_search * 2)
+        high_ef = store._index.ef_search
+        await store._evaluate_recall()
+        assert store._index.ef_search < high_ef
+    finally:
+        await store.clo
 
 
 @pytest.mark.performance
