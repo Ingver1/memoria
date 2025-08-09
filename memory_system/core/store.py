@@ -566,31 +566,103 @@ class SQLiteMemoryStore:
         metadata_filters: Optional[Dict[str, Any]] = None,
         limit: int | None = None,
         level: int | None = None,
+        min_level: int | None = None,
+        final: bool | None = None,
         chunk_size: int = 1000,
     ) -> AsyncIterator[list[Memory]]:
-        """Yield search results in chunks to keep memory usage bounded."""
+        """Yield search results in chunks to keep memory usage bounded.
 
-        fetched = 0
-        offset = 0
-        while True:
-            batch_limit = chunk_size
-            if limit is not None:
-                remaining = limit - fetched
-                if remaining <= 0:
-                    break
-                batch_limit = min(batch_limit, remaining)
-            batch = await self.search(
-                text_query,
-                metadata_filters=metadata_filters,
-                limit=batch_limit,
-                level=level,
-                offset=offset,
-            )
-            if not batch:
-                break
-            yield batch
-            fetched += len(batch)
-            offset += len(batch)
+        Results are streamed using a SQLite cursor and ``fetchmany`` to avoid
+        loading the entire result set into memory. Additional filters allow
+        callers to restrict the range of levels via ``min_level`` and to
+        include only memories marked as final or not via ``final``.
+        """
+
+        await self.initialise()
+        conn = await self._acquire()
+        try:
+            params: list[Any] = []
+            if text_query:
+                sql = (
+                    "SELECT m.id, m.text, m.created_at, m.importance, m.valence, "
+                    "m.emotional_intensity, m.level, m.episode_id, m.modality, m.connections, m.metadata "
+                    "FROM memories_fts JOIN memories m ON m.rowid = memories_fts.rowid "
+                    "WHERE memories_fts MATCH ?"
+                )
+                params.append(text_query)
+                if metadata_filters:
+                    for key, val in metadata_filters.items():
+                        if key in {"episode_id", "modality"}:
+                            sql += f" AND m.{key} = ?"
+                            params.append(val)
+                        else:
+                            sql += " AND json_extract(m.metadata, ?) = ?"
+                            params.extend([f"$.{key}", val])
+                if level is not None:
+                    sql += " AND m.level = ?"
+                    params.append(level)
+                if min_level is not None:
+                    sql += " AND m.level >= ?"
+                    params.append(min_level)
+                if final is not None:
+                    if final:
+                        sql += " AND json_extract(m.metadata, '$.final') = 1"
+                    else:
+                        sql += (
+                            " AND (json_extract(m.metadata, '$.final') IS NULL "
+                            "OR json_extract(m.metadata, '$.final') = 0)"
+                        )
+                sql += " ORDER BY bm25(memories_fts)"
+            else:
+                clauses: list[str] = []
+                if metadata_filters:
+                    for key, val in metadata_filters.items():
+                        if key in {"episode_id", "modality"}:
+                            clauses.append(f"{key} = ?")
+                            params.append(val)
+                        else:
+                            clauses.append("json_extract(metadata, ?) = ?")
+                            params.extend([f"$.{key}", val])
+                if level is not None:
+                    clauses.append("level = ?")
+                    params.append(level)
+                if min_level is not None:
+                    clauses.append("level >= ?")
+                    params.append(min_level)
+                if final is not None:
+                    if final:
+                        clauses.append("json_extract(metadata, '$.final') = 1")
+                    else:
+                        clauses.append(
+                            "(json_extract(metadata, '$.final') IS NULL OR json_extract(metadata, '$.final') = 0)"
+                        )
+                sql = (
+                    "SELECT id, text, created_at, importance, valence, emotional_intensity, level, "
+                    "episode_id, modality, connections, metadata FROM memories"
+                )
+                if clauses:
+                    sql += " WHERE " + " AND ".join(clauses)
+                sql += " ORDER BY created_at DESC"
+
+            cursor = await conn.execute(sql, params)
+            fetched = 0
+            try:
+                while True:
+                    batch_size = chunk_size
+                    if limit is not None:
+                        remaining = limit - fetched
+                        if remaining <= 0:
+                        break
+                        batch_size = min(batch_size, remaining)
+                    rows = await asyncio.to_thread(cursor._cursor.fetchmany, batch_size)
+                    if not rows:
+                        break
+                    yield [self._row_to_memory(r) for r in rows]
+                    fetched += len(rows)
+            finally:
+                await asyncio.to_thread(cursor._cursor.close)
+        finally:
+            await self._release(conn)
 
     async def list_recent(self, *, n: int = 20, level: int | None = None) -> List[Memory]:
         """Return the most recent *n* memories, optionally filtered by level."""
@@ -607,7 +679,40 @@ class SQLiteMemoryStore:
                 params = (n,)
             cursor = await conn.execute(sql, params)
             rows = await cursor.fetchall()
-            return [self._row_to_memory(r) for r in rows]
+            return [self._row_to_memory("""Yield search results in chunks to keep memory usage bounded.
+
+        Results are streamed using a SQLite cursor and ``fetchmany`` to avoid
+        loading the entire result set into memory. Additional filters allow
+        callers to restrict the range of levels via ``min_level`` and to
+        include only memories marked as final or not via ``final``.
+        """
+
+        await self.initialise()
+        conn = await self._acquire()
+        try:
+            params: list[Any] = []
+            if text_query:
+                sql = (
+                    "SELECT m.id, m.text, m.created_at, m.importance, m.valence, "
+                    "m.emotional_intensity, m.level, m.episode_id, m.modality, m.connections, m.metadata "
+                    "FROM memories_fts JOIN memories m ON m.rowid = memories_fts.rowid "
+                    "WHERE memories_fts MATCH ?"
+                )
+                params.append(text_query)
+                if metadata_filters:
+                    for key, val in metadata_filters.items():
+                        if key in {"episode_id", "modality"}:
+                            sql += f" AND m.{key} = ?"
+                            params.append(val)
+                        else:
+                            sql += " AND json_extract(m.metadata, ?) = ?"
+                            params.extend([f"$.{key}", val])
+                if level is not None:
+                    sql += " AND m.level = ?"
+                    params.append(level)
+                if min_level is not None:
+                    sql += " AND m.level >= ?"
+                    params.append(min_level)r) for r in rows]
         finally:
             await self._release(conn)
 
