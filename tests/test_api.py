@@ -460,6 +460,19 @@ class TestAsyncEndpoints:
         assert data["api_version"] == "v1"
 
 
+class TestMemoryEndpoints:
+    """Test memory API endpoints."""
+
+    def test_best_memories_endpoint(self, test_client: TestClient) -> None:
+        """Ensure best memories endpoint respects limit parameter."""
+        for i in range(3):
+            test_client.post("/api/v1/memory/", json={"text": f"mem {i}"})
+
+        resp = test_client.get("/api/v1/memory/best", params={"limit": 2})
+        assert resp.status_code == 200
+        assert len(resp.json()) == 2
+
+
 class TestErrorHandling:
     """Test error handling."""
 
