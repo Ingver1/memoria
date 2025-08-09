@@ -1,4 +1,5 @@
 """Helper to construct SQL for weighted top-N queries."""
+
 from __future__ import annotations
 
 from typing import Any, MutableMapping, Sequence
