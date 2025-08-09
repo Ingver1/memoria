@@ -323,7 +323,14 @@ class FaissHNSWIndex:
             # index still requires training. ``extract_index_ivf`` walks
             # through such wrappers and returns the innermost ``IndexIVF``
             # instance when present so we can reliably check its state.
-            ivf_index = faiss.extract_index_ivf(base_index)
+            ivf_index = None
+            try:
+                if isinstance(base_index, faiss.IndexIVF):
+                    ivf_index = base_index
+                else:
+                    ivf_index = faiss.extract_index_ivf(base_index)
+            except Exception:
+                ivf_index = None
             if (not base_index.is_trained) or (ivf_index and not ivf_index.is_trained):
                 # Indices like IVF/PQ require training before adding vectors
                 self.index.train(vecs)
