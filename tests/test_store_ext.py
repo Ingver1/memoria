@@ -302,3 +302,24 @@ def test_unified_update_sets_importance(store: SQLiteMemoryStore) -> None:
         assert abs(updated.importance - 0.8) < 1e-6
 
     asyncio.run(_run())
+
+
+def test_unified_update_sets_emotions(store: SQLiteMemoryStore) -> None:
+    async def _run() -> None:
+        async def noop(_: list[tuple[str, float]]) -> None:
+            return None
+
+        store.upsert_scores = noop  # type: ignore[assignment]
+
+        mem = Memory.new("hi", valence=0.1, emotional_intensity=0.2)
+        await store.add(mem)
+        updated = await um_update(
+            mem.id,
+            valence=-0.5,
+            emotional_intensity=0.9,
+            store=store,
+        )
+        assert updated.valence == pytest.approx(-0.5)
+        assert updated.emotional_intensity == pytest.approx(0.9)
+
+    asyncio.run(_run())

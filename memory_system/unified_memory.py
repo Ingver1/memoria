@@ -72,7 +72,14 @@ class MemoryStoreProtocol(Protocol):
         valence_delta: float | None = None,
         emotional_intensity: float | None = None,
         emotional_intensity_delta: float | None = None,
-    ) -> Memory: ...
+    ) -> Memory:
+        """Update fields or scores of a memory.
+
+        Absolute parameters overwrite stored values while ``*_delta`` fields
+        apply relative adjustments.
+        """
+
+        ...
 
     async def list_recent(self, *, n: int = 20) -> Sequence[Memory]: ...
 
@@ -255,7 +262,9 @@ async def update(
     metadata: MutableMapping[str, Any] | None = None,
     importance: float | None = None,
     importance_delta: float | None = None,
+    valence: float | None = None,
     valence_delta: float | None = None,
+    emotional_intensity: float | None = None,
     emotional_intensity_delta: float | None = None,
     store: MemoryStoreProtocol | None = None,
 ) -> Memory:
@@ -266,7 +275,9 @@ async def update(
     ``importance_delta``.
 
     ``last_accessed`` in the memory's metadata is automatically set to the
-    current UTC timestamp.
+    current UTC timestamp.  Absolute ``valence`` and ``emotional_intensity``
+    values may be supplied to overwrite existing ones while the ``*_delta``
+    counterparts adjust the stored values.
 
     Args:
         memory_id (str): The memory identifier.
@@ -274,7 +285,10 @@ async def update(
         metadata (MutableMapping[str, Any] | None, optional): New metadata. Defaults to None.
         importance (float | None, optional): New importance value. Defaults to None.
         importance_delta (float | None, optional): Increment for importance. Defaults to None.
+        valence (float | None, optional): New emotional valence. Defaults to None.
         valence_delta (float | None, optional): Increment for emotional valence.
+            Defaults to None.
+        emotional_intensity (float | None, optional): New emotional intensity.
             Defaults to None.
         emotional_intensity_delta (float | None, optional): Increment for
             emotional intensity. Defaults to None.
@@ -294,7 +308,9 @@ async def update(
                 metadata=meta,
                 importance=importance,
                 importance_delta=importance_delta,
+                valence=valence,
                 valence_delta=valence_delta,
+                emotional_intensity=emotional_intensity,
                 emotional_intensity_delta=emotional_intensity_delta,
             ),
             timeout=ASYNC_TIMEOUT,
