@@ -380,18 +380,10 @@ class SQLiteMemoryStore:
                 if mem_count != fts_count:
                     await conn.execute("DELETE FROM memories_fts")
                     await conn.execute("INSERT INTO memories_fts(rowid, text) SELECT rowid, text FROM memories")
-                await conn.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_memories_created_at ON memories(created_at)"
-                )
-                await conn.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_memories_level ON memories(level)"
-                )
-                await conn.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_memories_episode_id ON memories(episode_id)"
-                )
-                await conn.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_memories_modality ON memories(modality)"
-                )
+                await conn.execute("CREATE INDEX IF NOT EXISTS idx_memories_created_at ON memories(created_at)")
+                await conn.execute("CREATE INDEX IF NOT EXISTS idx_memories_level ON memories(level)")
+                await conn.execute("CREATE INDEX IF NOT EXISTS idx_memories_episode_id ON memories(episode_id)")
+                await conn.execute("CREATE INDEX IF NOT EXISTS idx_memories_modality ON memories(modality)")
                 await conn.commit()
                 self._initialised = True
             finally:

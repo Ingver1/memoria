@@ -29,10 +29,10 @@ import uuid
 
 # stdlib
 from collections.abc import MutableMapping, Sequence
-from types import SimpleNamespace
 
 # local
 from dataclasses import dataclass
+from types import SimpleNamespace
 from typing import Any, Protocol
 
 from memory_system.utils.cache import SmartCache
@@ -545,9 +545,7 @@ def _score_decay(m: Memory, weights: ListBestWeights) -> float:
     decayed_intensity = m.emotional_intensity * math.exp(-age_days / rate)
     valence_weight = weights.valence_pos if m.valence >= 0 else weights.valence_neg
     return (
-        weights.importance * m.importance
-        + weights.emotional_intensity * decayed_intensity
-        + valence_weight * m.valence
+        weights.importance * m.importance + weights.emotional_intensity * decayed_intensity + valence_weight * m.valence
     )
 
 

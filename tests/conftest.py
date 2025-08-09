@@ -9,14 +9,13 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 import asyncio
+import importlib.util
 import inspect
 import logging
 import os
 import tempfile
 import uuid
 from typing import Any, List
-
-import importlib.util
 
 try:
     import numpy as np

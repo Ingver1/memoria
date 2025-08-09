@@ -6,10 +6,10 @@
 from __future__ import annotations
 
 from datetime import datetime
+from types import SimpleNamespace
 from typing import Any
 
 from pydantic import AliasChoices, BaseModel, Field, field_validator
-from types import SimpleNamespace
 
 from memory_system import __version__
 
@@ -247,6 +247,8 @@ class SuccessResponse(BaseModel):
 class ErrorResponse(BaseModel):
     detail: str
     api_version: str = _API_VERSION
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

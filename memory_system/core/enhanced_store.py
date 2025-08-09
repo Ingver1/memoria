@@ -10,7 +10,7 @@ import time
 import uuid
 from contextlib import suppress
 from dataclasses import dataclass
-from typing import Any, AsyncIterator, Iterable, MutableMapping, Sequence, cast, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, AsyncIterator, Iterable, MutableMapping, Sequence, cast
 
 try:  # optional numpy
     import numpy as np
@@ -23,10 +23,9 @@ if TYPE_CHECKING:  # pragma: no cover - typing helper
 
 def _require_numpy() -> Any:
     if np is None:
-        raise ModuleNotFoundError(
-            "numpy is required for EnhancedMemoryStore. Install ai-memory[core]."
-        )
+        raise ModuleNotFoundError("numpy is required for EnhancedMemoryStore. Install ai-memory[core].")
     return np
+
 
 try:
     from cryptography.fernet import Fernet

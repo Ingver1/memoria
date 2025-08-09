@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Sequence, TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Sequence
 
 try:  # optional numpy
     import numpy as np
@@ -16,10 +16,9 @@ else:
 
 def _require_numpy() -> Any:
     if np is None:
-        raise ModuleNotFoundError(
-            "numpy is required for FaissVectorStore. Install ai-memory[core]."
-        )
+        raise ModuleNotFoundError("numpy is required for FaissVectorStore. Install ai-memory[core].")
     return np
+
 
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.index import FaissHNSWIndex, MultiModalFaissIndex

@@ -5,9 +5,10 @@ from pathlib import Path
 import pytest
 
 import memory_system.unified_memory as um
-from memory_system.unified_memory import add as um_add, reinforce
 from memory_system.core.memory_dynamics import MemoryDynamics
 from memory_system.core.store import Memory, SQLiteMemoryStore
+from memory_system.unified_memory import add as um_add
+from memory_system.unified_memory import reinforce
 
 
 def test_reinforce_is_monotonic(tmp_path: Path) -> None:

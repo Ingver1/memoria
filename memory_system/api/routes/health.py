@@ -76,9 +76,7 @@ async def health_check() -> Response:
     store = await _store()
     component = await store.get_health()
     status_str = (
-        "reindexing"
-        if getattr(component, "reindexing", False)
-        else ("healthy" if component.healthy else "unhealthy")
+        "reindexing" if getattr(component, "reindexing", False) else ("healthy" if component.healthy else "unhealthy")
     )
     payload = HealthResponse(
         status=status_str,
