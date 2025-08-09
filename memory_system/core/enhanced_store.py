@@ -173,6 +173,7 @@ class EnhancedMemoryStore:
         return_distance: bool = False,
         ef_search: int | None = None,
         level: int | None = None,
+        metadata_filter: dict[str, Any] | None = None,
     ) -> list[Any]:
         """Perform a semantic embedding search.
 
@@ -187,6 +188,9 @@ class EnhancedMemoryStore:
             Otherwise only :class:`Memory` instances are returned.
         ef_search:
             Controls HNSW search quality.
+            metadata_filter:
+            Optional metadata constraints. When provided, only memories whose
+            metadata matches all key/value pairs participate in the search.
         level:
             When provided, restrict results to memories stored at this level.
 
@@ -197,9 +201,30 @@ class EnhancedMemoryStore:
             query embedding.
         """
         search_k = k * 5 if level is not None else k
+        vec = np.asarray(embedding, dtype=np.float32)
+        if metadata_filter:
+            # Obtain candidate IDs matching the metadata filter from the SQLite store
+            allowed = await self._store.search(
+                metadata_filters=metadata_filter, limit=self._memory_count or k
+            )
+            id_map = {m.id: m for m in allowed}
+            if not id_map:
+                return []
+            ids, dists = self._index.search(vec, k=self._memory_count or k, ef_search=ef_search)
+            filtered = [
+                (_id, dist)
+                for _id, dist in zip(ids, dists, strict=False)
+                if _id in id_map
+            ][0:k]
+        else:
+            ids, dists = self._index.search(vec, k=k, ef_search=ef_search)
+            id_map = {}
+            filtered = list(zip(ids, dists))
+
         ids, dists = self._index.search(
             np.asarray(embedding, dtype=np.float32), k=search_k, ef_search=ef_search
         )
+
         results: list[Any] = []
         for _id, dist in zip(ids, dists, strict=False):
             if len(results) >= k:
