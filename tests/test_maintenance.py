@@ -2,9 +2,8 @@ from typing import Sequence
 
 import numpy as np
 import pytest
-from hypothesis import given
+from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
-from hypothesis.extra import numpy as npst
 
 from memory_system.core.index import FaissHNSWIndex
 from memory_system.core.maintenance import consolidate_store, forget_old_memories
@@ -51,17 +50,19 @@ async def _add_with_vectors(
     return mems
 
 
-# Fixture for generating random text
-@pytest.fixture
-def random_texts():
-    return [f"Text number {i}" for i in range(10)]
+async def _reset_store_index(store: SQLiteMemoryStore, index: FaissHNSWIndex) -> None:
+    """Ensure the store and index are empty for property-based tests."""
+    existing = await store.search(limit=1000)
+    for m in existing:
+        await store.delete_memory(m.id)
+    index.remove_ids(list(index._reverse_id_map.keys()))
 
 
 # Property-based test for consolidation on random data
 @given(st.lists(st.text(), min_size=2, max_size=10))
-async def test_property_consolidation(store, index, random_texts, fake_embed):
-    # Random texts from the strategy
-    texts = random_texts
+@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+async def test_property_consolidation(store, index, fake_embed, texts: list[str]):
+    await _reset_store_index(store, index)
     # Add them to the store and index
     mems = await _add_with_vectors(store, index, texts, embed=fake_embed)
 
@@ -96,8 +97,16 @@ async def test_concat_strategy(store, index, fake_embed):
 
 
 # Property-based test for forgetting low-scored memories
-@given(st.lists(st.tuples(st.text(), st.floats(min_value=0.0, max_value=1.0)), min_size=5, max_size=20))
-async def test_property_forgetting(store, index, random_texts, fake_embed, data):
+@given(
+    st.lists(
+        st.tuples(st.text(), st.floats(min_value=0.0, max_value=1.0)),
+        min_size=5,
+        max_size=20,
+    )
+)
+@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+async def test_property_forgetting(store, index, fake_embed, data: list[tuple[str, float]]):
+    await _reset_store_index(store, index)
     # Create memories with random importance scores
     texts, importances = zip(*data, strict=True)
     mems = await _add_with_vectors(store, index, texts, importance=importances, embed=fake_embed)
