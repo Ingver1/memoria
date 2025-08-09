@@ -122,13 +122,11 @@ async def test_semantic_search_filters_by_level_and_is_faster(monkeypatch: pytes
     async def naive_search(vec: list[float], level: int) -> list[Memory]:
         vec_np = np.asarray(vec, dtype=np.float32)
         ids, dists = store._index.search("text", vec_np, k=5)
-        candidates = list(zip(ids, dists))
+        candidates = list(zip(ids, dists, strict=True))
         total = store._index.stats("text").total_vectors or 5
         allowed_mems = await store._store.search(metadata_filters={"modality": "text"}, limit=total)
         allowed_ids = {m.id for m in allowed_mems}
-        allowed_ids = {
-            mid for mid in allowed_ids if getattr(await store._store.get(mid), "level", None) == level
-        }
+        allowed_ids = {mid for mid in allowed_ids if getattr(await store._store.get(mid), "level", None) == level}
         candidates = [(_id, dist) for _id, dist in candidates if _id in allowed_ids][:1]
         result = []
         for _id, _ in candidates:

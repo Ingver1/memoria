@@ -37,12 +37,8 @@ async def test_singleton_clusters_are_marked_final(store, index, fake_embed, mon
 
 async def test_cluster_summary_carries_emotions(store, index, fake_embed, monkeypatch):
     monkeypatch.setattr(hs, "embed_text", fake_embed, raising=True)
-    mem1 = Memory.new(
-        "a cat", importance=0.2, valence=0.4, emotional_intensity=0.6
-    )
-    mem2 = Memory.new(
-        "the cat", importance=0.4, valence=-0.2, emotional_intensity=0.2
-    )
+    mem1 = Memory.new("a cat", importance=0.2, valence=0.4, emotional_intensity=0.6)
+    mem2 = Memory.new("the cat", importance=0.4, valence=-0.2, emotional_intensity=0.2)
     for m in (mem1, mem2):
         await store.add(m)
         vec = fake_embed(m.text)
@@ -55,6 +51,4 @@ async def test_cluster_summary_carries_emotions(store, index, fake_embed, monkey
     assert len(created) == 1
     summary = created[0]
     assert summary.valence == pytest.approx(np.mean([mem1.valence, mem2.valence]))
-    assert summary.emotional_intensity == pytest.approx(
-        np.mean([mem1.emotional_intensity, mem2.emotional_intensity])
-    )
+    assert summary.emotional_intensity == pytest.approx(np.mean([mem1.emotional_intensity, mem2.emotional_intensity]))

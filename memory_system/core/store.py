@@ -330,12 +330,8 @@ class SQLiteMemoryStore:
                 if mem_count != fts_count:
                     await conn.execute("DELETE FROM memories_fts")
                     await conn.execute("INSERT INTO memories_fts(rowid, text) SELECT rowid, text FROM memories")
-                await conn.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_memories_created_at ON memories(created_at)"
-                )
-                await conn.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_memories_level ON memories(level)"
-                )
+                await conn.execute("CREATE INDEX IF NOT EXISTS idx_memories_created_at ON memories(created_at)")
+                await conn.execute("CREATE INDEX IF NOT EXISTS idx_memories_level ON memories(level)")
                 await conn.commit()
                 self._initialised = True
             finally:
@@ -540,9 +536,7 @@ class SQLiteMemoryStore:
                 if level is not None:
                     clauses.append("level = ?")
                     params.append(level)
-                sql = (
-                    "SELECT id, text, created_at, importance, valence, emotional_intensity, level, episode_id, modality, connections, metadata FROM memories"
-                )
+                sql = "SELECT id, text, created_at, importance, valence, emotional_intensity, level, episode_id, modality, connections, metadata FROM memories"
                 if clauses:
                     sql += " WHERE " + " AND ".join(clauses)
                 sql += " ORDER BY created_at DESC LIMIT ?"

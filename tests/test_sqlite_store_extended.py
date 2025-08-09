@@ -2,9 +2,9 @@ import asyncio
 import json
 from pathlib import Path
 
-import aiosqlite
 import pytest
 
+import aiosqlite
 from memory_system.core.store import Memory, SQLiteMemoryStore
 
 

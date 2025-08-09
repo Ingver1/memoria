@@ -7,7 +7,8 @@ from typing import Any
 import pytest
 
 from memory_system.core.store import Memory, SQLiteMemoryStore, get_store
-from memory_system.unified_memory import add as um_add, reinforce
+from memory_system.unified_memory import add as um_add
+from memory_system.unified_memory import reinforce
 
 
 @pytest.fixture
@@ -172,9 +173,7 @@ def test_update_memory_increments_importance_and_merges_metadata(
         mem = Memory.new("base", importance=0.2, metadata={"a": 1})
         await store.add(mem)
 
-        updated = await store.update_memory(
-            mem.id, importance_delta=0.3, metadata={"b": 2}
-        )
+        updated = await store.update_memory(mem.id, importance_delta=0.3, metadata={"b": 2})
 
         assert abs(updated.importance - 0.5) < 1e-6
         assert updated.metadata == {"a": 1, "b": 2}
