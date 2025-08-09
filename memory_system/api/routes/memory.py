@@ -10,7 +10,6 @@ from typing import Any, Optional, cast
 from fastapi import APIRouter, HTTPException, Query, Request, status
 
 from memory_system import unified_memory
-from memory_system.unified_memory import ListBestWeights
 from memory_system.api.schemas import (
     MemoryCreate,
     MemoryQuery,
@@ -19,6 +18,7 @@ from memory_system.api.schemas import (
     MemoryUpdate,
 )
 from memory_system.core.store import Memory, SQLiteMemoryStore, get_memory_store, get_store
+from memory_system.unified_memory import ListBestWeights
 from memory_system.utils.security import EnhancedPIIFilter
 
 log = logging.getLogger(__name__)
@@ -136,18 +136,12 @@ async def best_memories(
     n: int = Query(50, ge=1, le=500, alias="limit"),
     level: int | None = Query(None, ge=0),
     user_id: str | None = Query(None),
-    importance: Optional[float] = Query(
-        None, ge=0.0, description="Weight for importance when ranking"
-    ),
+    importance: Optional[float] = Query(None, ge=0.0, description="Weight for importance when ranking"),
     arousal: Optional[float] = Query(
         None, ge=0.0, description="Weight for emotional intensity (arousal)"
     ),  # alias для emotional_intensity
-    valence_pos: Optional[float] = Query(
-        None, ge=0.0, description="Weight for positive valence"
-    ),
-    valence_neg: Optional[float] = Query(
-        None, ge=0.0, description="Weight for negative valence"
-    ),
+    valence_pos: Optional[float] = Query(None, ge=0.0, description="Weight for positive valence"),
+    valence_neg: Optional[float] = Query(None, ge=0.0, description="Weight for negative valence"),
 ):
     store = await _store(request)
     meta = {"user_id": user_id} if user_id else None
