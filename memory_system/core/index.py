@@ -87,6 +87,8 @@ class FaissHNSWIndex:
     DEFAULT_USE_GPU: bool = os.getenv("UMS_USE_GPU", "0") == "1"
     DEFAULT_IVF_NLIST: int = int(os.getenv("UMS_IVF_NLIST", "100"))
     DEFAULT_IVF_NPROBE: int = int(os.getenv("UMS_IVF_NPROBE", "8"))
+    DEFAULT_PQ_M: int = int(os.getenv("UMS_PQ_M", "16"))
+    DEFAULT_PQ_BITS: int = int(os.getenv("UMS_PQ_BITS", "8"))
 
     def __init__(
         self,
@@ -98,6 +100,10 @@ class FaissHNSWIndex:
         space: str = "cosine",
         index_type: str | None = None,
         use_gpu: bool | None = None,
+        ivf_nlist: int | None = None,
+        ivf_nprobe: int | None = None,
+        pq_m: int | None = None,
+        pq_bits: int | None = None,
     ) -> None:
         """Initialise the FAISS index wrapper."""
         self.dim = dim
@@ -105,14 +111,48 @@ class FaissHNSWIndex:
         self._lock = RWLock()
         self.index_type = (index_type or self.DEFAULT_INDEX_TYPE).upper()
         self.use_gpu = use_gpu if use_gpu is not None else self.DEFAULT_USE_GPU
+        self.ivf_nlist = ivf_nlist or self.DEFAULT_IVF_NLIST
+        self.pq_m = pq_m or self.DEFAULT_PQ_M
+        self.pq_bits = pq_bits or self.DEFAULT_PQ_BITS
 
         # Build underlying FAISS index
         metric = faiss.METRIC_INNER_PRODUCT if space == "cosine" else faiss.METRIC_L2
         if self.index_type in {"IVF", "IVFFLAT"}:
             quantizer = faiss.IndexFlatL2(dim) if metric == faiss.METRIC_L2 else faiss.IndexFlatIP(dim)
-            base = faiss.IndexIVFFlat(quantizer, dim, self.DEFAULT_IVF_NLIST, metric)
-            self.ef_search = self.DEFAULT_IVF_NPROBE
+            base = faiss.IndexIVFFlat(quantizer, dim, self.ivf_nlist, metric)
+            self.ef_search = ivf_nprobe or self.DEFAULT_IVF_NPROBE
             base.nprobe = self.ef_search
+        elif self.index_type == "IVFPQ":
+            quantizer = faiss.IndexFlatL2(dim) if metric == faiss.METRIC_L2 else faiss.IndexFlatIP(dim)
+            base = faiss.IndexIVFPQ(
+                quantizer,
+                dim,
+                self.ivf_nlist,
+                self.pq_m,
+                self.pq_bits,
+                metric,
+            )
+            self.ef_search = ivf_nprobe or self.DEFAULT_IVF_NPROBE
+            base.nprobe = self.ef_search
+        elif self.index_type == "HNSWPQ":
+            base = faiss.IndexHNSWPQ(dim, self.pq_m, self.pq_bits, metric)
+            base.hnsw.efConstruction = ef_construction or self.DEFAULT_EF_CONSTRUCTION
+            self.ef_search = ef_search or self.DEFAULT_EF_SEARCH
+            base.hnsw.efSearch = self.ef_search
+        elif self.index_type == "OPQ":
+            quantizer = faiss.IndexFlatL2(dim) if metric == faiss.METRIC_L2 else faiss.IndexFlatIP(dim)
+            ivfpq = faiss.IndexIVFPQ(
+                quantizer,
+                dim,
+                self.ivf_nlist,
+                self.pq_m,
+                self.pq_bits,
+                metric,
+            )
+            self.ef_search = ivf_nprobe or self.DEFAULT_IVF_NPROBE
+            ivfpq.nprobe = self.ef_search
+            opq = faiss.OPQMatrix(dim, self.pq_m)
+            base = faiss.IndexPreTransform(opq, ivfpq)
         else:  # default to HNSW
             base = faiss.IndexHNSWFlat(dim, M or self.DEFAULT_HNSW_M, metric)
             base.hnsw.efConstruction = ef_construction or self.DEFAULT_EF_CONSTRUCTION
@@ -315,8 +355,36 @@ class FaissHNSWIndex:
         metric = faiss.METRIC_INNER_PRODUCT if self.space == "cosine" else faiss.METRIC_L2
         if self.index_type in {"IVF", "IVFFLAT"}:
             quantizer = faiss.IndexFlatL2(self.dim) if metric == faiss.METRIC_L2 else faiss.IndexFlatIP(self.dim)
-            base = faiss.IndexIVFFlat(quantizer, self.dim, self.DEFAULT_IVF_NLIST, metric)
+            base = faiss.IndexIVFFlat(quantizer, self.dim, self.ivf_nlist, metric)
             base.nprobe = self.ef_search
+        elif self.index_type == "IVFPQ":
+            quantizer = faiss.IndexFlatL2(self.dim) if metric == faiss.METRIC_L2 else faiss.IndexFlatIP(self.dim)
+            base = faiss.IndexIVFPQ(
+                quantizer,
+                self.dim,
+                self.ivf_nlist,
+                self.pq_m,
+                self.pq_bits,
+                metric,
+            )
+            base.nprobe = self.ef_search
+        elif self.index_type == "HNSWPQ":
+            base = faiss.IndexHNSWPQ(self.dim, self.pq_m, self.pq_bits, metric)
+            base.hnsw.efConstruction = self.DEFAULT_EF_CONSTRUCTION
+            base.hnsw.efSearch = self.ef_search
+        elif self.index_type == "OPQ":
+            quantizer = faiss.IndexFlatL2(self.dim) if metric == faiss.METRIC_L2 else faiss.IndexFlatIP(self.dim)
+            ivfpq = faiss.IndexIVFPQ(
+                quantizer,
+                self.dim,
+                self.ivf_nlist,
+                self.pq_m,
+                self.pq_bits,
+                metric,
+            )
+            ivfpq.nprobe = self.ef_search
+            opq = faiss.OPQMatrix(self.dim, self.pq_m)
+            base = faiss.IndexPreTransform(opq, ivfpq)
         else:
             base = faiss.IndexHNSWFlat(self.dim, self.DEFAULT_HNSW_M, metric)
             base.hnsw.efConstruction = self.DEFAULT_EF_CONSTRUCTION
@@ -400,7 +468,7 @@ class FaissHNSWIndex:
             faiss.normalize_L2(vec)
 
         if ef_search is not None:
-            if self.index_type in {"IVF", "IVFFLAT"}:
+            if self.index_type in {"IVF", "IVFFLAT", "IVFPQ", "OPQ"}:
                 faiss.extract_index_ivf(self.index).nprobe = ef_search
             else:
                 # IndexIDMap2 does not expose the HNSW params directly
@@ -451,6 +519,11 @@ class FaissHNSWIndex:
             space=self.space,
             index_type=self.index_type,
             use_gpu=self.use_gpu,
+            ivf_nlist=self.ivf_nlist,
+            ivf_nprobe=self.ef_search,
+            pq_m=self.pq_m,
+            pq_bits=self.pq_bits,
+            ef_search=self.ef_search,
         )
         try:
             temp.add_vectors(ids, vectors)

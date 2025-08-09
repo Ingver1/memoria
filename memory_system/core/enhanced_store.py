@@ -41,29 +41,141 @@ class EnhancedMemoryStore:
     """Enhanced memory store with health checking and stats."""
 
     def __init__(self, settings: UnifiedSettings) -> None:
+
         """Initialise the store components using ``settings``."""
+
         self.settings = settings
+
         self._start_time = time.time()
-        # Underlying storage components
+
+        # Underlying storage
+
         dsn = settings.get_database_url()
+
         self._store = SQLiteMemoryStore(dsn)
-        self._index = MultiModalFaissIndex(
-            settings.model.vector_dims,
-            M=settings.model.hnsw_m,
-            ef_construction=settings.model.hnsw_ef_construction,
-            ef_search=settings.model.hnsw_ef_search,
-        )
-        vec_path = settings.database.vec_path
-        if vec_path.exists():
-            self._index.load(str(vec_path))
-            self._memory_count = self._index.stats().total_vectors
+
+        # Decide between single‑ and multi‑modal indices
+
+        vector_dims = getattr(settings.model, "vector_dims", None)
+
+        if vector_dims:
+
+            # Multi‑modal: pass through all index options
+
+            self._index = MultiModalFaissIndex(
+
+                vector_dims,
+
+                M=settings.model.hnsw_m,
+
+                ef_construction=settings.model.hnsw_ef_construction,
+
+                ef_search=settings.model.hnsw_ef_search,
+
+                index_type=settings.model.index_type,
+
+                use_gpu=settings.model.use_gpu,
+
+                ivf_nlist=settings.model.ivf_nlist,
+
+                ivf_nprobe=settings.model.ivf_nprobe,
+
+                pq_m=settings.model.pq_m,
+
+                pq_bits=settings.model.pq_bits,
+
+            )
+
         else:
+
+            # Single modality: use standard FaissHNSWIndex with PQ/IVF options
+
+            self._index = FaissHNSWIndex(
+
+                dim=settings.model.vector_dim,
+
+                M=settings.model.hnsw_m,
+
+                ef_construction=settings.model.hnsw_ef_construction,
+
+                ef_search=settings.model.hnsw_ef_search,
+
+                index_type=settings.model.index_type,
+
+                use_gpu=settings.model.use_gpu,
+
+                ivf_nlist=settings.model.ivf_nlist,
+
+                ivf_nprobe=settings.model.ivf_nprobe,
+
+                pq_m=settings.model.pq_m,
+
+                pq_bits=settings.model.pq_bits,
+
+            )
+
+        vec_path = settings.database.vec_path
+
+        if vec_path.exists():
+
+            # Load persisted index(es); stats().total_vectors works for both
+
+            self._index.load(str(vec_path))
+
+            self._memory_count = self._index.stats().total_vectors
+
+        else:
+
             self._memory_count = 0
 
+            # Auto‑tune HNSW only for single‑modal (multimodal tuning isn’t implemented)
+
+            if not vector_dims and settings.model.hnsw_autotune:
+
+                sample = np.random.rand(128, settings.model.vector_dim).astype(np.float32)
+
+                M, ef_c, ef_s = self._index.auto_tune(sample)
+
+                object.__setattr__(settings.model, "hnsw_m", M)
+
+                object.__setattr__(settings.model, "hnsw_ef_construction", ef_c)
+
+                object.__setattr__(settings.model, "hnsw_ef_search", ef_s)
+
+                log.info("Auto tuned HNSW params: M=%d ef_construction=%d ef_search=%d", M, ef_c, ef_s)
+
+                self._index = FaissHNSWIndex(
+
+                    dim=settings.model.vector_dim,
+
+                    M=M,
+
+                    ef_construction=ef_c,
+
+                    ef_search=ef_s,
+
+                    index_type=settings.model.index_type,
+
+                    use_gpu=settings.model.use_gpu,
+
+                    ivf_nlist=settings.model.ivf_nlist,
+
+                    ivf_nprobe=settings.model.ivf_nprobe,
+
+                    pq_m=settings.model.pq_m,
+
+                    pq_bits=settings.model.pq_bits,
+
+                )
+
         async def _save_index() -> None:
+
+            # Persist index(es) to disk; vector path is common base
+
             await asyncio.to_thread(self._index.save, str(vec_path))
 
         self._store.add_commit_hook(_save_index)
+
         self._closed = False
 
         # Recall monitoring configuration

@@ -107,10 +107,12 @@ Copy `.env.example` → `.env` and tweak values.
 
 | Env var             | Default | Description                                 |
 |---------------------|---------|---------------------------------------------|
-| UMS_INDEX_TYPE      | HNSW    | FAISS index type (`HNSW` or `IVFFLAT`)      |
+| UMS_INDEX_TYPE      | HNSW    | FAISS index type (`HNSW`, `IVFFLAT`, `IVFPQ`, `HNSWPQ`, `OPQ`) |
 | UMS_USE_GPU         | 0       | Move index to GPU if `1` and GPUs available |
-| UMS_IVF_NLIST       | 100     | Number of clusters for `IVFFLAT`            |
-| UMS_IVF_NPROBE      | 8       | Search probes (`nprobe`) for `IVFFLAT`      |
+| UMS_IVF_NLIST       | 100     | Number of clusters for IVF-based indices    |
+| UMS_IVF_NPROBE      | 8       | Search probes (`nprobe`) for IVF-based indices |
+| UMS_PQ_M            | 16      | PQ: number of sub-vector segments (`M`)     |
+| UMS_PQ_BITS         | 8       | PQ: bits per sub-vector                     |
 | UMS_EF_CONSTRUCTION | 128     | HNSW: graph construction depth              |
 | UMS_HNSW_M          | 32      | HNSW: number of bi-directional links        |
 | UMS_EF_SEARCH       | 32      | HNSW: search depth (`efSearch`)             |
