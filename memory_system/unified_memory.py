@@ -250,6 +250,9 @@ async def update(
 ) -> Memory:
     """Update text and/or metadata of an existing memory and return the new object.
 
+    ``last_accessed`` in the memory's metadata is automatically set to the
+    current UTC timestamp.
+
     Args:
         memory_id (str): The memory identifier.
         text (str | None, optional): New text. Defaults to None.
@@ -264,12 +267,14 @@ async def update(
         Memory: The updated memory object.
     """
     st = await _resolve_store(store)
+    meta: MutableMapping[str, Any] = dict(copy.deepcopy(metadata) if metadata else {})
+    meta["last_accessed"] = _dt.datetime.utcnow().replace(tzinfo=_dt.timezone.utc).isoformat()
     try:
         updated = await asyncio.wait_for(
             st.update_memory(
                 memory_id,
                 text=text,
-                metadata=metadata,
+                metadata=meta,
                 valence_delta=valence_delta,
                 emotional_intensity_delta=emotional_intensity_delta,
             ),
@@ -292,6 +297,8 @@ async def reinforce(
 ) -> Memory:
     """Reinforce a memory's importance and optionally its emotional context.
 
+    The memory's metadata receives an updated ``last_accessed`` timestamp.
+
     By default only the ``importance`` field is reinforced. Supplying
     ``valence_delta`` and/or ``intensity_delta`` applies the same deltas to
     the respective ``valence`` and ``emotional_intensity`` attributes.
@@ -308,6 +315,7 @@ async def reinforce(
         Memory: The reinforced memory object.
     """
     st = await _resolve_store(store)
+    meta = {"last_accessed": _dt.datetime.utcnow().replace(tzinfo=_dt.timezone.utc).isoformat()}
     try:
         updated = await asyncio.wait_for(
             st.update_memory(
@@ -315,6 +323,7 @@ async def reinforce(
                 importance_delta=amount,
                 valence_delta=valence_delta,
                 emotional_intensity_delta=intensity_delta,
+                metadata=meta,
             ),
             timeout=ASYNC_TIMEOUT,
         )
