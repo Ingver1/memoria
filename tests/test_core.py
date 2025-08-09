@@ -631,6 +631,23 @@ class TestFaissHNSWIndex:
             path.unlink(missing_ok=True)
             path.with_suffix(".map.json").unlink(missing_ok=True)
 
+
+@pytest.mark.parametrize("index_type", ["IVFPQ", "HNSWPQ", "OPQ"])
+def test_pq_variants(index_type: str) -> None:
+    """Ensure PQ-based index types can add and search vectors."""
+    old_nlist = FaissHNSWIndex.DEFAULT_IVF_NLIST
+    FaissHNSWIndex.DEFAULT_IVF_NLIST = 4
+    try:
+        index = FaissHNSWIndex(dim=32, index_type=index_type)
+        ids = [f"vec{i}" for i in range(50)]
+        vecs = np.random.rand(50, 32).astype(np.float32)
+        index.add_vectors(ids, vecs)
+        q = np.random.rand(32).astype(np.float32)
+        result_ids, _ = index.search(q, k=5)
+        assert len(result_ids) == 5
+    finally:
+        FaissHNSWIndex.DEFAULT_IVF_NLIST = old_nlist
+
     def test_auto_tune(self) -> None:
         index = FaissHNSWIndex(dim=32)
         sample = np.random.rand(20, 32).astype(np.float32)
