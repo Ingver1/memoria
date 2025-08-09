@@ -98,6 +98,19 @@ if TYPE_CHECKING:  # pragma: no cover - optional FastAPI import for type hints
 
 logger = logging.getLogger(__name__)
 
+MAX_TEXT_LENGTH = 10_000
+
+
+def _safe_json(data: Dict[str, Any] | None) -> str:
+    if not data:
+        return "null"
+    try:
+        dumped = json.dumps(data)
+        json.loads(dumped)
+    except (TypeError, ValueError) as exc:
+        raise TypeError("metadata must be JSON serializable") from exc
+    return dumped
+
 ###############################################################################
 # Data model
 ###############################################################################
@@ -378,6 +391,8 @@ class SQLiteMemoryStore:
     async def add(self, mem: Memory) -> None:
         """Persist a new :class:`Memory` to the database."""
         await self.initialise()
+        if len(mem.text) > MAX_TEXT_LENGTH:
+            raise ValueError("text exceeds maximum length")
         conn = await self._acquire()
         try:
             await conn.execute(
@@ -393,8 +408,8 @@ class SQLiteMemoryStore:
                     mem.level,
                     mem.episode_id,
                     mem.modality,
-                    json.dumps(mem.connections) if mem.connections else "null",
-                    json.dumps(mem.metadata) if mem.metadata else "null",
+                    _safe_json(mem.connections),
+                    _safe_json(mem.metadata),
                 ),
             )
             await conn.commit()
@@ -427,6 +442,8 @@ class SQLiteMemoryStore:
             )
             batch: list[tuple[Any, ...]] = []
             for mem in memories:
+                if len(mem.text) > MAX_TEXT_LENGTH:
+                    raise ValueError("text exceeds maximum length")
                 batch.append(
                     (
                         mem.id,
@@ -438,8 +455,8 @@ class SQLiteMemoryStore:
                         mem.level,
                         mem.episode_id,
                         mem.modality,
-                        json.dumps(mem.connections) if mem.connections else "null",
-                        json.dumps(mem.metadata) if mem.metadata else "null",
+                        _safe_json(mem.connections),
+                        _safe_json(mem.metadata),
                     )
                 )
                 if len(batch) >= batch_size:
@@ -855,6 +872,8 @@ class SQLiteMemoryStore:
         conn = await self._acquire()
         try:
             if text is not None:
+                if len(text) > MAX_TEXT_LENGTH:
+                    raise ValueError("text exceeds maximum length")
                 await conn.execute(
                     "UPDATE memories SET text = ? WHERE id = ?",
                     (text, memory_id),
@@ -909,7 +928,7 @@ class SQLiteMemoryStore:
                 existing.update(metadata)
                 await conn.execute(
                     "UPDATE memories SET metadata = json(?) WHERE id = ?",
-                    (json.dumps(existing), memory_id),
+                    (_safe_json(existing), memory_id),
                 )
 
             await conn.commit()

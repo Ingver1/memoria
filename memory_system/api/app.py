@@ -14,7 +14,7 @@ import logging
 import os
 from typing import TYPE_CHECKING, Any, AsyncIterator, cast
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRouter
 from starlette.middleware.base import RequestResponseEndpoint
@@ -64,13 +64,33 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Memory"], prefix="/memory")
 
 
+def _validate_metadata(meta: Any) -> dict[str, Any]:
+    if meta is None:
+        return {}
+    if isinstance(meta, str):
+        try:
+            meta = json.loads(meta)
+        except json.JSONDecodeError as exc:
+            raise HTTPException(status_code=400, detail="Invalid metadata JSON") from exc
+    if not isinstance(meta, dict):
+        raise HTTPException(status_code=400, detail="Metadata must be an object")
+    try:
+        json.dumps(meta)
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="Metadata must be JSON serializable") from exc
+    return meta
+
+
 @router.post("/add", summary="Add memory", response_description="Memory UUID")
 async def add_memory(request: Request, body: dict[str, Any]) -> dict[str, str]:
     """Add a new piece of memory."""
     store = cast(MemoryStoreProtocol, get_memory_store(request))
     modality = body.get("modality", "text")
-    metadata = body.get("metadata", {})
+    metadata = _validate_metadata(body.get("metadata", {}))
     metadata.setdefault("modality", modality)
+    max_len = getattr(getattr(getattr(store, "settings", None), "security", None), "max_text_length", 10_000)
+    if len(body.get("text", "")) > max_len:
+        raise HTTPException(status_code=400, detail="text exceeds maximum length")
     mem = await add(body["text"], metadata=metadata, modality=modality, store=store)
     return {"id": mem.memory_id}
 
@@ -93,7 +113,7 @@ async def search_memory(
 ) -> Any:
     """Semantic search across stored memories."""
     store = cast(MemoryStoreProtocol, get_memory_store(request))
-    metadata_filter = json.loads(metadata) if metadata else None
+    metadata_filter = _validate_metadata(metadata) if metadata else None
     return await search(q, k=limit, metadata_filter=metadata_filter, modality=modality, store=store)
 
 
@@ -104,7 +124,13 @@ async def add_memories_batch(request: Request, body: list[dict[str, Any]]) -> di
     if isinstance(store, EnhancedMemoryStore):
         mems = await store.add_memories_batch(body)
         return {"ids": [m.id for m in mems]}
-    memories = [Memory.new(item["text"], metadata=item.get("metadata", {})) for item in body]
+    max_len = getattr(getattr(getattr(store, "settings", None), "security", None), "max_text_length", 10_000)
+    memories: list[Memory] = []
+    for item in body:
+        if len(item.get("text", "")) > max_len:
+            raise HTTPException(status_code=400, detail="text exceeds maximum length")
+        meta = _validate_metadata(item.get("metadata", {}))
+        memories.append(Memory.new(item["text"], metadata=meta))
     await store.add_many(memories)  # type: ignore[attr-defined]
     return {"ids": [m.id for m in memories]}
 
@@ -113,6 +139,7 @@ async def add_memories_batch(request: Request, body: list[dict[str, Any]]) -> di
 async def stream_memories(request: Request) -> dict[str, int]:
     """Stream newline-delimited JSON memories to the store."""
     store = cast(MemoryStoreProtocol, get_memory_store(request))
+    max_len = getattr(getattr(getattr(store, "settings", None), "security", None), "max_text_length", 10_000)
 
     async def _aiter() -> AsyncIterator[dict[str, Any]]:
         async for line in request.stream():
@@ -127,7 +154,10 @@ async def stream_memories(request: Request) -> dict[str, int]:
     batch: list[Memory] = []
     count = 0
     async for item in _aiter():
-        batch.append(Memory.new(item["text"], metadata=item.get("metadata", {})))
+        if len(item.get("text", "")) > max_len:
+            raise HTTPException(status_code=400, detail="text exceeds maximum length")
+        meta = _validate_metadata(item.get("metadata", {}))
+        batch.append(Memory.new(item["text"], metadata=meta))
         if len(batch) >= 100:
             await store.add_many(batch)  # type: ignore[attr-defined]
             count += len(batch)

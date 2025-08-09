@@ -22,7 +22,7 @@ __all__ = ["EnhancedMemoryStore", "HealthComponent"]
 log = logging.getLogger(__name__)
 
 from memory_system.config.settings import UnifiedSettings
-from memory_system.core.index import FaissHNSWIndex, MultiModalFaissIndex
+from memory_system.core.index import ANNIndexError, FaissHNSWIndex, MultiModalFaissIndex
 from memory_system.core.store import Memory, SQLiteMemoryStore
 from memory_system.core.summarization import SummaryStrategy
 
@@ -252,6 +252,15 @@ class EnhancedMemoryStore:
         updated_at: float | None = None,
     ) -> Memory:
         """Add a memory entry to the database and index."""
+        if len(text) > self.settings.security.max_text_length:
+            raise ValueError("text exceeds maximum length")
+        expected_dim = self.settings.model.vector_dims.get(
+            modality, self.settings.model.vector_dim
+        )
+        if len(embedding) != expected_dim:
+            raise ANNIndexError(
+                f"dimension mismatch: expected {expected_dim}, got {len(embedding)}"
+            )
         ts = created_at if created_at is not None else time.time()
         text_to_store = text
         if self.settings.security.encrypt_at_rest:
@@ -279,15 +288,27 @@ class EnhancedMemoryStore:
         mems: list[Memory] = []
         for item in items:
             text = item["text"]
+            if len(text) > self.settings.security.max_text_length:
+                raise ValueError("text exceeds maximum length")
+            modality = item.get("modality", "text")
+            expected_dim = self.settings.model.vector_dims.get(
+                modality, self.settings.model.vector_dim
+            )
+            emb = item["embedding"]
+            if len(emb) != expected_dim:
+                raise ANNIndexError(
+                    f"dimension mismatch: expected {expected_dim}, got {len(emb)}"
+                )
             text_to_store = text
             if self.settings.security.encrypt_at_rest:
                 f = Fernet(self.settings.security.encryption_key.encode())
                 text_to_store = f.encrypt(text.encode()).decode()
-            modality = item.get("modality", "text")
             mem = Memory(
                 id=str(uuid.uuid4()),
                 text=text_to_store,
-                created_at=dt.datetime.fromtimestamp(item.get("created_at", time.time()), tz=dt.timezone.utc),
+                created_at=dt.datetime.fromtimestamp(
+                    item.get("created_at", time.time()), tz=dt.timezone.utc
+                ),
                 importance=item.get("importance", 0.0),
                 valence=item.get("valence", 0.0),
                 emotional_intensity=item.get("emotional_intensity", 0.0),
@@ -295,7 +316,7 @@ class EnhancedMemoryStore:
                 modality=modality,
             )
             mems.append(mem)
-            vec = np.asarray(item["embedding"], dtype=np.float32)
+            vec = np.asarray(emb, dtype=np.float32)
             self._index.add_vectors(modality, [mem.id], np.asarray([vec], dtype=np.float32))
         await self._store.add_many(mems)
         self._index.save(str(self.settings.database.vec_path))
@@ -322,11 +343,21 @@ class EnhancedMemoryStore:
         total = 0
         async for item in _aiter(iterator):
             text = item["text"]
+            if len(text) > self.settings.security.max_text_length:
+                raise ValueError("text exceeds maximum length")
+            modality = item.get("modality", "text")
+            expected_dim = self.settings.model.vector_dims.get(
+                modality, self.settings.model.vector_dim
+            )
+            emb = item["embedding"]
+            if len(emb) != expected_dim:
+                raise ANNIndexError(
+                    f"dimension mismatch: expected {expected_dim}, got {len(emb)}"
+                )
             text_to_store = text
             if self.settings.security.encrypt_at_rest:
                 f = Fernet(self.settings.security.encryption_key.encode())
                 text_to_store = f.encrypt(text.encode()).decode()
-            modality = item.get("modality", "text")
             mem = Memory(
                 id=str(uuid.uuid4()),
                 text=text_to_store,
@@ -337,7 +368,7 @@ class EnhancedMemoryStore:
                 metadata={"role": item.get("role"), "tags": item.get("tags", [])},
                 modality=modality,
             )
-            batch.append((modality, mem, np.asarray(item["embedding"], dtype=np.float32)))
+            batch.append((modality, mem, np.asarray(emb, dtype=np.float32)))
             if len(batch) >= batch_size:
                 await self._store.add_many([m for _, m, _ in batch])
                 for mod, m, vec in batch:
