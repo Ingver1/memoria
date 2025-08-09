@@ -39,6 +39,18 @@ class Connection:
     async def close(self) -> None:
         await asyncio.to_thread(self._conn.close)
 
-async def connect(dsn: str, *, uri: bool = False) -> Connection:
-    conn = await asyncio.to_thread(sqlite3.connect, dsn, uri=uri)
+async def connect(
+    dsn: str, *, uri: bool = False, timeout: float | None = None
+) -> Connection:
+    """Lightweight async wrapper around :func:`sqlite3.connect`.
+
+    The real aiosqlite library exposes a ``timeout`` parameter – some parts of
+    the codebase rely on it.  Support it here for compatibility but fall back to
+    the default ``sqlite3`` behaviour if omitted.
+    """
+
+    if timeout is None:
+        conn = await asyncio.to_thread(sqlite3.connect, dsn, uri=uri)
+    else:
+        conn = await asyncio.to_thread(sqlite3.connect, dsn, uri=uri, timeout=timeout)
     return Connection(conn)

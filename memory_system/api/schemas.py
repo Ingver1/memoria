@@ -69,6 +69,8 @@ class MemoryUpdate(BaseModel):
     tags: list[str] | None = Field(default=None, max_length=10)
     valence: float | None = Field(default=None, ge=-1.0, le=1.0)
     emotional_intensity: float | None = Field(default=None, ge=0.0, le=1.0)
+    valence_delta: float | None = Field(default=None)
+    emotional_intensity_delta: float | None = Field(default=None)
 
     model_config = {
         "extra": "forbid",
