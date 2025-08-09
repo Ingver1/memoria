@@ -21,11 +21,11 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, MutableMapping, Optional, Sequence, cast
 
-from memory_system.unified_memory import ListBestWeights
-from .top_n_by_score_sql import build_top_n_by_score_sql
-
 # ─────────────────────── third-party imports ───────────────────────
 import aiosqlite
+from memory_system.unified_memory import ListBestWeights
+
+from .top_n_by_score_sql import build_top_n_by_score_sql
 
 try:  # Optional libSQL support
     from libsql_client import create_client as _create_libsql_client
