@@ -29,10 +29,10 @@ from time import perf_counter
 import faiss
 import numpy as np
 from numpy import ndarray as NDArray
+from prometheus_client import Gauge, Histogram
 
 from memory_system.utils.exceptions import StorageError
 from memory_system.utils.metrics import prometheus_counter
-from prometheus_client import Gauge, Histogram
 from memory_system.utils.rwlock import RWLock
 
 log = logging.getLogger(__name__)
@@ -232,9 +232,7 @@ class FaissHNSWIndex:
 
         vecs = self._to_float32(np.asarray(sample_vectors))
         if vecs.shape[1] != self.dim:
-            raise ANNIndexError(
-                f"dimension mismatch: expected dim={self.dim}, got {vecs.shape[1]}"
-            )
+            raise ANNIndexError(f"dimension mismatch: expected dim={self.dim}, got {vecs.shape[1]}")
         if self.space == "cosine":
             faiss.normalize_L2(vecs)
 
