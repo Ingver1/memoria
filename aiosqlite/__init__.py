@@ -39,6 +39,6 @@ class Connection:
     async def close(self) -> None:
         await asyncio.to_thread(self._conn.close)
 
-async def connect(dsn: str, *, uri: bool = False) -> Connection:
-    conn = await asyncio.to_thread(sqlite3.connect, dsn, uri=uri)
+async def connect(dsn: str, *, uri: bool = False, timeout: float | None = None) -> Connection:
+    conn = await asyncio.to_thread(sqlite3.connect, dsn, uri=uri, timeout=timeout or 5)
     return Connection(conn)

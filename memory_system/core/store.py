@@ -655,13 +655,18 @@ class SQLiteMemoryStore:
         metadata: Dict[str, Any] | None = None,
         importance: float | None = None,
         importance_delta: float | None = None,
+        valence: float | None = None,
+        valence_delta: float | None = None,
+        emotional_intensity: float | None = None,
+        emotional_intensity_delta: float | None = None,
     ) -> Memory:
-        """Update text, importance and/or metadata of an existing memory.
+        """Update text, emotional attributes and/or metadata of a memory.
 
-        If ``importance_delta`` is provided, the ``importance`` column is
-        incremented by that amount.  A concrete ``importance`` value overrides
-        the existing one.  Metadata is **merged** with existing JSON rather than
-        replacing it outright.
+        If ``*_delta`` values are provided the respective columns are adjusted
+        by that amount (clamped to their valid ranges).  Explicit ``importance``,
+        ``valence`` or ``emotional_intensity`` values override existing ones.
+        Metadata is **merged** with existing JSON rather than replacing it
+        outright.
         """
 
         await self.initialise()
@@ -684,6 +689,32 @@ class SQLiteMemoryStore:
                     "SET importance = MAX(0.0, MIN(1.0, importance + ?)) "
                     "WHERE id = ?",
                     (importance_delta, memory_id),
+                )
+
+            if valence is not None:
+                await conn.execute(
+                    "UPDATE memories SET valence = ? WHERE id = ?",
+                    (valence, memory_id),
+                )
+            elif valence_delta is not None:
+                await conn.execute(
+                    "UPDATE memories "
+                    "SET valence = MAX(-1.0, MIN(1.0, valence + ?)) "
+                    "WHERE id = ?",
+                    (valence_delta, memory_id),
+                )
+
+            if emotional_intensity is not None:
+                await conn.execute(
+                    "UPDATE memories SET emotional_intensity = ? WHERE id = ?",
+                    (emotional_intensity, memory_id),
+                )
+            elif emotional_intensity_delta is not None:
+                await conn.execute(
+                    "UPDATE memories "
+                    "SET emotional_intensity = MAX(0.0, MIN(1.0, emotional_intensity + ?)) "
+                    "WHERE id = ?",
+                    (emotional_intensity_delta, memory_id),
                 )
 
             if metadata is not None and metadata:
