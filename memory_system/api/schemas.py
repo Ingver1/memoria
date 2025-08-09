@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 from memory_system import __version__
 
@@ -29,11 +29,18 @@ class MemoryBase(BaseModel):
     role: str = Field("user", max_length=32, description="Conversation role label")
     tags: list[str] = Field(default_factory=list, max_length=10)
     valence: float = Field(0.0, ge=-1.0, le=1.0, description="Emotion polarity")
-    emotional_intensity: float = Field(
+    arousal: float = Field(
         0.0,
         ge=0.0,
         le=1.0,
-        description="Strength of emotional reaction",
+        description="Strength of emotional reaction"
+        validation_alias=AliasChoices("arousal", "emotional_intensity"),
+    )
+    importance: float = Field(
+        0.0,
+        ge=0.0,
+        le=1.0,
+        description="Subjective importance of the memory",
     )
     modality: str = Field("text", max_length=32)
     language: str | None = Field(None, max_length=32)
@@ -48,8 +55,10 @@ class MemoryBase(BaseModel):
             raise ValueError("too many tags")
         if not -1.0 <= self.valence <= 1.0:
             raise ValueError("valence must be between -1 and 1")
-        if not 0.0 <= self.emotional_intensity <= 1.0:
-            raise ValueError("emotional_intensity must be between 0 and 1")
+        if not 0.0 <= self.arousal <= 1.0:
+            raise ValueError("arousal must be between 0 and 1")
+        if not 0.0 <= self.importance <= 1.0:
+            raise ValueError("importance must be between 0 and 1")
 
 
 class MemoryCreate(MemoryBase):
@@ -68,9 +77,35 @@ class MemoryUpdate(BaseModel):
     role: str | None = Field(default=None, max_length=32)
     tags: list[str] | None = Field(default=None, max_length=10)
     valence: float | None = Field(default=None, ge=-1.0, le=1.0)
-    emotional_intensity: float | None = Field(default=None, ge=0.0, le=1.0)
+    arousal: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        validation_alias=AliasChoices("arousal", "emotional_intensity"),
+    )
+    importance: float | None = Field(default=None, ge=0.0, le=1.0)
     valence_delta: float | None = Field(default=None)
-    emotional_intensity_delta: float | None = Field(default=None)
+    arousal_delta: float | None = Field(
+        default=None,
+        validation_alias=AliasChoices("arousal_delta", "emotional_intensity_delta"),
+    )
+    importance_delta: float | None = Field(default=None)
+
+    model_config = {
+        "extra": "forbid",
+        "validate_default": True,
+    }
+
+
+class MemoryReinforce(BaseModel):
+    """Payload for reinforce operation."""
+
+    importance_delta: float = Field(0.1)
+    valence_delta: float | None = Field(default=None)
+    arousal_delta: float | None = Field(
+        default=None,
+        validation_alias=AliasChoices("arousal_delta", "emotional_intensity_delta"),
+    )
 
     model_config = {
         "extra": "forbid",
@@ -86,7 +121,13 @@ class MemoryRead(MemoryBase):
     created_at: datetime
     updated_at: datetime | None = None
     valence: float = Field(0.0, ge=-1.0, le=1.0)
-    emotional_intensity: float = Field(0.0, ge=0.0, le=1.0)
+    arousal: float = Field(
+        0.0,
+        ge=0.0,
+        le=1.0,
+        validation_alias=AliasChoices("arousal", "emotional_intensity"),
+    )
+    importance: float = Field(0.0, ge=0.0, le=1.0)
 
 
 # ---------------------------------------------------------------------------
