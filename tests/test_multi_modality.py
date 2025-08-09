@@ -1,9 +1,9 @@
 import numpy as np
 import pytest
 
-from memory_system.core.index import MultiModalFaissIndex
-from memory_system.core.enhanced_store import EnhancedMemoryStore
 from memory_system.config.settings import UnifiedSettings
+from memory_system.core.enhanced_store import EnhancedMemoryStore
+from memory_system.core.index import MultiModalFaissIndex
 
 
 def test_multi_modal_index_isolation(tmp_path):

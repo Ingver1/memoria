@@ -343,21 +343,15 @@ class TestEndToEndMemoryWorkflow:
 
         query_vec = vec
 
-        res_user = await store.semantic_search(
-            embedding=query_vec, k=5, metadata_filter={"role": "user"}
-        )
+        res_user = await store.semantic_search(embedding=query_vec, k=5, metadata_filter={"role": "user"})
         assert mem_user in res_user
         assert all(m.metadata.get("role") == "user" for m in res_user)
 
-        res_assistant = await store.semantic_search(
-            embedding=query_vec, k=5, metadata_filter={"role": "assistant"}
-        )
+        res_assistant = await store.semantic_search(embedding=query_vec, k=5, metadata_filter={"role": "assistant"})
         assert mem_assistant in res_assistant
         assert all(m.metadata.get("role") == "assistant" for m in res_assistant)
 
-        res_none = await store.semantic_search(
-            embedding=query_vec, k=5, metadata_filter={"role": "missing"}
-        )
+        res_none = await store.semantic_search(embedding=query_vec, k=5, metadata_filter={"role": "missing"})
         assert res_none == []
 
 

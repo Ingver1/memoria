@@ -96,6 +96,7 @@ async def search_memory(
     metadata_filter = json.loads(metadata) if metadata else None
     return await search(q, k=limit, metadata_filter=metadata_filter, modality=modality, store=store)
 
+
 @router.post("/batch", summary="Add memories batch", response_description="Memory UUIDs")
 async def add_memories_batch(request: Request, body: list[dict[str, Any]]) -> dict[str, list[str]]:
     """Add multiple memories in a single request."""

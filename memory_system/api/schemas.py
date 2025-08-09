@@ -96,9 +96,7 @@ class MemoryQuery(BaseModel):
     query: str = Field(..., min_length=1, max_length=1_000)
     top_k: int = Field(10, ge=1, le=100)
     include_embeddings: bool = Field(False, description="Return raw vector embeddings in the response")
-    metadata_filter: dict[str, Any] | None = Field(
-        default=None, description="Optional metadata key/value filters"
-    )
+    metadata_filter: dict[str, Any] | None = Field(default=None, description="Optional metadata key/value filters")
     modality: str = Field("text", description="Modality of the query")
     language: str | None = Field(None, description="Language hint")
 

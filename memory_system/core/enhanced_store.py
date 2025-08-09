@@ -41,7 +41,6 @@ class EnhancedMemoryStore:
     """Enhanced memory store with health checking and stats."""
 
     def __init__(self, settings: UnifiedSettings) -> None:
-
         """Initialise the store components using ``settings``."""
 
         self.settings = settings
@@ -59,65 +58,40 @@ class EnhancedMemoryStore:
         vector_dims = getattr(settings.model, "vector_dims", None)
 
         if vector_dims:
-
             # Multi‑modal: pass through all index options
 
             self._index = MultiModalFaissIndex(
-
                 vector_dims,
-
                 M=settings.model.hnsw_m,
-
                 ef_construction=settings.model.hnsw_ef_construction,
-
                 ef_search=settings.model.hnsw_ef_search,
-
                 index_type=settings.model.index_type,
-
                 use_gpu=settings.model.use_gpu,
-
                 ivf_nlist=settings.model.ivf_nlist,
-
                 ivf_nprobe=settings.model.ivf_nprobe,
-
                 pq_m=settings.model.pq_m,
-
                 pq_bits=settings.model.pq_bits,
-
             )
 
         else:
-
             # Single modality: use standard FaissHNSWIndex with PQ/IVF options
 
             self._index = FaissHNSWIndex(
-
                 dim=settings.model.vector_dim,
-
                 M=settings.model.hnsw_m,
-
                 ef_construction=settings.model.hnsw_ef_construction,
-
                 ef_search=settings.model.hnsw_ef_search,
-
                 index_type=settings.model.index_type,
-
                 use_gpu=settings.model.use_gpu,
-
                 ivf_nlist=settings.model.ivf_nlist,
-
                 ivf_nprobe=settings.model.ivf_nprobe,
-
                 pq_m=settings.model.pq_m,
-
                 pq_bits=settings.model.pq_bits,
-
             )
 
         vec_path = settings.database.vec_path
 
         if vec_path.exists():
-
             # Load persisted index(es); stats().total_vectors works for both
 
             self._index.load(str(vec_path))
@@ -125,13 +99,11 @@ class EnhancedMemoryStore:
             self._memory_count = self._index.stats().total_vectors
 
         else:
-
             self._memory_count = 0
 
             # Auto‑tune HNSW only for single‑modal (multimodal tuning isn’t implemented)
 
             if not vector_dims and settings.model.hnsw_autotune:
-
                 sample = np.random.rand(128, settings.model.vector_dim).astype(np.float32)
 
                 M, ef_c, ef_s = self._index.auto_tune(sample)
@@ -145,31 +117,19 @@ class EnhancedMemoryStore:
                 log.info("Auto tuned HNSW params: M=%d ef_construction=%d ef_search=%d", M, ef_c, ef_s)
 
                 self._index = FaissHNSWIndex(
-
                     dim=settings.model.vector_dim,
-
                     M=M,
-
                     ef_construction=ef_c,
-
                     ef_search=ef_s,
-
                     index_type=settings.model.index_type,
-
                     use_gpu=settings.model.use_gpu,
-
                     ivf_nlist=settings.model.ivf_nlist,
-
                     ivf_nprobe=settings.model.ivf_nprobe,
-
                     pq_m=settings.model.pq_m,
-
                     pq_bits=settings.model.pq_bits,
-
                 )
 
         async def _save_index() -> None:
-
             # Persist index(es) to disk; vector path is common base
 
             await asyncio.to_thread(self._index.save, str(vec_path))
@@ -264,10 +224,7 @@ class EnhancedMemoryStore:
         if avg_recall < self._recall_target and self._index.ef_search < self._max_ef_search:
             new_ef = min(self._index.ef_search * 2, self._max_ef_search)
             self._index.search(self._control_queries[0][0], k=1, ef_search=new_ef)
-        elif (
-            avg_recall > self._recall_target + 0.05
-            and self._index.ef_search > self._min_ef_search
-        ):
+        elif avg_recall > self._recall_target + 0.05 and self._index.ef_search > self._min_ef_search:
             new_ef = max(self._index.ef_search // 2, self._min_ef_search)
             self._index.search(self._control_queries[0][0], k=1, ef_search=new_ef)
 
@@ -399,29 +356,29 @@ class EnhancedMemoryStore:
         modality: str = "text",
     ) -> list[Any]:
         """
-    Perform a semantic vector search.
+        Perform a semantic vector search.
 
-    Parameters
-    ----------
-    vector:
-        Query embedding (list of floats).
-    k:
-        Number of nearest neighbours to return.
-    return_distance:
-        When True, return (Memory, distance) tuples; otherwise return Memory.
-    ef_search:
-        Controls HNSW search quality.
-    metadata_filter:
-        Optional metadata constraints. When provided, only memories whose
-        metadata matches all key/value pairs participate in the results.
-    level:
-        Optional logical level constraint; only memories at this level
-        are returned.
+        Parameters
+        ----------
+        vector:
+            Query embedding (list of floats).
+        k:
+            Number of nearest neighbours to return.
+        return_distance:
+            When True, return (Memory, distance) tuples; otherwise return Memory.
+        ef_search:
+            Controls HNSW search quality.
+        metadata_filter:
+            Optional metadata constraints. When provided, only memories whose
+            metadata matches all key/value pairs participate in the results.
+        level:
+            Optional logical level constraint; only memories at this level
+            are returned.
 
-    Returns
-    -------
-    list[Any]
-        A list of memories (optionally paired with their distance).
+        Returns
+        -------
+        list[Any]
+            A list of memories (optionally paired with their distance).
         """
         # Widen the ANN probe only if we plan to post-filter.
         metadata_filter = dict(metadata_filter or {})
@@ -444,8 +401,7 @@ class EnhancedMemoryStore:
             if level is not None:
                 # If Memory has a `level` field, filter by it as well
                 allowed_ids = {
-                    mid for mid in allowed_ids
-                    if (getattr(await self._store.get(mid), "level", None) == level)
+                    mid for mid in allowed_ids if (getattr(await self._store.get(mid), "level", None) == level)
                 }
             if not allowed_ids:
                 return []
