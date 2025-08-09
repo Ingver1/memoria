@@ -32,6 +32,7 @@ from numpy import ndarray as NDArray
 
 from memory_system.utils.exceptions import StorageError
 from memory_system.utils.metrics import prometheus_counter
+from prometheus_client import Gauge, Histogram
 from memory_system.utils.rwlock import RWLock
 
 log = logging.getLogger(__name__)
@@ -41,6 +42,14 @@ _VEC_ADDED = prometheus_counter("ums_vectors_added_total", "Vectors added to ANN
 _VEC_DELETED = prometheus_counter("ums_vectors_deleted_total", "Vectors deleted from ANN index")
 _QUERY_CNT = prometheus_counter("ums_ann_queries_total", "ANN queries executed")
 _QUERY_ERR = prometheus_counter("ums_ann_query_errors_total", "Errors while querying ANN index")
+_QUERY_LATENCY = Histogram(
+    "ums_ann_query_latency_seconds",
+    "Latency of ANN index searches",
+)
+_INDEX_SIZE = Gauge(
+    "ums_ann_index_size",
+    "Number of vectors currently stored in the ANN index",
+)
 
 
 # ────────────────────────── Exceptions ───────────────────────────
@@ -125,6 +134,7 @@ class FaissHNSWIndex:
         self._reverse_id_map: dict[str, int] = {}
         self._vectors: dict[int, NDArray] = {}
         self._warmed_up: bool = False
+        _INDEX_SIZE.set(0)
         log.info("FAISS %s index initialised: dim=%d, metric=%s", self.index_type, dim, space)
 
     # ────────────────────────── Internal ──────────────────────────
@@ -270,6 +280,7 @@ class FaissHNSWIndex:
                 self._vectors[int(int_id)] = vecs[idx]
 
             self._stats.total_vectors += len(ids)
+            _INDEX_SIZE.set(self._stats.total_vectors)
             _VEC_ADDED.inc(len(ids))
             log.debug("Added %d vectors", len(ids))
             self._cache.clear()
@@ -326,6 +337,7 @@ class FaissHNSWIndex:
             new_index.add_with_ids(vecs, ids)
         self.index = new_index
         self._stats.total_vectors = len(self._vectors)
+        _INDEX_SIZE.set(self._stats.total_vectors)
         self._cache.clear()
         self._warm_up()
 
@@ -352,9 +364,11 @@ class FaissHNSWIndex:
                 self._rebuild_from_vectors()
             else:
                 self._stats.total_vectors = len(self._vectors)
+                _INDEX_SIZE.set(self._stats.total_vectors)
                 self._cache.clear()
             if removed == 0:
                 self._stats.total_vectors = len(self._vectors)
+                _INDEX_SIZE.set(self._stats.total_vectors)
 
     # ─────────────────────── Query ────────────────────────
     def search(
@@ -404,7 +418,9 @@ class FaissHNSWIndex:
         if int_ids.size == 0:
             self._cache[key] = ([], [])
             return [], []
-        latency = (perf_counter() - start) * 1000.0
+        latency_sec = perf_counter() - start
+        latency = latency_sec * 1000.0
+        _QUERY_LATENCY.observe(latency_sec)
 
         self._stats.total_queries += 1
         self._stats.avg_latency_ms = (
@@ -443,6 +459,7 @@ class FaissHNSWIndex:
                 self._id_map = temp._id_map
                 self._reverse_id_map = temp._reverse_id_map
                 self._stats.total_vectors = len(ids)
+                _INDEX_SIZE.set(self._stats.total_vectors)
                 self._stats.last_rebuild = perf_counter()
                 self._cache.clear()
                 log.info("Index rebuilt with %d vectors", len(ids))
@@ -471,6 +488,7 @@ class FaissHNSWIndex:
                     self._id_map = {int(k): v for k, v in json.loads(map_path.read_text()).items()}
                     self._reverse_id_map = {v: int(k) for k, v in self._id_map.items()}
                 self._stats.total_vectors = self.index.ntotal
+                _INDEX_SIZE.set(self._stats.total_vectors)
                 self._cache.clear()
                 log.info("Index loaded from %s", path)
         except Exception as e:
