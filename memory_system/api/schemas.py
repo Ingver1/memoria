@@ -35,6 +35,8 @@ class MemoryBase(BaseModel):
         le=1.0,
         description="Strength of emotional reaction",
     )
+    modality: str = Field("text", max_length=32)
+    language: str | None = Field(None, max_length=32)
 
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
@@ -97,6 +99,8 @@ class MemoryQuery(BaseModel):
     metadata_filter: dict[str, Any] | None = Field(
         default=None, description="Optional metadata key/value filters"
     )
+    modality: str = Field("text", description="Modality of the query")
+    language: str | None = Field(None, description="Language hint")
 
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
