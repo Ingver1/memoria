@@ -14,7 +14,7 @@ try:
     from cryptography.fernet import Fernet, InvalidToken
 
     _CRYPTO_OK = True
-except Exception:  # pragma: no cover - optional dependency
+except ImportError:  # pragma: no cover - optional dependency
     _CRYPTO_OK = False
 
     class InvalidToken(Exception): ...
