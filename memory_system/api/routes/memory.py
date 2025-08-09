@@ -63,7 +63,11 @@ async def search_memories(
     if not query.query:
         raise HTTPException(status_code=422, detail="Query must not be empty")
     store = await _store(request)
-    results = await store.search(text_query=query.query, limit=query.top_k)
+    results = await store.search(
+        text_query=query.query,
+        metadata_filters=query.metadata_filter,
+        limit=query.top_k,
+    )
     payload = [MemoryRead.model_validate(asdict(r)) for r in results]
     return payload
 
