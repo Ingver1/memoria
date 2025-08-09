@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime as dt
-from typing import Dict, List, Sequence, Tuple, TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Dict, List, Sequence, Tuple
 
 try:  # optional numpy
     import numpy as np
@@ -27,10 +27,9 @@ if TYPE_CHECKING:  # pragma: no cover - typing helper
 
 def _require_numpy() -> Any:
     if np is None:
-        raise ModuleNotFoundError(
-            "numpy is required for maintenance operations. Install ai-memory[core]."
-        )
+        raise ModuleNotFoundError("numpy is required for maintenance operations. Install ai-memory[core].")
     return np
+
 
 from embedder import embed as embed_text
 from memory_system.core.hierarchical_summarizer import HierarchicalSummarizer

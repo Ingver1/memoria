@@ -17,7 +17,7 @@ import logging
 import threading
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, cast, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 try:  # optional numpy
     import numpy as np
@@ -44,18 +44,15 @@ log = logging.getLogger(__name__)
 
 def _require_numpy() -> Any:
     if np is None:
-        raise ModuleNotFoundError(
-            "numpy is required for embedding services. Install ai-memory[embedding]."
-        )
+        raise ModuleNotFoundError("numpy is required for embedding services. Install ai-memory[embedding].")
     return np
 
 
 def _require_sentence_transformers() -> Any:
     if SentenceTransformer is None:
-        raise ModuleNotFoundError(
-            "sentence-transformers is required for embedding services."
-        )
+        raise ModuleNotFoundError("sentence-transformers is required for embedding services.")
     return SentenceTransformer
+
 
 ###############################################################################
 # Exceptions & Data Containers

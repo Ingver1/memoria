@@ -16,6 +16,7 @@ from memory_system.api.schemas import (
     MemoryReinforce,
     MemoryUpdate,
 )
+from memory_system.core.memory_dynamics import MemoryDynamics
 from memory_system.core.store import Memory, SQLiteMemoryStore, get_memory_store, get_store
 from memory_system.unified_memory import (
     ListBestWeights,
@@ -23,7 +24,6 @@ from memory_system.unified_memory import (
     reinforce,
     update,
 )
-from memory_system.core.memory_dynamics import MemoryDynamics
 from memory_system.utils.security import EnhancedPIIFilter
 
 log = logging.getLogger(__name__)

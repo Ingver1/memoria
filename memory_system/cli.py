@@ -29,10 +29,9 @@ import typer
 def _require_httpx() -> Any:
     """Return httpx module or raise a helpful error."""
     if httpx is None:  # pragma: no cover - runtime guard
-        raise ModuleNotFoundError(
-            "httpx is required for CLI operations. Install ai-memory[cli]."
-        )
+        raise ModuleNotFoundError("httpx is required for CLI operations. Install ai-memory[cli].")
     return httpx
+
 
 Panel: Type[Any]
 Table: Type[Any]

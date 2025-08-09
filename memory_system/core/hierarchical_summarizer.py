@@ -13,7 +13,7 @@ vector index so they can participate in subsequent searches.
 
 from __future__ import annotations
 
-from typing import List, Sequence, TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, List, Sequence
 
 try:  # optional numpy
     import numpy as np
@@ -26,10 +26,9 @@ if TYPE_CHECKING:  # pragma: no cover - typing helper
 
 def _require_numpy() -> Any:
     if np is None:
-        raise ModuleNotFoundError(
-            "numpy is required for hierarchical summarisation. Install ai-memory[core]."
-        )
+        raise ModuleNotFoundError("numpy is required for hierarchical summarisation. Install ai-memory[core].")
     return np
+
 
 from embedder import embed as embed_text
 from memory_system.core.index import FaissHNSWIndex

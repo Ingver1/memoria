@@ -26,17 +26,13 @@ _model: SentenceTransformer | None = None
 
 def _require_numpy() -> Any:
     if np is None:
-        raise ModuleNotFoundError(
-            "numpy is required for local embeddings. Install ai-memory[embedder]."
-        )
+        raise ModuleNotFoundError("numpy is required for local embeddings. Install ai-memory[embedder].")
     return np
 
 
 def _require_sentence_transformers() -> Any:
     if SentenceTransformer is None:
-        raise ModuleNotFoundError(
-            "sentence-transformers is required for local embeddings."
-        )
+        raise ModuleNotFoundError("sentence-transformers is required for local embeddings.")
     return SentenceTransformer
 
 

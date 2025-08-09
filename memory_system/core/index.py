@@ -25,9 +25,10 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from time import perf_counter
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import faiss
+
 try:  # optional numpy
     import numpy as np
 except ModuleNotFoundError:  # pragma: no cover - optional dependency
@@ -38,21 +39,19 @@ if TYPE_CHECKING:  # pragma: no cover - typing helper
 else:
     NDArray = Any
 
-from prometheus_client import Gauge, Histogram
-
 from memory_system.utils.exceptions import StorageError
 from memory_system.utils.metrics import prometheus_counter
 from memory_system.utils.rwlock import RWLock
+from prometheus_client import Gauge, Histogram
 
 log = logging.getLogger(__name__)
 
 
 def _require_numpy() -> Any:
     if np is None:
-        raise ModuleNotFoundError(
-            "numpy is required for FaissHNSWIndex operations. Install ai-memory[core]."
-        )
+        raise ModuleNotFoundError("numpy is required for FaissHNSWIndex operations. Install ai-memory[core].")
     return np
+
 
 # ───────────────────── Prometheus collectors ─────────────────────
 _VEC_ADDED = prometheus_counter("ums_vectors_added_total", "Vectors added to ANN index")

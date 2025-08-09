@@ -30,9 +30,10 @@ import uuid
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Literal, cast, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import faiss
+
 try:  # optional numpy
     import numpy as _np
 except ModuleNotFoundError:  # pragma: no cover - optional dependency
@@ -46,10 +47,9 @@ else:
 
 def _require_numpy() -> Any:
     if _np is None:
-        raise ModuleNotFoundError(
-            "numpy is required for vector store operations. Install ai-memory[core]."
-        )
+        raise ModuleNotFoundError("numpy is required for vector store operations. Install ai-memory[core].")
     return _np
+
 
 from memory_system.utils.exceptions import StorageError, ValidationError
 from memory_system.utils.rwlock import AsyncRWLock

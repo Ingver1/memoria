@@ -141,10 +141,7 @@ async def test_semantic_search_filters_by_level_and_is_faster(monkeypatch: pytes
             score = (
                 mem.importance * weights.importance
                 + mem.emotional_intensity * weights.emotional_intensity
-                + (
-                    weights.valence_pos if mem.valence >= 0 else weights.valence_neg
-                )
-                * mem.valence
+                + (weights.valence_pos if mem.valence >= 0 else weights.valence_neg) * mem.valence
             )
             scored.append((mem, score))
         scored.sort(key=lambda x: x[1], reverse=True)
