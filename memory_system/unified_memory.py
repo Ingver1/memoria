@@ -67,6 +67,12 @@ class MemoryStoreProtocol(Protocol):
         *,
         text: str | None = None,
         metadata: MutableMapping[str, Any] | None = None,
+        importance: float | None = None,
+        importance_delta: float | None = None,
+        valence: float | None = None,
+        valence_delta: float | None = None,
+        emotional_intensity: float | None = None,
+        emotional_intensity_delta: float | None = None,
     ) -> Memory: ...
 
     async def list_recent(self, *, n: int = 20) -> Sequence[Memory]: ...
@@ -234,6 +240,8 @@ async def update(
     *,
     text: str | None = None,
     metadata: MutableMapping[str, Any] | None = None,
+    valence_delta: float | None = None,
+    emotional_intensity_delta: float | None = None,
     store: MemoryStoreProtocol | None = None,
 ) -> Memory:
     """Update text and/or metadata of an existing memory and return the new object.
@@ -242,6 +250,10 @@ async def update(
         memory_id (str): The memory identifier.
         text (str | None, optional): New text. Defaults to None.
         metadata (MutableMapping[str, Any] | None, optional): New metadata. Defaults to None.
+        valence_delta (float | None, optional): Increment for emotional valence.
+            Defaults to None.
+        emotional_intensity_delta (float | None, optional): Increment for
+            emotional intensity. Defaults to None.
         store (MemoryStoreProtocol | None, optional): Store object. Defaults to None.
 
     Returns:
@@ -250,7 +262,14 @@ async def update(
     st = await _resolve_store(store)
     try:
         updated = await asyncio.wait_for(
-            st.update_memory(memory_id, text=text, metadata=metadata), timeout=ASYNC_TIMEOUT
+            st.update_memory(
+                memory_id,
+                text=text,
+                metadata=metadata,
+                valence_delta=valence_delta,
+                emotional_intensity_delta=emotional_intensity_delta,
+            ),
+            timeout=ASYNC_TIMEOUT,
         )
         logger.debug("Memory %s updated.", memory_id)
     except Exception as e:
