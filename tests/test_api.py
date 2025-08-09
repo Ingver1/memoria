@@ -482,13 +482,13 @@ class TestMemoryEndpoints:
         assert len(resp.json()) == 2
 
     def test_best_memories_custom_weights(self, test_client: TestClient, tmp_path: Path) -> None:
-        """Custom weights passed via query parameters should influence ranking."""
+        """Updating precomputed scores should change ranking."""
         import asyncio
         from memory_system.core.store import get_store
 
         loop = asyncio.get_event_loop()
         store = loop.run_until_complete(get_store(tmp_path / "api.db"))
-        loop.run_until_complete(
+        good = loop.run_until_complete(
             unified_memory.add(
                 "good",
                 valence=0.5,
@@ -497,7 +497,7 @@ class TestMemoryEndpoints:
                 store=store,
             )
         )
-        loop.run_until_complete(
+        bad = loop.run_until_complete(
             unified_memory.add(
                 "bad but vital",
                 valence=-0.5,
@@ -510,10 +510,21 @@ class TestMemoryEndpoints:
         resp_default = test_client.get("/api/v1/memory/best", params={"limit": 2})
         assert resp_default.json()[0]["text"] == "good"
 
-        resp_weighted = test_client.get(
-            "/api/v1/memory/best",
-            params={"limit": 2, "importance": 2.0},
+        weights = unified_memory.ListBestWeights(importance=2.0)
+
+        def _score(m):
+            val_w = weights.valence_pos if m.valence >= 0 else weights.valence_neg
+            return (
+                weights.importance * m.importance
+                + weights.emotional_intensity * m.emotional_intensity
+                + val_w * m.valence
+            )
+
+        loop.run_until_complete(
+            store.upsert_scores([(good.memory_id, _score(good)), (bad.memory_id, _score(bad))])
         )
+
+        resp_weighted = test_client.get("/api/v1/memory/best", params={"limit": 2})
         assert resp_weighted.json()[0]["text"] == "bad but vital"
 
 

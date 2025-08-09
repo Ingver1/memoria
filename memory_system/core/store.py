@@ -10,7 +10,6 @@ from __future__ import annotations
 # ────────────────────────── stdlib imports ──────────────────────────
 import asyncio
 import datetime as dt
-import heapq
 import inspect
 import json
 import logging
@@ -307,6 +306,17 @@ class SQLiteMemoryStore:
             conn = await self._acquire()
             try:
                 await conn.execute(self._CREATE_SQL)
+                await conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS memory_scores (
+                        memory_id TEXT PRIMARY KEY REFERENCES memories(id) ON DELETE CASCADE,
+                        score     REAL NOT NULL
+                    )
+                    """
+                )
+                await conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_memory_scores_score ON memory_scores(score)"
+                )
                 # Ensure FTS virtual table and triggers exist
                 await conn.executescript(
                     """
@@ -601,33 +611,45 @@ class SQLiteMemoryStore:
         finally:
             await self._release(conn)
 
-    async def top_n_by_score(
-        self,
-        n: int,
-        score_fn: Callable[[Memory], float],
-        *,
-        chunk_size: int = 1000,
-    ) -> List[Memory]:
-        """Return ``n`` memories with the highest ``score_fn`` values.
+    async def upsert_scores(self, scores: Sequence[tuple[str, float]]) -> None:
+        """Insert or update precomputed ranking *scores*.
 
-        The database is scanned in chunks to keep memory usage bounded while a
-        small in-memory heap maintains the top candidates.  This allows callers
-        to sample the *entire* store without loading every row at once.
+        Parameters
+        ----------
+        scores:
+            Sequence of ``(memory_id, score)`` pairs.
         """
+        if not scores:
+            return
+        await self.initialise()
+        conn = await self._acquire()
+        try:
+            await conn.executemany(
+                "INSERT INTO memory_scores(memory_id, score) VALUES (?, ?) "
+                "ON CONFLICT(memory_id) DO UPDATE SET score = excluded.score",
+                scores,
+            )
+            await conn.commit()
+            await self._run_commit_hooks()
+        finally:
+            await self._release(conn)
 
-        heap: list[tuple[float, Memory]] = []
-        async for batch in self.search_iter(limit=None, chunk_size=chunk_size):
-            for mem in batch:
-                score = score_fn(mem)
-                if len(heap) < n:
-                    heapq.heappush(heap, (score, mem))
-                else:
-                    # Maintain a min-heap of size ``n``
-                    if score > heap[0][0]:
-                        heapq.heapreplace(heap, (score, mem))
-
-        # Highest scores first
-        return [m for _, m in sorted(heap, key=lambda x: x[0], reverse=True)]
+    async def top_n_by_score(self, n: int) -> List[Memory]:
+        """Return ``n`` memories ordered by precomputed score."""
+        await self.initialise()
+        conn = await self._acquire()
+        try:
+            cursor = await conn.execute(
+                "SELECT m.id, m.text, m.created_at, m.importance, m.valence, "
+                "m.emotional_intensity, m.level, m.episode_id, m.modality, m.connections, m.metadata "
+                "FROM memory_scores s JOIN memories m ON m.id = s.memory_id "
+                "ORDER BY s.score DESC LIMIT ?",
+                (n,),
+            )
+            rows = await cursor.fetchall()
+            return [self._row_to_memory(r) for r in rows]
+        finally:
+            await self._release(conn)
 
     async def add_memory(self, mem_obj: Any) -> None:
         """Add a memory object, accepting either :class:`Memory` or a similar object."""

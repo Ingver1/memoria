@@ -87,21 +87,9 @@ async def search_memories(
 async def best_memories(
     request: Request,
     limit: int = Query(5, ge=1, le=50),
-    importance: float | None = Query(None, ge=0.0),
-    emotional_intensity: float | None = Query(None, ge=0.0),
-    valence_pos: float | None = Query(None, ge=0.0),
-    valence_neg: float | None = Query(None, ge=0.0),
 ) -> list[MemoryRead]:
     """Return the most important memories ranked by score."""
     store = await _store(request)
-    weights = None
-    if any(v is not None for v in (importance, emotional_intensity, valence_pos, valence_neg)):
-        weights = unified_memory.ListBestWeights(
-            importance=importance or 1.0,
-            emotional_intensity=emotional_intensity or 1.0,
-            valence_pos=valence_pos or 1.0,
-            valence_neg=valence_neg or 0.5,
-        )
-    records = await unified_memory.list_best(n=limit, store=store, weights=weights)
+    records = await unified_memory.list_best(n=limit, store=store)
     payload = [MemoryRead.model_validate(asdict(r)) for r in records]
     return payload
