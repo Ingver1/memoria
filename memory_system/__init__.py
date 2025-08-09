@@ -31,7 +31,7 @@ try:  # pragma: no cover - optional dependency during testing
 
         # Reassign with a runtime subclass so tests can pass FastAPI apps
         setattr(httpx, "AsyncClient", cast(Any, _AsyncClient))  # noqa: B010
-except Exception:  # pragma: no cover - httpx may not be installed
+except ImportError:  # pragma: no cover - httpx may not be installed
     pass
 
 __version__: str = "1.0.0"
