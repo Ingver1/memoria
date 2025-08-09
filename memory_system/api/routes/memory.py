@@ -134,10 +134,18 @@ async def best_memories(
     n: int = Query(50, ge=1, le=500, alias="limit"),
     level: int | None = Query(None, ge=0),
     user_id: str | None = Query(None),
-    importance: Optional[float] = Query(None, ge=0.0),
-    arousal: Optional[float] = Query(None, ge=0.0),  # alias для emotional_intensity
-    valence_pos: Optional[float] = Query(None, ge=0.0),
-    valence_neg: Optional[float] = Query(None, ge=0.0),
+    importance: Optional[float] = Query(
+        None, ge=0.0, description="Weight for importance when ranking"
+    ),
+    arousal: Optional[float] = Query(
+        None, ge=0.0, description="Weight for emotional intensity (arousal)"
+    ),  # alias для emotional_intensity
+    valence_pos: Optional[float] = Query(
+        None, ge=0.0, description="Weight for positive valence"
+    ),
+    valence_neg: Optional[float] = Query(
+        None, ge=0.0, description="Weight for negative valence"
+    ),
 ):
     store = await _store(request)
     meta = {"user_id": user_id} if user_id else None

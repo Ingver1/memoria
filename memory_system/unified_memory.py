@@ -84,6 +84,7 @@ class MemoryStoreProtocol(Protocol):
         *,
         level: int | None = None,
         metadata_filter: MutableMapping[str, Any] | None = None,
+        weights: ListBestWeights | None = None,
     ) -> Sequence[Memory]: ...
 
 
@@ -470,23 +471,18 @@ async def list_best(
     metadata_filter:
         Optional metadata constraints (exact match) applied before ranking.
     weights:
-        If None (default) use precomputed scores from the store.
-        If provided, the function fetches a candidate pool and *re-scores*
-        the candidates using `_score_best(m, weights)` at query time.
-
-    Notes
-    -----
-    - When `weights` is not None we over-sample candidates (max(n*10, 10))
-      to make re-ranking meaningful, then slice to `n`.
+        If ``None`` (default) the store returns memories ordered by its
+        precomputed ``memory_scores`` table.  When provided, the store
+        computes the ranking on the fly using these weighting coefficients.
     """
     st = await _resolve_store(store)
     try:
-        limit = n if weights is None else max(n * 10, 10)
         candidates = await asyncio.wait_for(
             st.top_n_by_score(
-                limit,
+                n,
                 level=level,
                 metadata_filter=metadata_filter,
+                weights=weights,
             ),
             timeout=ASYNC_TIMEOUT,
         )
@@ -494,12 +490,7 @@ async def list_best(
         logger.error("list_best failed: %s", e)
         raise
 
-    mems = [_ensure_memory(m) for m in candidates]
-
-    if weights is not None:
-        mems.sort(key=lambda m: _score_best(m, weights), reverse=True)
-
-    return mems[:n]
+    return [_ensure_memory(m) for m in candidates]
 
 
 __all__ = [
