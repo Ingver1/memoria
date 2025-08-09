@@ -5,12 +5,18 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import asdict
-from typing import cast
+from typing import Any, cast
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
 
 from memory_system import unified_memory
-from memory_system.api.schemas import MemoryCreate, MemoryQuery, MemoryRead
+from memory_system.api.schemas import (
+    MemoryCreate,
+    MemoryQuery,
+    MemoryRead,
+    MemoryReinforce,
+    MemoryUpdate,
+)
 from memory_system.core.store import Memory, SQLiteMemoryStore, get_memory_store, get_store
 from memory_system.utils.security import EnhancedPIIFilter
 
@@ -81,6 +87,48 @@ async def search_memories(
     )
     payload = [MemoryRead.model_validate(asdict(r)) for r in results]
     return payload
+
+
+@router.patch("/{memory_id}", response_model=MemoryRead)
+async def update_memory(
+    memory_id: str, payload: MemoryUpdate, request: Request
+) -> MemoryRead:
+    """Patch existing memory fields and metadata."""
+    store = await _store(request)
+    metadata: dict[str, Any] = {}
+    if payload.role is not None:
+        metadata["role"] = payload.role
+    if payload.tags is not None:
+        metadata["tags"] = payload.tags
+    updated = await unified_memory.update(
+        memory_id,
+        text=payload.text,
+        metadata=metadata or None,
+        importance=payload.importance,
+        importance_delta=payload.importance_delta,
+        valence_delta=payload.valence_delta,
+        emotional_intensity_delta=payload.arousal_delta,
+        store=store,
+    )
+    mem_read = MemoryRead.model_validate(asdict(updated))
+    return cast(MemoryRead, mem_read)
+
+
+@router.post("/{memory_id}/reinforce", response_model=MemoryRead)
+async def reinforce_memory(
+    memory_id: str, payload: MemoryReinforce, request: Request
+) -> MemoryRead:
+    """Reinforce a memory's scoring attributes."""
+    store = await _store(request)
+    updated = await unified_memory.reinforce(
+        memory_id,
+        amount=payload.importance_delta,
+        valence_delta=payload.valence_delta,
+        intensity_delta=payload.arousal_delta,
+        store=store,
+    )
+    mem_read = MemoryRead.model_validate(asdict(updated))
+    return cast(MemoryRead, mem_read)
 
 
 @router.get("/best", response_model=list[MemoryRead])
