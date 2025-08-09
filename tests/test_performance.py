@@ -605,7 +605,7 @@ async def test_dynamic_ef_search_tuning() -> None:
         await store._evaluate_recall()
         assert store._index.ef_search < high_ef
     finally:
-        await store.clo
+        await store.close()
 
 
 @pytest.mark.performance
