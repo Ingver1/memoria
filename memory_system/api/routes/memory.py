@@ -5,11 +5,12 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import asdict
-from typing import Any, cast
+from typing import Any, Optional, cast
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
 
 from memory_system import unified_memory
+from memory_system.unified_memory import ListBestWeights
 from memory_system.api.schemas import (
     MemoryCreate,
     MemoryQuery,
@@ -130,13 +131,16 @@ async def reinforce_memory(memory_id: str, payload: MemoryReinforce, request: Re
 @router.get("/best", response_model=list[MemoryRead])
 async def best_memories(
     request: Request,
-    n: int = Query(50, ge=1, le=500),
+    n: int = Query(50, ge=1, le=500, alias="limit"),
+    level: int | None = Query(None, ge=0),
+    user_id: str | None = Query(None),
     importance: Optional[float] = Query(None, ge=0.0),
     arousal: Optional[float] = Query(None, ge=0.0),  # alias для emotional_intensity
     valence_pos: Optional[float] = Query(None, ge=0.0),
     valence_neg: Optional[float] = Query(None, ge=0.0),
 ):
     store = await _store(request)
+    meta = {"user_id": user_id} if user_id else None
 
     weights = None
     if any(v is not None for v in (importance, arousal, valence_pos, valence_neg)):
@@ -147,6 +151,12 @@ async def best_memories(
             valence_neg=valence_neg or 0.5,
         )
 
-    records = await unified_memory.list_best(n=n, store=store, weights=weights)
+    records = await unified_memory.list_best(
+        n=n,
+        store=store,
+        level=level,
+        metadata_filter=meta,
+        weights=weights,
+    )
     payload = [MemoryRead.model_validate(asdict(r)) for r in records]
     return payload
