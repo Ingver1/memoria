@@ -818,12 +818,13 @@ class SQLiteMemoryStore:
         emotional_intensity_delta: float | None = None,
     ) -> Memory:
         """
-        Update text, importance, valence, emotional_intensity and/or metadata.
+        Update text, scores and metadata.
 
-        Absolute fields (``importance``, ``valence``, ``emotional_intensity``)
-        are written directly (clamped). ``*_delta`` fields increment current
-        values (also clamped). Metadata is shallow-merged as JSON.
-        Ranges: importance ∈ [0,1], emotional_intensity ∈ [0,1], valence ∈ [-1,1].
+        ``importance``, ``valence`` and ``emotional_intensity`` set new values
+        for the respective fields (after clamping to their ranges).  The
+        ``*_delta`` counterparts add the provided amount to the current value,
+        also clamped.  Metadata is shallow‑merged as JSON.  Ranges:
+        importance ∈ [0,1], emotional_intensity ∈ [0,1], valence ∈ [-1,1].
         """
         await self.initialise()
         conn = await self._acquire()

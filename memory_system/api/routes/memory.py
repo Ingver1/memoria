@@ -105,7 +105,9 @@ async def update_memory(memory_id: str, payload: MemoryUpdate, request: Request)
         metadata=metadata or None,
         importance=payload.importance,
         importance_delta=payload.importance_delta,
+        valence=payload.valence,
         valence_delta=payload.valence_delta,
+        emotional_intensity=payload.arousal,
         emotional_intensity_delta=payload.arousal_delta,
         store=store,
     )

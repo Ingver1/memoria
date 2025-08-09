@@ -71,25 +71,47 @@ class MemoryCreate(MemoryBase):
 
 
 class MemoryUpdate(BaseModel):
-    """Payload for partial updates where all fields are optional."""
+    """Payload for partial updates where all fields are optional.
+
+    ``valence``, ``arousal`` and ``importance`` replace the existing values
+    directly, whereas the ``*_delta`` counterparts add to the current value.
+    """
 
     text: str | None = Field(default=None, min_length=1, max_length=10_000)
     role: str | None = Field(default=None, max_length=32)
     tags: list[str] | None = Field(default=None, max_length=10)
-    valence: float | None = Field(default=None, ge=-1.0, le=1.0)
+    valence: float | None = Field(
+        default=None,
+        ge=-1.0,
+        le=1.0,
+        description="Set absolute valence value",
+    )
     arousal: float | None = Field(
         default=None,
         ge=0.0,
         le=1.0,
         validation_alias=AliasChoices("arousal", "emotional_intensity"),
+        description="Set absolute arousal/emotional intensity",
     )
-    importance: float | None = Field(default=None, ge=0.0, le=1.0)
-    valence_delta: float | None = Field(default=None)
+    importance: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Set absolute importance",
+    )
+    valence_delta: float | None = Field(
+        default=None,
+        description="Increment to apply to current valence",
+    )
     arousal_delta: float | None = Field(
         default=None,
         validation_alias=AliasChoices("arousal_delta", "emotional_intensity_delta"),
+        description="Increment to apply to current arousal",
     )
-    importance_delta: float | None = Field(default=None)
+    importance_delta: float | None = Field(
+        default=None,
+        description="Increment to apply to current importance",
+    )
 
     model_config = {
         "extra": "forbid",
