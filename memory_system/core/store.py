@@ -47,6 +47,7 @@ class Memory:
     valence: float = 0.0  # -1..1 emotional polarity
     emotional_intensity: float = 0.0  # 0..1 strength of emotion
     metadata: Dict[str, Any] | None = None
+    level: int = 0
 
     def __eq__(self, other: object) -> bool:
         """Compare two memories by all fields."""
@@ -59,6 +60,7 @@ class Memory:
             and self.valence == other.valence
             and self.emotional_intensity == other.emotional_intensity
             and self.metadata == other.metadata
+            and self.level == other.level
         )
 
     @staticmethod
@@ -69,6 +71,7 @@ class Memory:
         valence: float = 0.0,
         emotional_intensity: float = 0.0,
         metadata: Optional[Dict[str, Any]] = None,
+        level: int = 0,
     ) -> "Memory":
         """Return a new :class:`Memory` with a generated UUID."""
         if not 0.0 <= importance <= 1.0:
@@ -86,6 +89,7 @@ class Memory:
             valence=valence,
             emotional_intensity=emotional_intensity,
             metadata=metadata or {},
+            level=level,
         )
 
 
@@ -105,6 +109,7 @@ class SQLiteMemoryStore:
         importance  REAL DEFAULT 0,
         valence     REAL DEFAULT 0,
         emotional_intensity REAL DEFAULT 0,
+        level       INTEGER DEFAULT 0,
         metadata    JSON
     );
     """
@@ -265,8 +270,8 @@ class SQLiteMemoryStore:
         conn = await self._acquire()
         try:
             await conn.execute(
-                "INSERT INTO memories (id, text, created_at, importance, valence, emotional_intensity, metadata)"
-                " VALUES (?, ?, ?, ?, ?, ?, json(?))",
+                "INSERT INTO memories (id, text, created_at, importance, valence, emotional_intensity, level, metadata)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, json(?))",
                 (
                     mem.id,
                     mem.text,
@@ -274,6 +279,7 @@ class SQLiteMemoryStore:
                     mem.importance,
                     mem.valence,
                     mem.emotional_intensity,
+                    mem.level,
                     json.dumps(mem.metadata) if mem.metadata else "null",
                 ),
             )
@@ -327,6 +333,7 @@ class SQLiteMemoryStore:
             valence=_get(row, "valence"),
             emotional_intensity=_get(row, "emotional_intensity"),
             metadata=metadata,
+            level=_get(row, "level"),
         )
 
     # ------------------------------------------------------------------
@@ -339,6 +346,7 @@ class SQLiteMemoryStore:
         *,
         metadata_filters: Optional[Dict[str, Any]] = None,
         limit: int = 20,
+        level: int | None = None,
     ) -> List[Memory]:
         """Full-text + JSON1 metadata search (no vectors here)."""
         await self.initialise()
@@ -348,7 +356,7 @@ class SQLiteMemoryStore:
             if text_query:
                 sql = (
                     "SELECT m.id, m.text, m.created_at, m.importance, m.valence, "
-                    "m.emotional_intensity, m.metadata "
+                    "m.emotional_intensity, m.level, m.metadata "
                     "FROM memories_fts JOIN memories m ON m.rowid = memories_fts.rowid "
                     "WHERE memories_fts MATCH ?"
                 )
@@ -357,6 +365,9 @@ class SQLiteMemoryStore:
                     for key, val in metadata_filters.items():
                         sql += " AND json_extract(m.metadata, ?) = ?"
                         params.extend([f"$.{key}", val])
+                if level is not None:
+                    sql += " AND m.level = ?"
+                    params.append(level)
                 sql += " ORDER BY bm25(memories_fts) LIMIT ?"
             else:
                 clauses: List[str] = []
@@ -364,7 +375,10 @@ class SQLiteMemoryStore:
                     for key, val in metadata_filters.items():
                         clauses.append("json_extract(metadata, ?) = ?")
                         params.extend([f"$.{key}", val])
-                sql = "SELECT id, text, created_at, importance, valence, emotional_intensity, metadata FROM memories"
+                if level is not None:
+                    clauses.append("level = ?")
+                    params.append(level)
+                sql = "SELECT id, text, created_at, importance, valence, emotional_intensity, level, metadata FROM memories"
                 if clauses:
                     sql += " WHERE " + " AND ".join(clauses)
                 sql += " ORDER BY created_at DESC LIMIT ?"
@@ -375,16 +389,23 @@ class SQLiteMemoryStore:
         finally:
             await self._release(conn)
 
-    async def list_recent(self, *, n: int = 20) -> List[Memory]:
-        """Return the most recent *n* memories."""
+    async def list_recent(self, *, n: int = 20, level: int | None = None) -> List[Memory]:
+        """Return the most recent *n* memories, optionally filtered by level."""
         await self.initialise()
         conn = await self._acquire()
         try:
-            cursor = await conn.execute(
-                "SELECT id, text, created_at, importance, valence, emotional_intensity, metadata "
-                "FROM memories ORDER BY created_at DESC LIMIT ?",
-                (n,),
+            params: tuple[Any, ...]
+            sql = (
+                "SELECT id, text, created_at, importance, valence, emotional_intensity, level, metadata "
+                "FROM memories"
             )
+            if level is not None:
+                sql += " WHERE level = ? ORDER BY created_at DESC LIMIT ?"
+                params = (level, n)
+            else:
+                sql += " ORDER BY created_at DESC LIMIT ?"
+                params = (n,)
+            cursor = await conn.execute(sql, params)
             rows = await cursor.fetchall()
             return [self._row_to_memory(r) for r in rows]
         finally:
@@ -407,6 +428,7 @@ class SQLiteMemoryStore:
             mvalence = getattr(mem_obj, "valence", 0.0)
             mintensity = getattr(mem_obj, "emotional_intensity", 0.0)
             mmeta = getattr(mem_obj, "metadata", None) or {}
+            mlevel = getattr(mem_obj, "level", 0)
             mem_to_add = Memory(
                 id=mid,
                 text=mtext,
@@ -415,6 +437,7 @@ class SQLiteMemoryStore:
                 valence=mvalence,
                 emotional_intensity=mintensity,
                 metadata=mmeta,
+                level=mlevel,
             )
         await self.add(mem_to_add)
 
@@ -469,9 +492,10 @@ class SQLiteMemoryStore:
         k: int = 5,
         *,
         metadata_filter: Optional[Dict[str, Any]] = None,
+        level: int | None = None,
     ) -> List[Memory]:
         """Search memories by text and optional metadata filters (alias for :meth:`search`)."""
-        return await self.search(text_query=query, metadata_filters=metadata_filter, limit=k)
+        return await self.search(text_query=query, metadata_filters=metadata_filter, limit=k, level=level)
 
 
 ###############################################################################
