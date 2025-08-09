@@ -385,9 +385,9 @@ def _ensure_memory(m: Any) -> Memory:
     if isinstance(m, Memory):
         return m
     return Memory(
-        memory_id=getattr(m, "memory_id", getattr(m, "id")),
-        text=getattr(m, "text"),
-        created_at=getattr(m, "created_at"),
+        memory_id=getattr(m, "memory_id", m.id),
+        text=m.text,
+        created_at=m.created_at,
         valence=getattr(m, "valence", 0.0),
         emotional_intensity=getattr(m, "emotional_intensity", 0.0),
         arousal=getattr(m, "arousal", 0.0),
