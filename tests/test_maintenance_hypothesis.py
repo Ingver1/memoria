@@ -14,7 +14,7 @@ from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
 from memory_system.core.index import FaissHNSWIndex
-from memory_system.core.maintenance import consolidate_store, forget_old_memories
+from memory_system.core.maintenance import _decay_score, consolidate_store, forget_old_memories
 from memory_system.core.store import Memory, SQLiteMemoryStore
 
 
@@ -24,15 +24,18 @@ async def _add_memories_with_vectors(
     texts: Sequence[str],
     *,
     importances: Sequence[float] | None = None,
+    valences: Sequence[float] | None = None,
     embed,
 ) -> list[Memory]:
     """Add texts to the store and index with precomputed vectors."""
 
     if importances is None:
         importances = [0.0] * len(texts)
+    if valences is None:
+        valences = [0.0] * len(texts)
     mems: list[Memory] = []
-    for text, imp in zip(texts, importances, strict=True):
-        mem = Memory.new(text, importance=float(imp))
+    for text, imp, val in zip(texts, importances, valences, strict=True):
+        mem = Memory.new(text, importance=float(imp), valence=float(val))
         await store.add(mem)
         mems.append(mem)
 
@@ -65,17 +68,28 @@ async def test_consolidation_keeps_store_and_index_in_sync(
 @pytest.mark.asyncio
 @given(
     st.lists(
-        st.tuples(st.text(), st.floats(min_value=0.0, max_value=1.0)),
+        st.tuples(
+            st.text(),
+            st.floats(min_value=0.0, max_value=1.0),
+            st.floats(min_value=-1.0, max_value=1.0),
+        ),
         min_size=5,
         max_size=20,
     )
 )
 @settings(max_examples=25, suppress_health_check=[HealthCheck.function_scoped_fixture])
 async def test_forgetting_removes_lowest_decay_scores(
-    store: SQLiteMemoryStore, index: FaissHNSWIndex, fake_embed, data: list[tuple[str, float]]
+    store: SQLiteMemoryStore, index: FaissHNSWIndex, fake_embed, data: list[tuple[str, float, float]]
 ) -> None:
-    texts, importances = zip(*data, strict=True)
-    mems = await _add_memories_with_vectors(store, index, texts, importances=importances, embed=fake_embed)
+    texts, importances, valences = zip(*data, strict=True)
+    mems = await _add_memories_with_vectors(
+        store,
+        index,
+        texts,
+        importances=importances,
+        valences=valences,
+        embed=fake_embed,
+    )
 
     total = len(mems)
     deleted = await forget_old_memories(store, index, min_total=0, retain_fraction=0.5)
@@ -87,9 +101,18 @@ async def test_forgetting_removes_lowest_decay_scores(
     assert ids_in_store == ids_in_index
     assert len(ids_in_store) == keep_count
 
-    scores = {m.id: m.importance for m in mems}
+    scores = {
+        m.id: _decay_score(
+            importance=m.importance,
+            valence=m.valence,
+            emotional_intensity=m.emotional_intensity,
+            age_days=0.0,
+        )
+        for m in mems
+    }
     deleted_ids = set(scores) - ids_in_store
     if deleted_ids:
         max_deleted = max(scores[i] for i in deleted_ids)
         min_kept = min(scores[i] for i in ids_in_store)
         assert max_deleted <= min_kept
+    assert min(scores.values()) >= 0.0

@@ -660,14 +660,14 @@ class SQLiteMemoryStore:
         emotional_intensity: float | None = None,
         emotional_intensity_delta: float | None = None,
     ) -> Memory:
-    """
-    Update text, importance, valence, emotional_intensity and/or metadata.
+        """
+        Update text, importance, valence, emotional_intensity and/or metadata.
 
-    Absolute fields (`importance`, `valence`, `emotional_intensity`) are
-    written directly (clamped). `*_delta` fields increment current values
-    (also clamped). Metadata is shallow-merged as JSON.
-    Ranges: importance ∈ [0,1], emotional_intensity ∈ [0,1], valence ∈ [-1,1].
-    """
+        Absolute fields (`importance`, `valence`, `emotional_intensity`) are
+        written directly (clamped). `*_delta` fields increment current values
+        (also clamped). Metadata is shallow-merged as JSON.
+        Ranges: importance ∈ [0,1], emotional_intensity ∈ [0,1], valence ∈ [-1,1].
+        """
         await self.initialise()
         conn = await self._acquire()
         try:
