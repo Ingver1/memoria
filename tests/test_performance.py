@@ -6,7 +6,7 @@ import statistics as stats
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import AsyncGenerator, Generator
+from typing import AsyncGenerator, Generator, Iterable
 
 import numpy as np
 import pytest
@@ -20,6 +20,7 @@ import pytest_asyncio
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.embedding import EnhancedEmbeddingService
 from memory_system.core.index import FaissHNSWIndex
+from memory_system.core.store import Memory, SQLiteMemoryStore
 from memory_system.core.vector_store import VectorStore
 from memory_system.utils.cache import SmartCache
 from memory_system.utils.security import (
@@ -578,3 +579,33 @@ class TestSecurityPerformance:
             decrypted = encryption_manager.decrypt(encrypted)
 
             assert decrypted == data
+
+
+@pytest.mark.performance
+class TestBatchLoadingPerformance:
+    """Performance tests for bulk loading operations."""
+
+    @pytest.mark.asyncio
+    async def test_store_add_many_bulk(self, tmp_path) -> None:
+        store = SQLiteMemoryStore(tmp_path / "bulk.db")
+        memories = [Memory.new(f"mem {i}") for i in range(500)]
+        start = time.perf_counter()
+        await store.add_many(memories)
+        elapsed = time.perf_counter() - start
+        per_mem = elapsed / len(memories)
+        assert per_mem * 1000 < MAX_WRITE_PER_VECTOR_MS
+        await store.aclose()
+
+    def test_index_add_vectors_streaming(self) -> None:
+        index = FaissHNSWIndex(dim=384)
+
+        def iterator() -> Iterable[tuple[str, np.ndarray]]:
+            for i in range(500):
+                yield f"vec_{i}", np.random.rand(384).astype(np.float32)
+
+        start = time.perf_counter()
+        index.add_vectors_streaming(iterator())
+        elapsed = time.perf_counter() - start
+        per_vec = elapsed / 500
+        assert per_vec * 1000 < MAX_INDEX_BUILD_PER_VECTOR_MS
+        assert index.stats().total_vectors == 500
