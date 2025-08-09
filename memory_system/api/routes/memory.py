@@ -11,6 +11,7 @@ from fastapi import APIRouter, HTTPException, Query, Request, status
 
 from memory_system.api.schemas import MemoryCreate, MemoryQuery, MemoryRead
 from memory_system.core.store import Memory, SQLiteMemoryStore, get_memory_store, get_store
+from memory_system import unified_memory
 from memory_system.utils.security import EnhancedPIIFilter
 
 log = logging.getLogger(__name__)
@@ -82,10 +83,10 @@ async def search_memories(
     return payload
 
 
-@router.get("/recent", response_model=list[MemoryRead])
-async def recent_memories(request: Request, limit: int = Query(5, ge=1, le=50)) -> list[MemoryRead]:
-    """Return the most recently added memories."""
+@router.get("/best", response_model=list[MemoryRead])
+async def best_memories(request: Request, limit: int = Query(5, ge=1, le=50)) -> list[MemoryRead]:
+    """Return the most important memories ranked by score."""
     store = await _store(request)
-    records = await store.list_recent(n=limit)
+    records = await unified_memory.list_best(n=limit, store=store)
     payload = [MemoryRead.model_validate(asdict(r)) for r in records]
     return payload
