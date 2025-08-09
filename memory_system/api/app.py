@@ -196,6 +196,7 @@ def create_app(settings: UnifiedSettings | None = None) -> FastAPI:  # pragma: n
     @app.on_event("startup")
     async def _startup() -> None:
         store = EnhancedMemoryStore(settings)
+        await store.start()
         app.state.store = store
         app.state.memory_store = store
         # Dependency bridge ----------------------------------------------------

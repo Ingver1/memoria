@@ -587,6 +587,7 @@ async def test_dynamic_ef_search_tuning() -> None:
     """Ensure ef_search adapts based on recall measurements."""
     settings = UnifiedSettings.for_testing()
     store = EnhancedMemoryStore(settings)
+    await store.start()
     try:
         vec = np.random.rand(settings.model.vector_dim).astype(np.float32)
         mem = await store.add_memory(text="probe", embedding=vec.tolist())

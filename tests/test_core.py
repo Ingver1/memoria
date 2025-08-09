@@ -6,11 +6,12 @@ import struct
 import tempfile
 import time
 from pathlib import Path
-from typing import Generator, Iterator
+from typing import AsyncIterator, Generator, Iterator
 from unittest.mock import patch
 
 import numpy as np
 import pytest
+import pytest_asyncio
 
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.embedding import (
@@ -199,16 +200,18 @@ class TestEnhancedMemoryStore:
         """Create test settings."""
         return UnifiedSettings.for_testing()
 
-    @pytest.fixture
-    def store(self, test_settings: UnifiedSettings) -> Iterator[EnhancedMemoryStore]:
+    @pytest_asyncio.fixture
+    async def store(self, test_settings: UnifiedSettings) -> AsyncIterator[EnhancedMemoryStore]:
         """Create EnhancedMemoryStore instance and ensure closure."""
         store = EnhancedMemoryStore(test_settings)
+        await store.start()
         try:
             yield store
         finally:
-            asyncio.run(store.close())
+            await store.close()
 
-    def test_store_initialization(self, store: EnhancedMemoryStore, test_settings: UnifiedSettings) -> None:
+    @pytest.mark.asyncio
+    async def test_store_initialization(self, store: EnhancedMemoryStore, test_settings: UnifiedSettings) -> None:
         """Test store initialization."""
         assert store.settings == test_settings
         assert store._start_time > 0
@@ -847,6 +850,7 @@ class TestCoreIntegration:
     async def test_store_and_embedding_integration(self, test_settings: UnifiedSettings) -> None:
         """Test integration between store and embedding service."""
         store = EnhancedMemoryStore(test_settings)
+        await store.start()
         embedding_service = EnhancedEmbeddingService("all-MiniLM-L6-v2", test_settings)
         try:
             # Test that both components can work together
@@ -879,6 +883,7 @@ class TestCoreIntegration:
     async def test_error_handling_integration(self, test_settings: UnifiedSettings) -> None:
         """Test error handling across components."""
         store = EnhancedMemoryStore(test_settings)
+        await store.start()
         try:
             # Test error handling: close the store and then try to use a method that should fail
             await store.close()

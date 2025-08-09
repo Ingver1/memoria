@@ -144,7 +144,12 @@ class EnhancedMemoryStore:
         self._monitor_interval = 60.0
         self._min_ef_search = max(16, settings.model.hnsw_ef_search // 2)
         self._max_ef_search = settings.model.hnsw_ef_search * 4
-        self._monitor_task = asyncio.create_task(self._monitor_recall_loop())
+        self._monitor_task: asyncio.Task[None] | None = None
+
+    async def start(self) -> None:
+        """Start background tasks for the store."""
+        loop = asyncio.get_running_loop()
+        self._monitor_task = loop.create_task(self._monitor_recall_loop())
 
     async def get_health(self) -> HealthComponent:
         """Get health status."""
@@ -188,9 +193,10 @@ class EnhancedMemoryStore:
 
     async def close(self) -> None:
         """Close the store."""
-        self._monitor_task.cancel()
-        with suppress(Exception):
-            await self._monitor_task
+        if self._monitor_task:
+            self._monitor_task.cancel()
+            with suppress(Exception):
+                await self._monitor_task
         await self._store.aclose()
         self._closed = True
 

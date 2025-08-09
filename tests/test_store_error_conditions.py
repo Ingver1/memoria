@@ -12,6 +12,7 @@ from memory_system.core.index import ANNIndexError
 async def test_add_memory_invalid_embedding_dimension() -> None:
     settings = UnifiedSettings.for_testing()
     store = EnhancedMemoryStore(settings)
+    await store.start()
     try:
         bad_embedding = [0.0] * (settings.model.vector_dim - 1)
         with pytest.raises(ANNIndexError):
@@ -34,6 +35,7 @@ async def test_add_memory_invalid_embedding_dimension() -> None:
 async def test_add_memory_non_numeric_embedding() -> None:
     settings = UnifiedSettings.for_testing()
     store = EnhancedMemoryStore(settings)
+    await store.start()
     try:
         bad_embedding = ["x"] * settings.model.vector_dim
         with pytest.raises(ValueError):
@@ -56,6 +58,7 @@ async def test_add_memory_non_numeric_embedding() -> None:
 async def test_add_memory_database_failure() -> None:
     settings = UnifiedSettings.for_testing()
     store = EnhancedMemoryStore(settings)
+    await store.start()
     try:
         vec = list(np.random.rand(settings.model.vector_dim).astype(np.float32))
         with patch.object(

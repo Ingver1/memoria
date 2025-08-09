@@ -39,7 +39,10 @@ if hasattr(router, "add_exception_handler"):
 
 async def _store() -> EnhancedMemoryStore:
     """Dependency to get the global EnhancedMemoryStore (async)."""
-    return get_memory_store()
+    store = get_memory_store()
+    if getattr(store, "_monitor_task", None) is None:
+        await store.start()
+    return store
 
 
 def _settings() -> UnifiedSettings:

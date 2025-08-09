@@ -24,6 +24,7 @@ def near(embedding: List[float], eps: float = 0.0) -> List[float]:
 async def test_precision_at_k(tmp_path: Path) -> None:
     cfg = UnifiedSettings.for_testing()
     store = EnhancedMemoryStore(cfg)
+    await store.start()
 
     # create 20 clusters of similar embeddings
     base = [np.random.rand(EMBEDDING_DIM).tolist() for _ in range(20)]
@@ -41,3 +42,4 @@ async def test_precision_at_k(tmp_path: Path) -> None:
 
     precision = hits / total
     assert precision >= 0.2
+    await store.close()

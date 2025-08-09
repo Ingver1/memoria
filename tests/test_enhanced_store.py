@@ -26,8 +26,11 @@ async def store() -> AsyncGenerator[EnhancedMemoryStore, None]:
     """Provide an EnhancedMemoryStore instance for testing."""
     settings = UnifiedSettings.for_testing()
     s = EnhancedMemoryStore(settings)
-    yield s
-    await s.close()
+    await s.start()
+    try:
+        yield s
+    finally:
+        await s.close()
 
 
 def _rand_embedding(dim: int, seed: int = 42) -> list[float]:
@@ -95,6 +98,7 @@ async def test_invalid_embedding_length(store: EnhancedMemoryStore) -> None:
 async def test_semantic_search_filters_by_level_and_is_faster(monkeypatch: pytest.MonkeyPatch) -> None:
     settings = UnifiedSettings.for_testing()
     store = EnhancedMemoryStore(settings)
+    await store.start()
 
     dim = store.settings.model.vector_dim
     emb0 = np.random.rand(dim).astype("float32").tolist()
