@@ -230,6 +230,46 @@ class FaissHNSWIndex:
         """Map int ID back to string, or hex if missing."""
         return self._id_map.get(i, hex(int(i)))
 
+    # ─────────────────────── Training helpers ───────────────────────
+    def _ensure_index_trained(self, vecs: NDArray) -> None:
+        """Train underlying FAISS index if required.
+
+        ``IndexIDMap2`` tends to report itself as trained even when the
+        wrapped index still requires training (typical for IVF/PQ based
+        indexes).  Attempting to add vectors to an untrained base index is
+        a common source of segmentation faults within FAISS.  This helper
+        inspects the real underlying index and trains it when necessary
+        before vectors are inserted.
+        """
+        base_index = faiss.downcast_index(self.index.index)
+
+        # Some wrapper indexes (e.g. ``IndexPreTransform`` used by OPQ)
+        # may themselves be trained while the IVF/PQ component is not.
+        ivf_index = None
+        try:
+            if isinstance(base_index, faiss.IndexIVF):
+                ivf_index = base_index
+            else:
+                ivf_index = faiss.extract_index_ivf(base_index)
+        except Exception:
+            ivf_index = None
+
+        pq = None
+        try:  # HNSWPQ exposes a "pq" member that needs separate training
+            if hasattr(base_index, "pq"):
+                pq = base_index.pq  # type: ignore[attr-defined]
+            elif ivf_index and hasattr(ivf_index, "pq"):
+                pq = ivf_index.pq  # type: ignore[attr-defined]
+        except Exception:
+            pq = None
+
+        if (
+            (not base_index.is_trained)
+            or (ivf_index and not ivf_index.is_trained)
+            or (pq is not None and not pq.is_trained)
+        ):
+            base_index.train(vecs)
+
     def auto_tune(self, sample_vectors: NDArray) -> tuple[int, int, int]:
         """Benchmark several HNSW configurations and pick the best.
 
@@ -329,47 +369,7 @@ class FaissHNSWIndex:
             if self.space == "cosine":
                 faiss.normalize_L2(vecs)
             id_arr = np.array([self._string_to_int(i) for i in ids], dtype="int64")
-
-            # ``IndexIDMap2`` reports itself as trained even if the underlying
-            # FAISS index still requires training (e.g. IVF/PQ variants). This
-            # previously meant that PQ-based indexes were left untrained and
-            # calling ``add_with_ids`` would crash the interpreter with a
-            # segmentation fault. To avoid this we explicitly inspect the base
-            # index and train it when necessary before adding any vectors.
-            base_index = faiss.downcast_index(self.index.index)
-            # Some wrapper indexes (e.g. ``IndexPreTransform`` used by OPQ)
-            # report themselves as trained even when the underlying IVF/PQ
-            # index still requires training. ``extract_index_ivf`` walks
-            # through such wrappers and returns the innermost ``IndexIVF``
-            # instance when present so we can reliably check its state.
-            ivf_index = None
-            try:
-                if isinstance(base_index, faiss.IndexIVF):
-                    ivf_index = base_index
-                else:
-                    ivf_index = faiss.extract_index_ivf(base_index)
-            except Exception:
-                ivf_index = None
-
-            pq = None
-            try:  # HNSWPQ exposes a "pq" member that needs to be trained
-                if hasattr(base_index, "pq"):
-                    pq = base_index.pq  # type: ignore[attr-defined]
-                elif ivf_index and hasattr(ivf_index, "pq"):
-                    pq = ivf_index.pq  # type: ignore[attr-defined]
-            except Exception:
-                pq = None
-
-            if (
-                (not base_index.is_trained)
-                or (ivf_index and not ivf_index.is_trained)
-                or (pq is not None and not pq.is_trained)
-            ):
-                # Indices like IVF/PQ require training before adding vectors.  The
-                # training call must target the *base* FAISS index rather than the
-                # ``IndexIDMap2`` wrapper; otherwise the underlying index remains
-                # untrained and ``add_with_ids`` may trigger a segmentation fault.
-                base_index.train(vecs)
+            self._ensure_index_trained(vecs)
             self.index.add_with_ids(vecs, id_arr)
             for idx, int_id in enumerate(id_arr):
                 self._vectors[int(int_id)] = vecs[idx]
