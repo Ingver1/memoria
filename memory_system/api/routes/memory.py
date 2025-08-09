@@ -5,11 +5,12 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import asdict
-from typing import Any, cast
+from typing import Any, Optional, cast
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
 
 from memory_system import unified_memory
+from memory_system.unified_memory import ListBestWeights
 from memory_system.api.schemas import (
     MemoryCreate,
     MemoryQuery,

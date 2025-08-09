@@ -446,19 +446,33 @@ async def list_best(
     n: int = 5,
     *,
     store: MemoryStoreProtocol | None = None,
+    weights: ListBestWeights | None = None,
 ) -> Sequence[Memory]:
-    """Return *n* memories with the highest precomputed score."""
+    """Return *n* memories ranked by score.
+
+    When *weights* is ``None`` the function relies on precomputed
+    scores stored in the :class:`MemoryStoreProtocol` implementation.
+    Supplying a :class:`ListBestWeights` instance allows callers to
+    influence ranking at query time by re-scoring retrieved memories.
+    """
 
     st = await _resolve_store(store)
     try:
+        limit = n if weights is None else max(n * 10, n)
         candidates = await asyncio.wait_for(
-            st.top_n_by_score(n),
+            st.top_n_by_score(limit),
             timeout=ASYNC_TIMEOUT,
         )
     except Exception as e:
         logger.error("List best failed: %s", e)
         raise
-    return [_ensure_memory(m) for m in candidates]
+
+    mems = [_ensure_memory(m) for m in candidates]
+
+    if weights is not None:
+        mems.sort(key=lambda m: _score_best(m, weights), reverse=True)
+
+    return mems[:n]
 
 
 __all__ = [
