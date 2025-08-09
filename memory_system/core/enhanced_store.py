@@ -46,7 +46,15 @@ class EnhancedMemoryStore:
         self._start_time = time.time()
 
         dsn = settings.get_database_url()
-        self.meta_store: MetaStore = SQLiteMemoryStore(dsn)
+        db_cfg = settings.database
+        self.meta_store: MetaStore = SQLiteMemoryStore(
+            dsn,
+            pool_size=db_cfg.connection_pool_size,
+            wal=db_cfg.wal,
+            synchronous=db_cfg.synchronous,
+            page_size=db_cfg.page_size,
+            cache_size=db_cfg.cache_size,
+        )
         self.vector_store: VectorStore = FaissVectorStore(settings)
 
         # Helper for reinforcement/decay/score operations
