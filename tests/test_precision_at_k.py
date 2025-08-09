@@ -7,8 +7,9 @@ import random
 from pathlib import Path
 from typing import List, Union
 
-import numpy as np
 import pytest
+
+np = pytest.importorskip("numpy")
 
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.enhanced_store import EnhancedMemoryStore

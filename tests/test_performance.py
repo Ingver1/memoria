@@ -8,9 +8,10 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import AsyncGenerator, Generator, Iterable
 
-import numpy as np
 import pytest
 import pytest_asyncio
+
+np = pytest.importorskip("numpy")
 
 try:
     import psutil

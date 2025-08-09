@@ -19,6 +19,9 @@ from memory_system.utils.metrics import (
 )
 
 
+pytestmark = [pytest.mark.needs_fastapi, pytest.mark.needs_httpx]
+
+
 @pytest.fixture(scope="session")
 def app_no_metrics() -> Any:
     cfg = UnifiedSettings.for_testing()

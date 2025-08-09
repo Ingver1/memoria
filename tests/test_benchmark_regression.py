@@ -8,9 +8,10 @@ pytest_asyncio is used for async fixtures.
 import asyncio
 from typing import Any, AsyncGenerator, Callable
 
-import numpy as np
 import pytest
 import pytest_asyncio
+
+np = pytest.importorskip("numpy")
 
 from memory_system.utils.loop import get_or_create_loop
 

@@ -10,6 +10,8 @@ from fastapi.testclient import TestClient
 from memory_system.api.app import create_app
 from memory_system.config.settings import UnifiedSettings
 
+pytestmark = [pytest.mark.needs_fastapi, pytest.mark.needs_httpx]
+
 
 def test_index_missing_returns_503(monkeypatch: MonkeyPatch) -> None:
     """Test that health check returns 503 when ANN index is missing."""

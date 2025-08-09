@@ -1,5 +1,6 @@
-import numpy as np
 import pytest
+
+np = pytest.importorskip("numpy")
 
 import memory_system.core.hierarchical_summarizer as hs
 from memory_system.core.hierarchical_summarizer import HierarchicalSummarizer

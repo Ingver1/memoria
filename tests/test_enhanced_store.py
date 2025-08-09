@@ -11,9 +11,10 @@ import secrets
 import time
 from typing import AsyncGenerator
 
-import numpy as np
 import pytest
 import pytest_asyncio
+
+np = pytest.importorskip("numpy")
 
 from memory_system.config.settings import RankingConfig, UnifiedSettings
 from memory_system.core.enhanced_store import EnhancedMemoryStore

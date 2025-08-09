@@ -12,6 +12,9 @@ from memory_system.api.routes.memory import router as memory_router
 from memory_system.core.store import SQLiteMemoryStore, lifespan_context
 
 
+pytestmark = [pytest.mark.needs_fastapi, pytest.mark.needs_httpx]
+
+
 @pytest.fixture
 def app(tmp_path: Path) -> FastAPI:
     """Create a FastAPI test application."""

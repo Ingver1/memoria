@@ -14,6 +14,8 @@ from memory_system.config.settings import UnifiedSettings
 
 runner = CliRunner()
 
+pytestmark = pytest.mark.needs_httpx
+
 
 def _patch_client(monkeypatch: pytest.MonkeyPatch, handler: httpx.MockTransport) -> None:
     """Patch the CLI HTTP client to use the given transport."""

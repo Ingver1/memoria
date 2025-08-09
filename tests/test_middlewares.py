@@ -5,6 +5,7 @@ import inspect
 from types import SimpleNamespace
 from typing import Any, Awaitable, Callable, TypeVar, cast
 
+import pytest
 from fastapi import FastAPI, Request
 from starlette.responses import JSONResponse, Response
 
@@ -29,6 +30,9 @@ class _TestResponse:
 
 
 T = TypeVar("T")
+
+
+pytestmark = pytest.mark.needs_fastapi
 
 
 def create_app() -> FastAPI:

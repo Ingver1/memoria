@@ -31,6 +31,9 @@ from memory_system.api.schemas import (
 from memory_system.config.settings import UnifiedSettings
 
 
+pytestmark = [pytest.mark.needs_fastapi, pytest.mark.needs_httpx]
+
+
 @pytest.fixture
 def test_settings() -> UnifiedSettings:
     """Create test settings."""

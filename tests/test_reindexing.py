@@ -7,6 +7,8 @@ from memory_system.api.app import create_app
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.enhanced_store import EnhancedMemoryStore
 
+pytestmark = [pytest.mark.needs_fastapi, pytest.mark.needs_httpx]
+
 
 @pytest.mark.asyncio
 async def test_add_blocks_during_reindexing():

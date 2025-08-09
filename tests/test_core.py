@@ -9,9 +9,10 @@ from pathlib import Path
 from typing import AsyncIterator, Generator, Iterator
 from unittest.mock import patch
 
-import numpy as np
 import pytest
 import pytest_asyncio
+
+np = pytest.importorskip("numpy")
 
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.embedding import (
