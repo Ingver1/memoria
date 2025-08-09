@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import aiosqlite
 
 from memory_system.core.store import Memory, SQLiteMemoryStore, get_store
 from memory_system.unified_memory import add as um_add
@@ -321,5 +322,39 @@ def test_unified_update_sets_emotions(store: SQLiteMemoryStore) -> None:
         )
         assert updated.valence == pytest.approx(-0.5)
         assert updated.emotional_intensity == pytest.approx(0.9)
+
+    asyncio.run(_run())
+
+
+def test_list_recent_metadata_filter(store: SQLiteMemoryStore) -> None:
+    async def _run() -> None:
+        m1 = Memory.new("one", episode_id="ep1", modality="text")
+        m2 = Memory.new("two", episode_id="ep2", modality="image")
+        await store.add(m1)
+        await store.add(m2)
+
+        res_ep1 = await store.list_recent(metadata_filter={"episode_id": "ep1"})
+        assert [m.id for m in res_ep1] == [m1.id]
+
+        res_mod = await store.list_recent(metadata_filter={"modality": "image"})
+        assert [m.id for m in res_mod] == [m2.id]
+
+    asyncio.run(_run())
+
+
+def test_schema_has_episode_modality_indexes(store: SQLiteMemoryStore) -> None:
+    async def _run() -> None:
+        await store.initialise()
+        conn = await aiosqlite.connect(store._path.as_posix())  # type: ignore[attr-defined]
+        try:
+            cur = await conn.execute("PRAGMA table_info(memories)")
+            cols = {row[1] for row in await cur.fetchall()}
+            assert {"episode_id", "modality"}.issubset(cols)
+            cur = await conn.execute("PRAGMA index_list(memories)")
+            idx = {row[1] for row in await cur.fetchall()}
+            assert "idx_memories_episode_id" in idx
+            assert "idx_memories_modality" in idx
+        finally:
+            await conn.close()
 
     asyncio.run(_run())
