@@ -322,8 +322,17 @@ class VectorStore:
     def list_ids(self) -> list[str]:
         """Return all stored vector IDs."""
         with self._db_lock:
-            rows = self._conn.execute("SELECT id FROM vectors").fetchall()
-            return [r[0] for r in rows]
+            cur = self._conn.execute("SELECT id FROM vectors")
+            try:
+                ids: list[str] = []
+                while True:
+                    batch = cur.fetchmany(1000)
+                    if not batch:
+                        break
+                    ids.extend(row[0] for row in batch)
+                return ids
+            finally:
+                cur.close()
 
     async def flush(self) -> None:
         """Persist vectors and metadata to disk."""
