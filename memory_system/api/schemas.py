@@ -29,12 +29,13 @@ class MemoryBase(BaseModel):
     role: str = Field("user", max_length=32, description="Conversation role label")
     tags: list[str] = Field(default_factory=list, max_length=10)
     valence: float = Field(0.0, ge=-1.0, le=1.0, description="Emotion polarity")
-    arousal: float = Field(
+    emotional_intensity: float = Field(
         0.0,
         ge=0.0,
         le=1.0,
         description="Strength of emotional reaction",
         validation_alias=AliasChoices("arousal", "emotional_intensity"),
+        serialization_alias="arousal",
     )
     importance: float = Field(
         0.0,
@@ -55,8 +56,8 @@ class MemoryBase(BaseModel):
             raise ValueError("too many tags")
         if not -1.0 <= self.valence <= 1.0:
             raise ValueError("valence must be between -1 and 1")
-        if not 0.0 <= self.arousal <= 1.0:
-            raise ValueError("arousal must be between 0 and 1")
+        if not 0.0 <= self.emotional_intensity <= 1.0:
+            raise ValueError("emotional_intensity must be between 0 and 1")
         if not 0.0 <= self.importance <= 1.0:
             raise ValueError("importance must be between 0 and 1")
 
@@ -73,8 +74,9 @@ class MemoryCreate(MemoryBase):
 class MemoryUpdate(BaseModel):
     """Payload for partial updates where all fields are optional.
 
-    ``valence``, ``arousal`` and ``importance`` replace the existing values
-    directly, whereas the ``*_delta`` counterparts add to the current value.
+    ``valence``, ``emotional_intensity`` and ``importance`` replace the
+    existing values directly, whereas the ``*_delta`` counterparts add to the
+    current value.
     """
 
     text: str | None = Field(default=None, min_length=1, max_length=10_000)
@@ -86,11 +88,12 @@ class MemoryUpdate(BaseModel):
         le=1.0,
         description="Set absolute valence value",
     )
-    arousal: float | None = Field(
+    emotional_intensity: float | None = Field(
         default=None,
         ge=0.0,
         le=1.0,
         validation_alias=AliasChoices("arousal", "emotional_intensity"),
+        serialization_alias="arousal",
         description="Set absolute arousal/emotional intensity",
     )
     importance: float | None = Field(
@@ -103,9 +106,10 @@ class MemoryUpdate(BaseModel):
         default=None,
         description="Increment to apply to current valence",
     )
-    arousal_delta: float | None = Field(
+    emotional_intensity_delta: float | None = Field(
         default=None,
         validation_alias=AliasChoices("arousal_delta", "emotional_intensity_delta"),
+        serialization_alias="arousal_delta",
         description="Increment to apply to current arousal",
     )
     importance_delta: float | None = Field(
@@ -124,9 +128,10 @@ class MemoryReinforce(BaseModel):
 
     importance_delta: float = Field(0.1)
     valence_delta: float | None = Field(default=None)
-    arousal_delta: float | None = Field(
+    emotional_intensity_delta: float | None = Field(
         default=None,
         validation_alias=AliasChoices("arousal_delta", "emotional_intensity_delta"),
+        serialization_alias="arousal_delta",
     )
 
     model_config = {
@@ -143,11 +148,12 @@ class MemoryRead(MemoryBase):
     created_at: datetime
     updated_at: datetime | None = None
     valence: float = Field(0.0, ge=-1.0, le=1.0)
-    arousal: float = Field(
+    emotional_intensity: float = Field(
         0.0,
         ge=0.0,
         le=1.0,
         validation_alias=AliasChoices("arousal", "emotional_intensity"),
+        serialization_alias="arousal",
     )
     importance: float = Field(0.0, ge=0.0, le=1.0)
 
