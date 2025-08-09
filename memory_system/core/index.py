@@ -318,8 +318,14 @@ class FaissHNSWIndex:
             # segmentation fault. To avoid this we explicitly inspect the base
             # index and train it when necessary before adding any vectors.
             base_index = faiss.downcast_index(self.index.index)
-            if not base_index.is_trained:
-                # Indices like IVF require training before adding vectors
+            # Some wrapper indexes (e.g. ``IndexPreTransform`` used by OPQ)
+            # report themselves as trained even when the underlying IVF/PQ
+            # index still requires training. ``extract_index_ivf`` walks
+            # through such wrappers and returns the innermost ``IndexIVF``
+            # instance when present so we can reliably check its state.
+            ivf_index = faiss.extract_index_ivf(base_index)
+            if (not base_index.is_trained) or (ivf_index and not ivf_index.is_trained):
+                # Indices like IVF/PQ require training before adding vectors
                 self.index.train(vecs)
             self.index.add_with_ids(vecs, id_arr)
             for idx, int_id in enumerate(id_arr):
