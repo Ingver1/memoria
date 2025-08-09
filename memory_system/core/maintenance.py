@@ -194,6 +194,7 @@ def _decay_score(
     preserving high-importance/intense items.
     """
     base = 0.4 * importance + 0.3 * emotional_intensity + 0.3 * valence
+    base = max(0.0, base)
     decay = float(np.exp(-age_days / 30.0))
     return base * decay
 
