@@ -181,6 +181,30 @@ def test_update_memory_increments_importance_and_merges_metadata(
     asyncio.run(_run())
 
 
+def test_update_memory_clamps_importance_upper_bound(store: SQLiteMemoryStore) -> None:
+    async def _run() -> None:
+        mem = Memory.new("base", importance=0.9)
+        await store.add(mem)
+
+        updated = await store.update_memory(mem.id, importance_delta=0.5)
+
+        assert abs(updated.importance - 1.0) < 1e-6
+
+    asyncio.run(_run())
+
+
+def test_update_memory_clamps_importance_lower_bound(store: SQLiteMemoryStore) -> None:
+    async def _run() -> None:
+        mem = Memory.new("base", importance=0.1)
+        await store.add(mem)
+
+        updated = await store.update_memory(mem.id, importance_delta=-0.5)
+
+        assert abs(updated.importance - 0.0) < 1e-6
+
+    asyncio.run(_run())
+
+
 def test_reinforce_returns_updated_importance(store: SQLiteMemoryStore) -> None:
     async def _run() -> None:
         mem = await um_add("hi", importance=0.1, store=store)
