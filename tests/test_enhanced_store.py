@@ -18,6 +18,7 @@ import pytest_asyncio
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.enhanced_store import EnhancedMemoryStore
 from memory_system.core.index import ANNIndexError
+from memory_system.unified_memory import _get_ranking_weights
 from memory_system.core.store import Memory
 
 
@@ -125,19 +126,29 @@ async def test_semantic_search_filters_by_level_and_is_faster(monkeypatch: pytes
 
     async def naive_search(vec: list[float], level: int) -> list[Memory]:
         vec_np = np.asarray(vec, dtype=np.float32)
-        ids, dists = store._index.search("text", vec_np, k=5)
-        candidates = list(zip(ids, dists, strict=True))
-        total = store._index.stats("text").total_vectors or 5
-        allowed_mems = await store._store.search(metadata_filters={"modality": "text"}, limit=total)
-        allowed_ids = {m.id for m in allowed_mems}
-        allowed_ids = {mid for mid in allowed_ids if getattr(await store._store.get(mid), "level", None) == level}
-        candidates = [(_id, dist) for _id, dist in candidates if _id in allowed_ids][:1]
-        result = []
-        for _id, _ in candidates:
-            mem = await store._store.get(_id)
-            if mem:
-                result.append(mem)
-        return result
+        ids, _ = store._index.search("text", vec_np, k=5)
+        weights = _get_ranking_weights()
+        md = {"modality": "text"}
+        scored: list[tuple[Memory, float]] = []
+        for mid in ids:
+            mem = await store._store.get(mid)
+            if not mem:
+                continue
+            if level is not None and mem.level != level:
+                continue
+            if any(mem.metadata.get(k) != v for k, v in md.items()):
+                continue
+            score = (
+                mem.importance * weights.importance
+                + mem.emotional_intensity * weights.emotional_intensity
+                + (
+                    weights.valence_pos if mem.valence >= 0 else weights.valence_neg
+                )
+                * mem.valence
+            )
+            scored.append((mem, score))
+        scored.sort(key=lambda x: x[1], reverse=True)
+        return [m for m, _ in scored[:1]]
 
     start = time.perf_counter()
     old_res = await naive_search(emb0, level=0)

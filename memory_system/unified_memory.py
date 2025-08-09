@@ -93,6 +93,7 @@ class MemoryStoreProtocol(Protocol):
         level: int | None = None,
         metadata_filter: MutableMapping[str, Any] | None = None,
         weights: ListBestWeights | None = None,
+        ids: Sequence[str] | None = None,
     ) -> Sequence[Memory]: ...
 
 

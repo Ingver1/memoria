@@ -21,6 +21,7 @@ from memory_system.core.interfaces import MetaStore, VectorStore
 from memory_system.core.memory_dynamics import MemoryDynamics
 from memory_system.core.store import Memory, SQLiteMemoryStore
 from memory_system.core.summarization import SummaryStrategy
+from memory_system.unified_memory import _get_ranking_weights
 
 __all__ = ["EnhancedMemoryStore", "HealthComponent"]
 
@@ -425,35 +426,31 @@ class EnhancedMemoryStore:
         """
         # ANN search with over-sampling to improve recall
         vec = np.asarray(vector, dtype=np.float32)
-        
         async with self._search_lock:
-    ids, dists = await asyncio.to_thread(
-        self.vector_store.search,
-        vec,
-        k=max(k * 5, k),
-        modality=modality,
-        ef_search=ef_search,
-    )
-
-candidates = list(zip(ids, dists, strict=True))
-
-        # Filter by metadata and/or level via the meta store
-        md = dict(metadata_filter or {})
-        md.setdefault("modality", modality)
-        allowed = await self.meta_store.search(
-            metadata_filters=md,
-            limit=max(len(candidates), k * 5),
-            level=level,
-        )
-        allowed_map = {m.id: m for m in allowed}
-        if not allowed_map:
+            ids, dists = await asyncio.to_thread(
+                self.vector_store.search,
+                vec,
+                k=max(k * 5, k),
+                modality=modality,
+                ef_search=ef_search,
+            )
+        if not ids:
             return []
 
-        filtered = [(_id, dist) for _id, dist in candidates if _id in allowed_map][:k]
-
+        md = dict(metadata_filter or {})
+        md.setdefault("modality", modality)
+        weights = _get_ranking_weights()
+        allowed = await self.meta_store.top_n_by_score(
+            k,
+            level=level,
+            metadata_filter=md,
+            weights=weights,
+            ids=list(ids),
+        )
         if return_distance:
-            return [(allowed_map[_id], float(dist)) for _id, dist in filtered]
-        return [allowed_map[_id] for _id, _ in filtered]
+            dist_map = dict(zip(ids, dists, strict=True))
+            return [(m, float(dist_map[m.id])) for m in allowed]
+        return list(allowed)
 
     async def list_memories(self, user_id: str | None = None) -> list[Memory]:
         """List memories, optionally filtering by ``user_id``."""

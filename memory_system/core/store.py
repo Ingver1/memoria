@@ -770,6 +770,7 @@ class SQLiteMemoryStore:
         level: int | None = None,
         metadata_filter: MutableMapping[str, Any] | None = None,
         weights: ListBestWeights | None = None,
+        ids: Sequence[str] | None = None,
     ) -> List[Memory]:
         """Return ``n`` memories ordered by ranking score.
 
@@ -785,6 +786,8 @@ class SQLiteMemoryStore:
             When provided, ranking is computed on the fly using these
             weighting coefficients.  When omitted, precomputed scores from
             the ``memory_scores`` table are used.
+        ids:
+            Optional iterable of memory IDs to constrain the result to.
         """
 
         await self.initialise()
@@ -804,6 +807,10 @@ class SQLiteMemoryStore:
                         else:
                             clauses.append("json_extract(m.metadata, ?) = ?")
                             params.extend([f"$.{key}", val])
+                if ids:
+                    placeholders = ", ".join(["?"] * len(ids))
+                    clauses.append(f"m.id IN ({placeholders})")
+                    params.extend(ids)
                 sql = (
                     "SELECT m.id, m.text, m.created_at, m.importance, m.valence, "
                     "m.emotional_intensity, m.level, m.episode_id, m.modality, m.connections, m.metadata "
@@ -819,6 +826,7 @@ class SQLiteMemoryStore:
                     weights,
                     level=level,
                     metadata_filter=metadata_filter,
+                    ids=ids,
                 )
             cursor = await conn.execute(sql, params)
             rows = await cursor.fetchall()
