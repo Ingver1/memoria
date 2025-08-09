@@ -3,6 +3,7 @@
 import pytest
 
 from memory_system import unified_memory as um
+from memory_system import memory_helpers as mh
 
 
 @pytest.mark.asyncio
@@ -25,3 +26,23 @@ async def test_negative_can_surface_when_important(store):
     best = await um.list_best(n=2, store=store)
     assert best[0].memory_id == neg.memory_id
     assert best[1].memory_id == pos.memory_id
+
+
+@pytest.mark.asyncio
+async def test_custom_weights_change_ranking(store):
+    """Custom weights allow tweaking ranking behaviour."""
+    pos = await um.add("good", valence=0.5, emotional_intensity=1.0, importance=1.0, store=store)
+    neg = await um.add(
+        "bad but vital",
+        valence=-0.5,
+        emotional_intensity=1.0,
+        importance=1.4,
+        store=store,
+    )
+
+    default_best = await um.list_best(n=2, store=store)
+    assert default_best[0].memory_id == pos.memory_id
+
+    weights = mh.ListBestWeights(importance=2.0)
+    custom_best = await mh.list_best(n=2, store=store, weights=weights)
+    assert custom_best[0].memory_id == neg.memory_id
