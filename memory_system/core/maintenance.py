@@ -74,8 +74,8 @@ def summarize_cluster(
     memories: Sequence[Memory],
     *,
     strategy: str | SummaryStrategy = "head2tail",
-) -> Tuple[str, float]:
-    """Summarise a cluster of memories and compute its average importance.
+) -> Tuple[str, float, float, float]:
+    """Summarise a cluster of memories and compute aggregated attributes.
 
     Parameters
     ----------
@@ -87,7 +87,7 @@ def summarize_cluster(
         ellipsis.  Custom callables may be supplied for experimentation.
     """
     if not memories:
-        return "", 0.0
+        return "", 0.0, 0.0, 0.0
 
     if isinstance(strategy, str):
         try:
@@ -99,7 +99,9 @@ def summarize_cluster(
 
     summary_text = fn(memories)
     avg_importance = float(np.mean([m.importance for m in memories]))
-    return summary_text, avg_importance
+    avg_valence = float(np.mean([m.valence for m in memories]))
+    avg_intensity = float(np.mean([m.emotional_intensity for m in memories]))
+    return summary_text, avg_importance, avg_valence, avg_intensity
 
 
 # ------------------------ consolidation / forgetting -------------------
@@ -142,13 +144,17 @@ async def consolidate_store(
             continue
 
         cluster_mems = [all_mems[i] for i in group]
-        summary_text, importance = summarize_cluster(cluster_mems, strategy=strategy)
+        summary_text, importance, valence, intensity = summarize_cluster(
+            cluster_mems, strategy=strategy
+        )
         if not summary_text:
             continue
 
         summary_mem = Memory.new(
             summary_text,
             importance=importance,
+            valence=valence,
+            emotional_intensity=intensity,
             metadata={
                 "type": "summary",
                 "source_ids": [m.id for m in cluster_mems],
