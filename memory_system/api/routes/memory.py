@@ -36,7 +36,13 @@ async def create_memory(
     mem = Memory(
         id=str(uuid.uuid4()),
         text=clean_text,
-        metadata={"tags": payload.tags, "role": payload.role, "user_id": payload.user_id},
+        metadata={
+            "tags": payload.tags,
+            "role": payload.role,
+            "user_id": payload.user_id,
+            "modality": payload.modality,
+            "language": payload.language,
+        },
     )
     await store.add(mem)
     log.info("Created memory %s", mem.id)
@@ -63,9 +69,13 @@ async def search_memories(
     if not query.query:
         raise HTTPException(status_code=422, detail="Query must not be empty")
     store = await _store(request)
+    meta = dict(query.metadata_filter or {})
+    meta.setdefault("modality", query.modality)
+    if query.language is not None:
+        meta.setdefault("language", query.language)
     results = await store.search(
         text_query=query.query,
-        metadata_filters=query.metadata_filter,
+        metadata_filters=meta,
         limit=query.top_k,
     )
     payload = [MemoryRead.model_validate(asdict(r)) for r in results]

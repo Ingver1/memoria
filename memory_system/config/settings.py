@@ -72,6 +72,8 @@ class ModelConfig(BaseModel):
     hnsw_ef_search: PositiveInt = 100
     hnsw_autotune: bool = False
     vector_dim: PositiveInt = 384
+    modalities: list[str] = Field(default_factory=lambda: ["text"])
+    vector_dims: dict[str, PositiveInt] = Field(default_factory=lambda: {"text": 384})
     index_type: str = "HNSW"
     use_gpu: bool = False
     ivf_nlist: PositiveInt = 100
@@ -80,6 +82,14 @@ class ModelConfig(BaseModel):
     pq_bits: PositiveInt = 8
 
     model_config = {"frozen": True}
+
+    def __init__(self, **data: Any) -> None:
+        super().__init__(**data)
+        if not data.get("vector_dims"):
+            object.__setattr__(self, "vector_dims", {self.modalities[0]: self.vector_dim})
+        else:
+            first = self.modalities[0]
+            object.__setattr__(self, "vector_dim", self.vector_dims[first])
 
 
 class SecurityConfig(BaseModel):

@@ -22,7 +22,7 @@ __all__ = ["EnhancedMemoryStore", "HealthComponent"]
 log = logging.getLogger(__name__)
 
 from memory_system.config.settings import UnifiedSettings
-from memory_system.core.index import FaissHNSWIndex
+from memory_system.core.index import MultiModalFaissIndex
 from memory_system.core.store import Memory, SQLiteMemoryStore
 from memory_system.core.summarization import SummaryStrategy
 
@@ -47,8 +47,8 @@ class EnhancedMemoryStore:
         # Underlying storage components
         dsn = settings.get_database_url()
         self._store = SQLiteMemoryStore(dsn)
-        self._index = FaissHNSWIndex(
-            dim=settings.model.vector_dim,
+        self._index = MultiModalFaissIndex(
+            settings.model.vector_dims,
             M=settings.model.hnsw_m,
             ef_construction=settings.model.hnsw_ef_construction,
             ef_search=settings.model.hnsw_ef_search,
@@ -59,24 +59,6 @@ class EnhancedMemoryStore:
             self._memory_count = self._index.stats().total_vectors
         else:
             self._memory_count = 0
-            if settings.model.hnsw_autotune:
-                sample = np.random.rand(128, settings.model.vector_dim).astype(np.float32)
-                M, ef_c, ef_s = self._index.auto_tune(sample)
-                object.__setattr__(settings.model, "hnsw_m", M)
-                object.__setattr__(settings.model, "hnsw_ef_construction", ef_c)
-                object.__setattr__(settings.model, "hnsw_ef_search", ef_s)
-                log.info(
-                    "Auto-tuned HNSW params: M=%d ef_construction=%d ef_search=%d",
-                    M,
-                    ef_c,
-                    ef_s,
-                )
-                self._index = FaissHNSWIndex(
-                    dim=settings.model.vector_dim,
-                    M=M,
-                    ef_construction=ef_c,
-                    ef_search=ef_s,
-                )
 
         async def _save_index() -> None:
             await asyncio.to_thread(self._index.save, str(vec_path))
@@ -190,6 +172,7 @@ class EnhancedMemoryStore:
         valence: float = 0.0,
         emotional_intensity: float = 0.0,
         embedding: list[float],
+        modality: str = "text",
         created_at: float | None = None,
         updated_at: float | None = None,
     ) -> Memory:
@@ -206,10 +189,10 @@ class EnhancedMemoryStore:
             importance=importance,
             valence=valence,
             emotional_intensity=emotional_intensity,
-            metadata={"role": role, "tags": tags or []},
+            metadata={"role": role, "tags": tags or [], "modality": modality},
         )
         await self._store.add(mem)
-        self._index.add_vectors([mem.id], np.asarray([embedding], dtype=np.float32))
+        self._index.add_vectors(modality, [mem.id], np.asarray([embedding], dtype=np.float32))
         self._index.save(str(self.settings.database.vec_path))
         self._memory_count += 1
         return mem
@@ -218,13 +201,13 @@ class EnhancedMemoryStore:
         """Add multiple memories with embeddings in one batch."""
 
         mems: list[Memory] = []
-        vectors: list[np.ndarray] = []
         for item in items:
             text = item["text"]
             text_to_store = text
             if self.settings.security.encrypt_at_rest:
                 f = Fernet(self.settings.security.encryption_key.encode())
                 text_to_store = f.encrypt(text.encode()).decode()
+            modality = item.get("modality", "text")
             mem = Memory(
                 id=str(uuid.uuid4()),
                 text=text_to_store,
@@ -232,12 +215,12 @@ class EnhancedMemoryStore:
                 importance=item.get("importance", 0.0),
                 valence=item.get("valence", 0.0),
                 emotional_intensity=item.get("emotional_intensity", 0.0),
-                metadata={"role": item.get("role"), "tags": item.get("tags", [])},
+                metadata={"role": item.get("role"), "tags": item.get("tags", []), "modality": modality},
             )
             mems.append(mem)
-            vectors.append(np.asarray(item["embedding"], dtype=np.float32))
+            vec = np.asarray(item["embedding"], dtype=np.float32)
+            self._index.add_vectors(modality, [mem.id], np.asarray([vec], dtype=np.float32))
         await self._store.add_many(mems)
-        self._index.add_vectors([m.id for m in mems], np.stack(vectors))
         self._index.save(str(self.settings.database.vec_path))
         self._memory_count += len(mems)
         return mems
@@ -258,7 +241,7 @@ class EnhancedMemoryStore:
                 for item in cast(Iterable[dict[str, Any]], it):
                     yield item
 
-        batch: list[tuple[Memory, np.ndarray]] = []
+        batch: list[tuple[str, Memory, np.ndarray]] = []
         total = 0
         async for item in _aiter(iterator):
             text = item["text"]
@@ -266,6 +249,7 @@ class EnhancedMemoryStore:
             if self.settings.security.encrypt_at_rest:
                 f = Fernet(self.settings.security.encryption_key.encode())
                 text_to_store = f.encrypt(text.encode()).decode()
+            modality = item.get("modality", "text")
             mem = Memory(
                 id=str(uuid.uuid4()),
                 text=text_to_store,
@@ -273,33 +257,36 @@ class EnhancedMemoryStore:
                 importance=item.get("importance", 0.0),
                 valence=item.get("valence", 0.0),
                 emotional_intensity=item.get("emotional_intensity", 0.0),
-                metadata={"role": item.get("role"), "tags": item.get("tags", [])},
+                metadata={"role": item.get("role"), "tags": item.get("tags", []), "modality": modality},
             )
-            batch.append((mem, np.asarray(item["embedding"], dtype=np.float32)))
+            batch.append((modality, mem, np.asarray(item["embedding"], dtype=np.float32)))
             if len(batch) >= batch_size:
-                await self._store.add_many([m for m, _ in batch])
-                self._index.add_vectors_streaming(((m.id, vec) for m, vec in batch))
+                await self._store.add_many([m for _, m, _ in batch])
+                for mod, m, vec in batch:
+                    self._index.add_vectors(mod, [m.id], np.asarray([vec], dtype=np.float32))
                 total += len(batch)
                 batch.clear()
         if batch:
-            await self._store.add_many([m for m, _ in batch])
-            self._index.add_vectors_streaming(((m.id, vec) for m, vec in batch))
+            await self._store.add_many([m for _, m, _ in batch])
+            for mod, m, vec in batch:
+                self._index.add_vectors(mod, [m.id], np.asarray([vec], dtype=np.float32))
             total += len(batch)
         self._index.save(str(self.settings.database.vec_path))
         self._memory_count += total
         return total
 
     async def semantic_search(
-    self,
-    *,
-    vector: list[float],
-    k: int = 5,
-    return_distance: bool = False,
-    ef_search: int | None = None,
-    metadata_filter: dict[str, Any] | None = None,
-    level: int | None = None,
-) -> list[Any]:
-    """
+        self,
+        *,
+        vector: list[float],
+        k: int = 5,
+        return_distance: bool = False,
+        ef_search: int | None = None,
+        metadata_filter: dict[str, Any] | None = None,
+        level: int | None = None,
+        modality: str = "text",
+    ) -> list[Any]:
+        """
     Perform a semantic vector search.
 
     Parameters
@@ -323,51 +310,49 @@ class EnhancedMemoryStore:
     -------
     list[Any]
         A list of memories (optionally paired with their distance).
-    """
-    # Widen the ANN probe only if we plan to post-filter.
-    need_filter = (metadata_filter is not None) or (level is not None)
-    total = self._index.stats().total_vectors or k
-    search_k = min((k * 5) if need_filter else k, max(1, total))
+        """
+        # Widen the ANN probe only if we plan to post-filter.
+        metadata_filter = dict(metadata_filter or {})
+        metadata_filter.setdefault("modality", modality)
+        need_filter = True
+        total = self._index.stats(modality).total_vectors or k
+        search_k = min((k * 5) if need_filter else k, max(1, total))
 
-    vec = np.asarray(vector, dtype=np.float32)
+        vec = np.asarray(vector, dtype=np.float32)
 
-    # Single ANN search
-    ids, dists = self._index.search(vec, k=search_k, ef_search=ef_search)
-    candidates = list(zip(ids, dists, strict=False))
+        ids, dists = self._index.search(modality, vec, k=search_k, ef_search=ef_search)
+        candidates = list(zip(ids, dists, strict=False))
 
-    # Optional precomputation of allowed IDs via the SQLite store
-    if need_filter:
-        allowed_mems = await self._store.search(
-            metadata_filters=metadata_filter,
-            limit=total,  # cover whole corpus; store caps internally if needed
-        )
-        allowed_ids = {m.id for m in allowed_mems}
-        if level is not None:
-            # If Memory has a `level` field, filter by it as well
-            allowed_ids = {
-                mid for mid in allowed_ids
-                if (getattr(await self._store.get(mid), "level", None) == level)
-            }
-        if not allowed_ids:
-            return []
+        if need_filter:
+            allowed_mems = await self._store.search(
+                metadata_filters=metadata_filter,
+                limit=total,  # cover whole corpus; store caps internally if needed
+            )
+            allowed_ids = {m.id for m in allowed_mems}
+            if level is not None:
+                # If Memory has a `level` field, filter by it as well
+                allowed_ids = {
+                    mid for mid in allowed_ids
+                    if (getattr(await self._store.get(mid), "level", None) == level)
+                }
+            if not allowed_ids:
+                return []
+            candidates = [(_id, dist) for _id, dist in candidates if _id in allowed_ids][:k]
+        else:
+            candidates = candidates[:k]
 
-        # Keep only candidates that pass constraints, then trim to k
-        candidates = [(_id, dist) for _id, dist in candidates if _id in allowed_ids][:k]
-    else:
-        candidates = candidates[:k]
+        # Materialize Memory objects and build the final result list
+        results: list[Any] = []
+        for _id, dist in candidates:
+            mem = await self._store.get(_id)
+            if mem is None:
+                continue
+            if (level is not None) and (getattr(mem, "level", None) != level):
+                # Defensive guard in case the store call above didn’t filter by level
+                continue
+            results.append((mem, float(dist)) if return_distance else mem)
 
-    # Materialize Memory objects and build the final result list
-    results: list[Any] = []
-    for _id, dist in candidates:
-        mem = await self._store.get(_id)
-        if mem is None:
-            continue
-        if (level is not None) and (getattr(mem, "level", None) != level):
-            # Defensive guard in case the store call above didn’t filter by level
-            continue
-        results.append((mem, float(dist)) if return_distance else mem)
-
-    return results
+        return results
 
     async def list_memories(self, user_id: str | None = None) -> list[Memory]:
         """List memories, optionally filtering by ``user_id``."""

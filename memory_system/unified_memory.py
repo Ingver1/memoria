@@ -200,6 +200,7 @@ async def search(
     *,
     metadata_filter: MutableMapping[str, Any] | None = None,
     store: MemoryStoreProtocol | None = None,
+    modality: str = "text",
     level: int | None = None,
 ) -> Sequence[Memory]:
     """Semantic search across stored memories.
@@ -215,8 +216,10 @@ async def search(
     """
     st = await _resolve_store(store)
     try:
+        meta = dict(metadata_filter or {})
+        meta.setdefault("modality", modality)
         results = await asyncio.wait_for(
-            st.search_memory(query=query, k=k, metadata_filter=metadata_filter, level=level),
+            st.search_memory(query=query, k=k, metadata_filter=meta, level=level),
             timeout=ASYNC_TIMEOUT,
         )
         logger.debug("Search for '%s' returned %d result(s).", query, len(results))

@@ -498,3 +498,59 @@ class FaissHNSWIndex:
     def stats(self) -> IndexStats:
         """Return current index statistics."""
         return self._stats
+
+
+class MultiModalFaissIndex:
+    """Manage separate FAISS indices for multiple modalities."""
+
+    def __init__(
+        self,
+        vector_dims: dict[str, int],
+        *,
+        M: int | None = None,
+        ef_construction: int | None = None,
+        ef_search: int | None = None,
+    ) -> None:
+        self._indices: dict[str, FaissHNSWIndex] = {}
+        for mod, dim in vector_dims.items():
+            self._indices[mod] = FaissHNSWIndex(
+                dim=dim,
+                M=M,
+                ef_construction=ef_construction,
+                ef_search=ef_search,
+            )
+
+    # Basic routing operations -------------------------------------------------
+    def add_vectors(self, modality: str, ids: list[str], vectors: NDArray, **kwargs: Any) -> None:
+        self._indices[modality].add_vectors(ids, vectors, **kwargs)
+
+    def search(
+        self,
+        modality: str,
+        vector: NDArray,
+        *,
+        k: int = 5,
+        ef_search: int | None = None,
+    ) -> tuple[list[str], list[float]]:
+        return self._indices[modality].search(vector, k=k, ef_search=ef_search)
+
+    # Persistence --------------------------------------------------------------
+    def save(self, path: str) -> None:
+        base = Path(path)
+        for mod, idx in self._indices.items():
+            idx.save(str(base.with_suffix(base.suffix + f".{mod}")))
+
+    def load(self, path: str) -> None:
+        base = Path(path)
+        for mod, idx in self._indices.items():
+            p = base.with_suffix(base.suffix + f".{mod}")
+            if p.exists():
+                idx.load(str(p))
+
+    # Stats -------------------------------------------------------------------
+    def stats(self, modality: str | None = None) -> IndexStats:
+        if modality is not None:
+            return self._indices[modality].stats()
+        total = sum(idx.stats().total_vectors for idx in self._indices.values())
+        dim = next(iter(self._indices.values())).stats().dim if self._indices else 0
+        return IndexStats(dim=dim, total_vectors=total)

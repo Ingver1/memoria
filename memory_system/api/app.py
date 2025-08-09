@@ -68,7 +68,10 @@ router = APIRouter(tags=["Memory"], prefix="/memory")
 async def add_memory(request: Request, body: dict[str, Any]) -> dict[str, str]:
     """Add a new piece of memory."""
     store = cast(MemoryStoreProtocol, get_memory_store(request))
-    mem = await add(body["text"], metadata=body.get("metadata", {}), store=store)
+    modality = body.get("modality", "text")
+    metadata = body.get("metadata", {})
+    metadata.setdefault("modality", modality)
+    mem = await add(body["text"], metadata=metadata, modality=modality, store=store)
     return {"id": mem.memory_id}
 
 
@@ -82,12 +85,16 @@ async def delete_memory(request: Request, memory_id: str) -> dict[str, str]:
 
 @router.get("/search", summary="Search memory", response_description="Search results")
 async def search_memory(
-    request: Request, q: str, limit: int = 5, metadata: str | None = None
+    request: Request,
+    q: str,
+    limit: int = 5,
+    metadata: str | None = None,
+    modality: str = "text",
 ) -> Any:
     """Semantic search across stored memories."""
     store = cast(MemoryStoreProtocol, get_memory_store(request))
     metadata_filter = json.loads(metadata) if metadata else None
-    return await search(q, k=limit, metadata_filter=metadata_filter, store=store)
+    return await search(q, k=limit, metadata_filter=metadata_filter, modality=modality, store=store)
 
 @router.post("/batch", summary="Add memories batch", response_description="Memory UUIDs")
 async def add_memories_batch(request: Request, body: list[dict[str, Any]]) -> dict[str, list[str]]:
