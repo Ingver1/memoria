@@ -304,9 +304,6 @@ async def reinforce(
         Memory: The reinforced memory object.
     """
     st = await _resolve_store(store)
-    meta = {
-        "last_accessed": _dt.datetime.utcnow().replace(tzinfo=_dt.timezone.utc).isoformat(),
-    }
     try:
         updated = await asyncio.wait_for(
             st.update_memory(
@@ -314,7 +311,6 @@ async def reinforce(
                 importance_delta=amount,
                 valence_delta=valence_delta,
                 emotional_intensity_delta=intensity_delta,
-                metadata=meta,
             ),
             timeout=ASYNC_TIMEOUT,
         )
