@@ -62,3 +62,9 @@ AI_SECURITY__KMS_PARAMS='{}'
 
 When `kms_backend` is set to `local`, the `encryption_key` field is used
 directly. External backends are expected to return a Fernet compatible key.
+
+## aiosqlite fork
+
+This repository bundles a thin `aiosqlite`-compatible wrapper around
+`sqlite3`. Differences from the upstream project are detailed in
+[aiosqlite_fork.md](aiosqlite_fork.md).
