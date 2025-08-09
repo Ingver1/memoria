@@ -427,7 +427,13 @@ async def list_best(
     """
     st = await _resolve_store(store)
     if weights is None:
-        weights = ListBestWeights()
+        try:  # load from configuration if available
+            from memory_system.config.settings import get_settings
+
+            cfg = get_settings()
+            weights = ListBestWeights(**cfg.ranking.model_dump())
+        except Exception:  # pragma: no cover - settings module optional
+            weights = ListBestWeights()
     try:
         if include_all:
             # Attempt to leverage store-level optimisation for full scans

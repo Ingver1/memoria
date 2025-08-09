@@ -60,3 +60,25 @@ async def test_include_all_scans_beyond_recent(store):
 
     full_scan = await um.list_best(n=1, store=store, include_all=True)
     assert full_scan[0].memory_id == old.memory_id
+
+
+@pytest.mark.asyncio
+async def test_config_weights_change_ranking(monkeypatch, store):
+    """Weights from configuration should affect ranking when not passed explicitly."""
+    from memory_system.config.settings import RankingConfig, UnifiedSettings
+
+    settings = UnifiedSettings.for_testing()
+    settings.ranking = RankingConfig(importance=2.0)
+    monkeypatch.setattr("memory_system.config.settings.get_settings", lambda env=None: settings)
+
+    pos = await um.add("good", valence=0.5, emotional_intensity=1.0, importance=1.0, store=store)
+    neg = await um.add(
+        "bad but vital",
+        valence=-0.5,
+        emotional_intensity=1.0,
+        importance=1.4,
+        store=store,
+    )
+
+    best = await um.list_best(n=2, store=store)
+    assert best[0].memory_id == neg.memory_id
