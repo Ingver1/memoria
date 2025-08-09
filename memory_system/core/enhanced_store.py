@@ -56,6 +56,8 @@ class EnhancedMemoryStore:
             cache_size=db_cfg.cache_size,
         )
         self.vector_store: VectorStore = FaissVectorStore(settings)
+        self._index_lock = asyncio.Lock()
+        self._ef_search = getattr(settings.model, "hnsw_ef_search", 64)
 
         # Helper for reinforcement/decay/score operations
         self._dynamics = MemoryDynamics(self.meta_store)
@@ -84,8 +86,8 @@ class EnhancedMemoryStore:
         self._control_queries: list[tuple[np.ndarray, set[str]]] = []
         self._recall_target = 0.90
         self._monitor_interval = 60.0
-        self._min_ef_search = max(16, getattr(settings.model, "hnsw_ef_search", 64) // 2)
-        self._max_ef_search = getattr(settings.model, "hnsw_ef_search", 64) * 4
+        self._min_ef_search = max(16, self._ef_search // 2)
+        self._max_ef_search = self._ef_search * 4
         self._monitor_task: asyncio.Task[None] | None = None
 
     async def start(self) -> None:
@@ -164,7 +166,7 @@ class EnhancedMemoryStore:
         recalls: list[float] = []
         for vec, expected in self._control_queries:
             k = max(len(expected), 10)
-            ids, _ = self.vector_store.search(vec, k=k)
+            ids, _ = await asyncio.to_thread(self.vector_store.search, vec, k=k)
             if expected:
                 recalls.append(len(set(ids) & expected) / len(expected))
         if not recalls:
@@ -175,10 +177,20 @@ class EnhancedMemoryStore:
         if avg_recall < self._recall_target and cur < self._max_ef_search:
             new_ef = min(cur * 2, self._max_ef_search)
             # Apply by issuing a safe search call with the new ef_search
-            self.vector_store.search(self._control_queries[0][0], k=1, ef_search=new_ef)
+            await asyncio.to_thread(
+                self.vector_store.search,
+                self._control_queries[0][0],
+                k=1,
+                ef_search=new_ef,
+            )
         elif avg_recall > self._recall_target + 0.05 and cur > self._min_ef_search:
             new_ef = max(cur // 2, self._min_ef_search)
-            self.vector_store.search(self._control_queries[0][0], k=1, ef_search=new_ef)
+            await asyncio.to_thread(
+                self.vector_store.search,
+                self._control_queries[0][0],
+                k=1,
+                ef_search=new_ef,
+            )
 
     # ------------------------------------------------------------------
     # Public API used by routes/tests
@@ -217,7 +229,13 @@ class EnhancedMemoryStore:
         )
 
         await self.meta_store.add(mem)
-        self.vector_store.add([mem.id], np.asarray([embedding], dtype=np.float32), modality=modality)
+        async with self._index_lock:
+            await asyncio.to_thread(
+                self.vector_store.add,
+                [mem.id],
+                np.asarray([embedding], dtype=np.float32),
+                modality=modality,
+            )
         # Save the index eagerly (a commit hook will also persist after DB commit)
         await asyncio.to_thread(self.vector_store.save, str(self.settings.database.vec_path))
         self._memory_count += 1
@@ -285,7 +303,13 @@ class EnhancedMemoryStore:
             mems.append(mem)
 
             vec = np.asarray(item["embedding"], dtype=np.float32)
-            self.vector_store.add([mem.id], np.asarray([vec], dtype=np.float32), modality=modality)
+            async with self._index_lock:
+                await asyncio.to_thread(
+                    self.vector_store.add,
+                    [mem.id],
+                    np.asarray([vec], dtype=np.float32),
+                    modality=modality,
+                )
 
         await self.meta_store.add_many(mems)
         await asyncio.to_thread(self.vector_store.save, str(self.settings.database.vec_path))
@@ -335,14 +359,26 @@ class EnhancedMemoryStore:
             if len(batch) >= batch_size:
                 await self.meta_store.add_many([m for _, m, _ in batch])
                 for mod, m, v in batch:
-                    self.vector_store.add([m.id], np.asarray([v], dtype=np.float32), modality=mod)
+                    async with self._index_lock:
+                        await asyncio.to_thread(
+                            self.vector_store.add,
+                            [m.id],
+                            np.asarray([v], dtype=np.float32),
+                            modality=mod,
+                        )
                 total += len(batch)
                 batch.clear()
 
         if batch:
             await self.meta_store.add_many([m for _, m, _ in batch])
             for mod, m, v in batch:
-                self.vector_store.add([m.id], np.asarray([v], dtype=np.float32), modality=mod)
+                async with self._index_lock:
+                    await asyncio.to_thread(
+                        self.vector_store.add,
+                        [m.id],
+                        np.asarray([v], dtype=np.float32),
+                        modality=mod,
+                    )
             total += len(batch)
 
         await asyncio.to_thread(self.vector_store.save, str(self.settings.database.vec_path))
@@ -389,8 +425,17 @@ class EnhancedMemoryStore:
         """
         # ANN search with over-sampling to improve recall
         vec = np.asarray(vector, dtype=np.float32)
-        ids, dists = self.vector_store.search(vec, k=max(k * 5, k), modality=modality, ef_search=ef_search)
-        candidates = list(zip(ids, dists, strict=True))
+        
+        async with self._search_lock:
+    ids, dists = await asyncio.to_thread(
+        self.vector_store.search,
+        vec,
+        k=max(k * 5, k),
+        modality=modality,
+        ef_search=ef_search,
+    )
+
+candidates = list(zip(ids, dists, strict=True))
 
         # Filter by metadata and/or level via the meta store
         md = dict(metadata_filter or {})
