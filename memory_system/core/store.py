@@ -111,6 +111,7 @@ def _safe_json(data: Dict[str, Any] | None) -> str:
         raise TypeError("metadata must be JSON serializable") from exc
     return dumped
 
+
 ###############################################################################
 # Data model
 ###############################################################################
