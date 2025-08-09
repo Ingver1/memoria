@@ -10,12 +10,12 @@ from __future__ import annotations
 # ────────────────────────── stdlib imports ──────────────────────────
 import asyncio
 import datetime as dt
+import heapq
 import inspect
 import json
 import logging
 import uuid
 from collections.abc import AsyncIterator
-import heapq
 
 # ───────────────────────── local imports ───────────────────────────
 from dataclasses import asdict, dataclass, field
