@@ -9,6 +9,7 @@ FastAPI application setup with:
 from __future__ import annotations
 
 import importlib
+import json
 import logging
 import os
 from typing import TYPE_CHECKING, Any, cast
@@ -79,10 +80,13 @@ async def delete_memory(request: Request, memory_id: str) -> dict[str, str]:
 
 
 @router.get("/search", summary="Search memory", response_description="Search results")
-async def search_memory(request: Request, q: str, limit: int = 5) -> Any:
+async def search_memory(
+    request: Request, q: str, limit: int = 5, metadata: str | None = None
+) -> Any:
     """Semantic search across stored memories."""
     store = cast(MemoryStoreProtocol, get_memory_store(request))
-    return await search(q, k=limit, store=store)
+    metadata_filter = json.loads(metadata) if metadata else None
+    return await search(q, k=limit, metadata_filter=metadata_filter, store=store)
 
 
 # ---------------------------------------------------------------------------
