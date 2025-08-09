@@ -6,6 +6,7 @@ from . import unified_memory as _u
 
 Memory = _u.Memory
 MemoryStoreProtocol = _u.MemoryStoreProtocol
+ListBestWeights = _u.ListBestWeights
 
 add = _u.add
 search = _u.search
@@ -19,6 +20,7 @@ get_default_store = _u.get_default_store
 __all__ = [
     "Memory",
     "MemoryStoreProtocol",
+    "ListBestWeights",
     "add",
     "search",
     "delete",
