@@ -1,6 +1,4 @@
 # enhanced_store.py — Enhanced memory store for Unified Memory System
-#
-# Version: v{__version__}
 """Enhanced memory store with health checking and statistics."""
 
 from __future__ import annotations
@@ -12,7 +10,7 @@ import time
 import uuid
 from contextlib import suppress
 from dataclasses import dataclass
-from typing import Any, AsyncIterator, Iterable, Sequence, cast
+from typing import Any, AsyncIterator, Iterable, Sequence, MutableMapping, cast
 
 import numpy as np
 from cryptography.fernet import Fernet
@@ -22,7 +20,8 @@ __all__ = ["EnhancedMemoryStore", "HealthComponent"]
 log = logging.getLogger(__name__)
 
 from memory_system.config.settings import UnifiedSettings
-from memory_system.core.index import ANNIndexError, FaissHNSWIndex, MultiModalFaissIndex
+from memory_system.core.faiss_vector_store import FaissVectorStore
+from memory_system.core.interfaces import MetaStore, VectorStore
 from memory_system.core.store import Memory, SQLiteMemoryStore
 from memory_system.core.summarization import SummaryStrategy
 
@@ -42,108 +41,39 @@ class EnhancedMemoryStore:
 
     def __init__(self, settings: UnifiedSettings) -> None:
         """Initialise the store components using ``settings``."""
-
         self.settings = settings
-
         self._start_time = time.time()
 
-        # Underlying storage
-
         dsn = settings.get_database_url()
+        self.meta_store: MetaStore = SQLiteMemoryStore(dsn)
+        self.vector_store: VectorStore = FaissVectorStore(settings)
 
-        self._store = SQLiteMemoryStore(dsn)
-
-        # Decide between single‑ and multi‑modal indices
-
-        vector_dims = getattr(settings.model, "vector_dims", None)
-
-        if vector_dims:
-            # Multi‑modal: pass through all index options
-
-            self._index = MultiModalFaissIndex(
-                vector_dims,
-                M=settings.model.hnsw_m,
-                ef_construction=settings.model.hnsw_ef_construction,
-                ef_search=settings.model.hnsw_ef_search,
-                index_type=settings.model.index_type,
-                use_gpu=settings.model.use_gpu,
-                ivf_nlist=settings.model.ivf_nlist,
-                ivf_nprobe=settings.model.ivf_nprobe,
-                pq_m=settings.model.pq_m,
-                pq_bits=settings.model.pq_bits,
-            )
-
-        else:
-            # Single modality: use standard FaissHNSWIndex with PQ/IVF options
-
-            self._index = FaissHNSWIndex(
-                dim=settings.model.vector_dim,
-                M=settings.model.hnsw_m,
-                ef_construction=settings.model.hnsw_ef_construction,
-                ef_search=settings.model.hnsw_ef_search,
-                index_type=settings.model.index_type,
-                use_gpu=settings.model.use_gpu,
-                ivf_nlist=settings.model.ivf_nlist,
-                ivf_nprobe=settings.model.ivf_nprobe,
-                pq_m=settings.model.pq_m,
-                pq_bits=settings.model.pq_bits,
-            )
+        # Backwards-compat for legacy tests that access private fields:
+        self._store = self.meta_store          # type: ignore[attr-defined]
+        self._index = getattr(self.vector_store, "index", None)  # type: ignore[attr-defined]
 
         vec_path = settings.database.vec_path
 
-        if vec_path.exists():
-            # Load persisted index(es); stats().total_vectors works for both
-
-            self._index.load(str(vec_path))
-
-            self._memory_count = self._index.stats().total_vectors
-
-        else:
+        try:
+            self._memory_count = int(self.vector_store.stats().total_vectors)
+        except Exception:
             self._memory_count = 0
 
-            # Auto‑tune HNSW only for single‑modal (multimodal tuning isn’t implemented)
-
-            if not vector_dims and settings.model.hnsw_autotune:
-                sample = np.random.rand(128, settings.model.vector_dim).astype(np.float32)
-
-                M, ef_c, ef_s = self._index.auto_tune(sample)
-
-                object.__setattr__(settings.model, "hnsw_m", M)
-
-                object.__setattr__(settings.model, "hnsw_ef_construction", ef_c)
-
-                object.__setattr__(settings.model, "hnsw_ef_search", ef_s)
-
-                log.info("Auto tuned HNSW params: M=%d ef_construction=%d ef_search=%d", M, ef_c, ef_s)
-
-                self._index = FaissHNSWIndex(
-                    dim=settings.model.vector_dim,
-                    M=M,
-                    ef_construction=ef_c,
-                    ef_search=ef_s,
-                    index_type=settings.model.index_type,
-                    use_gpu=settings.model.use_gpu,
-                    ivf_nlist=settings.model.ivf_nlist,
-                    ivf_nprobe=settings.model.ivf_nprobe,
-                    pq_m=settings.model.pq_m,
-                    pq_bits=settings.model.pq_bits,
-                )
-
         async def _save_index() -> None:
-            # Persist index(es) to disk; vector path is common base
+            # Persist the Faiss index after a DB commit
+            await asyncio.to_thread(self.vector_store.save, str(vec_path))
 
-            await asyncio.to_thread(self._index.save, str(vec_path))
-
-        self._store.add_commit_hook(_save_index)
+        if hasattr(self.meta_store, "add_commit_hook"):
+            self.meta_store.add_commit_hook(_save_index)  # type: ignore[attr-defined]
 
         self._closed = False
 
-        # Recall monitoring configuration
+        # Optional: auto-tune HNSW search quality using control queries
         self._control_queries: list[tuple[np.ndarray, set[str]]] = []
-        self._recall_target = 0.9
+        self._recall_target = 0.90
         self._monitor_interval = 60.0
-        self._min_ef_search = max(16, settings.model.hnsw_ef_search // 2)
-        self._max_ef_search = settings.model.hnsw_ef_search * 4
+        self._min_ef_search = max(16, getattr(settings.model, "hnsw_ef_search", 64) // 2)
+        self._max_ef_search = getattr(settings.model, "hnsw_ef_search", 64) * 4
         self._monitor_task: asyncio.Task[None] | None = None
 
     async def start(self) -> None:
@@ -151,33 +81,38 @@ class EnhancedMemoryStore:
         loop = asyncio.get_running_loop()
         self._monitor_task = loop.create_task(self._monitor_recall_loop())
 
+    async def close(self) -> None:
+        """Close the store."""
+        if self._monitor_task:
+            self._monitor_task.cancel()
+            with suppress(Exception):
+                await self._monitor_task
+        if hasattr(self.meta_store, "aclose"):
+            await self.meta_store.aclose()  # type: ignore[attr-defined]
+        self._closed = True
+
     async def get_health(self) -> HealthComponent:
         """Get health status."""
         uptime = int(time.time() - self._start_time)
         checks: dict[str, bool] = {}
 
         try:
-            await self._store.ping()
+            await self.meta_store.ping()
             checks["database"] = True
-        except Exception:  # pragma: no cover - connection issues
+        except Exception:  # pragma: no cover
             checks["database"] = False
 
         try:
-            _ = self._index.stats().total_vectors
+            _ = self.vector_store.stats().total_vectors
             checks["index"] = True
-        except Exception:  # pragma: no cover - index errors
+        except Exception:  # pragma: no cover
             checks["index"] = False
 
         checks.setdefault("embedding_service", True)
 
         healthy = all(checks.values())
         message = "All systems operational" if healthy else "Degraded"
-        return HealthComponent(
-            healthy=healthy,
-            message=message,
-            uptime=uptime,
-            checks=checks,
-        )
+        return HealthComponent(healthy=healthy, message=message, uptime=uptime, checks=checks)
 
     async def get_stats(self) -> dict[str, Any]:
         """Get store statistics."""
@@ -185,20 +120,13 @@ class EnhancedMemoryStore:
             raise RuntimeError("store is closed")
         return {
             "total_memories": self._memory_count,
-            "index_size": self._index.stats().total_vectors,
+            "index_size": getattr(self.vector_store.stats(), "total_vectors", 0),
             "cache_stats": {"hit_rate": 0.0},
             "buffer_size": 0,
             "uptime_seconds": int(time.time() - self._start_time),
         }
 
-    async def close(self) -> None:
-        """Close the store."""
-        if self._monitor_task:
-            self._monitor_task.cancel()
-            with suppress(Exception):
-                await self._monitor_task
-        await self._store.aclose()
-        self._closed = True
+    # ----------------------------- admin/ops ---------------------------------
 
     def add_control_query(self, embedding: list[float], expected_ids: list[str]) -> None:
         """Register a control query used for recall monitoring."""
@@ -211,32 +139,39 @@ class EnhancedMemoryStore:
             while True:
                 await asyncio.sleep(self._monitor_interval)
                 await self._evaluate_recall()
-        except asyncio.CancelledError:  # pragma: no cover - task cancelled on shutdown
+        except asyncio.CancelledError:  # pragma: no cover
             return
 
     async def _evaluate_recall(self) -> None:
-        """Evaluate recall on control queries and adjust ef_search."""
+        """Evaluate recall on control queries and adjust ef_search (HNSW only)."""
         if not self._control_queries:
             return
+        if not hasattr(self.vector_store, "ef_search"):
+            return
+
         recalls: list[float] = []
         for vec, expected in self._control_queries:
             k = max(len(expected), 10)
-            ids, _ = self._index.search(vec, k=k)
+            ids, _ = self.vector_store.search(vec, k=k)
             if expected:
                 recalls.append(len(set(ids) & expected) / len(expected))
         if not recalls:
             return
+
         avg_recall = float(sum(recalls) / len(recalls))
-        if avg_recall < self._recall_target and self._index.ef_search < self._max_ef_search:
-            new_ef = min(self._index.ef_search * 2, self._max_ef_search)
-            self._index.search(self._control_queries[0][0], k=1, ef_search=new_ef)
-        elif avg_recall > self._recall_target + 0.05 and self._index.ef_search > self._min_ef_search:
-            new_ef = max(self._index.ef_search // 2, self._min_ef_search)
-            self._index.search(self._control_queries[0][0], k=1, ef_search=new_ef)
+        cur = int(getattr(self.vector_store, "ef_search", 64))
+        if avg_recall < self._recall_target and cur < self._max_ef_search:
+            new_ef = min(cur * 2, self._max_ef_search)
+            # Apply by issuing a safe search call with the new ef_search
+            self.vector_store.search(self._control_queries[0][0], k=1, ef_search=new_ef)
+        elif avg_recall > self._recall_target + 0.05 and cur > self._min_ef_search:
+            new_ef = max(cur // 2, self._min_ef_search)
+            self.vector_store.search(self._control_queries[0][0], k=1, ef_search=new_ef)
 
     # ------------------------------------------------------------------
-    # Stubs matching the expected public API used by routes/tests
+    # Public API used by routes/tests
     # ------------------------------------------------------------------
+
     async def add_memory(
         self,
         *,
@@ -252,20 +187,12 @@ class EnhancedMemoryStore:
         updated_at: float | None = None,
     ) -> Memory:
         """Add a memory entry to the database and index."""
-        if len(text) > self.settings.security.max_text_length:
-            raise ValueError("text exceeds maximum length")
-        expected_dim = self.settings.model.vector_dims.get(
-            modality, self.settings.model.vector_dim
-        )
-        if len(embedding) != expected_dim:
-            raise ANNIndexError(
-                f"dimension mismatch: expected {expected_dim}, got {len(embedding)}"
-            )
         ts = created_at if created_at is not None else time.time()
         text_to_store = text
         if self.settings.security.encrypt_at_rest:
             f = Fernet(self.settings.security.encryption_key.encode())
             text_to_store = f.encrypt(text.encode()).decode()
+
         mem = Memory(
             id=str(uuid.uuid4()),
             text=text_to_store,
@@ -276,39 +203,29 @@ class EnhancedMemoryStore:
             metadata={"role": role, "tags": tags or []},
             modality=modality,
         )
-        await self._store.add(mem)
-        self._index.add_vectors(modality, [mem.id], np.asarray([embedding], dtype=np.float32))
-        self._index.save(str(self.settings.database.vec_path))
+
+        await self.meta_store.add(mem)
+        self.vector_store.add([mem.id], np.asarray([embedding], dtype=np.float32), modality=modality)
+        # Save the index eagerly (a commit hook will also persist after DB commit)
+        await asyncio.to_thread(self.vector_store.save, str(self.settings.database.vec_path))
         self._memory_count += 1
         return mem
 
     async def add_memories_batch(self, items: Sequence[dict[str, Any]]) -> list[Memory]:
         """Add multiple memories with embeddings in one batch."""
-
         mems: list[Memory] = []
         for item in items:
             text = item["text"]
-            if len(text) > self.settings.security.max_text_length:
-                raise ValueError("text exceeds maximum length")
-            modality = item.get("modality", "text")
-            expected_dim = self.settings.model.vector_dims.get(
-                modality, self.settings.model.vector_dim
-            )
-            emb = item["embedding"]
-            if len(emb) != expected_dim:
-                raise ANNIndexError(
-                    f"dimension mismatch: expected {expected_dim}, got {len(emb)}"
-                )
             text_to_store = text
             if self.settings.security.encrypt_at_rest:
                 f = Fernet(self.settings.security.encryption_key.encode())
                 text_to_store = f.encrypt(text.encode()).decode()
+
+            modality = item.get("modality", "text")
             mem = Memory(
                 id=str(uuid.uuid4()),
                 text=text_to_store,
-                created_at=dt.datetime.fromtimestamp(
-                    item.get("created_at", time.time()), tz=dt.timezone.utc
-                ),
+                created_at=dt.datetime.fromtimestamp(item.get("created_at", time.time()), tz=dt.timezone.utc),
                 importance=item.get("importance", 0.0),
                 valence=item.get("valence", 0.0),
                 emotional_intensity=item.get("emotional_intensity", 0.0),
@@ -316,10 +233,12 @@ class EnhancedMemoryStore:
                 modality=modality,
             )
             mems.append(mem)
-            vec = np.asarray(emb, dtype=np.float32)
-            self._index.add_vectors(modality, [mem.id], np.asarray([vec], dtype=np.float32))
-        await self._store.add_many(mems)
-        self._index.save(str(self.settings.database.vec_path))
+
+            vec = np.asarray(item["embedding"], dtype=np.float32)
+            self.vector_store.add([mem.id], np.asarray([vec], dtype=np.float32), modality=modality)
+
+        await self.meta_store.add_many(mems)
+        await asyncio.to_thread(self.vector_store.save, str(self.settings.database.vec_path))
         self._memory_count += len(mems)
         return mems
 
@@ -341,23 +260,15 @@ class EnhancedMemoryStore:
 
         batch: list[tuple[str, Memory, np.ndarray]] = []
         total = 0
+
         async for item in _aiter(iterator):
             text = item["text"]
-            if len(text) > self.settings.security.max_text_length:
-                raise ValueError("text exceeds maximum length")
-            modality = item.get("modality", "text")
-            expected_dim = self.settings.model.vector_dims.get(
-                modality, self.settings.model.vector_dim
-            )
-            emb = item["embedding"]
-            if len(emb) != expected_dim:
-                raise ANNIndexError(
-                    f"dimension mismatch: expected {expected_dim}, got {len(emb)}"
-                )
             text_to_store = text
             if self.settings.security.encrypt_at_rest:
                 f = Fernet(self.settings.security.encryption_key.encode())
                 text_to_store = f.encrypt(text.encode()).decode()
+
+            modality = item.get("modality", "text")
             mem = Memory(
                 id=str(uuid.uuid4()),
                 text=text_to_store,
@@ -368,19 +279,23 @@ class EnhancedMemoryStore:
                 metadata={"role": item.get("role"), "tags": item.get("tags", [])},
                 modality=modality,
             )
-            batch.append((modality, mem, np.asarray(emb, dtype=np.float32)))
+            vec = np.asarray(item["embedding"], dtype=np.float32)
+            batch.append((modality, mem, vec))
+
             if len(batch) >= batch_size:
-                await self._store.add_many([m for _, m, _ in batch])
-                for mod, m, vec in batch:
-                    self._index.add_vectors(mod, [m.id], np.asarray([vec], dtype=np.float32))
+                await self.meta_store.add_many([m for _, m, _ in batch])
+                for mod, m, v in batch:
+                    self.vector_store.add([m.id], np.asarray([v], dtype=np.float32), modality=mod)
                 total += len(batch)
                 batch.clear()
+
         if batch:
-            await self._store.add_many([m for _, m, _ in batch])
-            for mod, m, vec in batch:
-                self._index.add_vectors(mod, [m.id], np.asarray([vec], dtype=np.float32))
+            await self.meta_store.add_many([m for _, m, _ in batch])
+            for mod, m, v in batch:
+                self.vector_store.add([m.id], np.asarray([v], dtype=np.float32), modality=mod)
             total += len(batch)
-        self._index.save(str(self.settings.database.vec_path))
+
+        await asyncio.to_thread(self.vector_store.save, str(self.settings.database.vec_path))
         self._memory_count += total
         return total
 
@@ -391,7 +306,7 @@ class EnhancedMemoryStore:
         k: int = 5,
         return_distance: bool = False,
         ef_search: int | None = None,
-        metadata_filter: dict[str, Any] | None = None,
+        metadata_filter: MutableMapping[str, Any] | None = None,
         level: int | None = None,
         modality: str = "text",
     ) -> list[Any]:
@@ -414,46 +329,47 @@ class EnhancedMemoryStore:
         level:
             Optional logical level constraint; only memories at this level
             are returned.
+        modality:
+            Modality name to route search to a corresponding sub-index.
 
         Returns
         -------
         list[Any]
             A list of memories (optionally paired with their distance).
         """
-        # Always filter by modality (and optional user metadata), retrieving
-        # matching rows in a single query so that we can avoid per-ID lookups.
-        metadata_filter = dict(metadata_filter or {})
-        metadata_filter.setdefault("modality", modality)
-        total = self._index.stats(modality).total_vectors or k
-        search_k = min(k * 5, max(1, total))
-
+        # ANN search with over-sampling to improve recall
         vec = np.asarray(vector, dtype=np.float32)
+        ids, dists = self.vector_store.search(
+            vec, k=max(k * 5, k), modality=modality, ef_search=ef_search
+        )
+        candidates = list(zip(ids, dists))
 
-        ids, dists = self._index.search(modality, vec, k=search_k, ef_search=ef_search)
-        candidates = list(zip(ids, dists, strict=False))
-
-        allowed_mems = await self._store.search(
-            metadata_filters=metadata_filter,
-            limit=total,  # cover whole corpus; store caps internally if needed
+        # Filter by metadata and/or level via the meta store
+        md = dict(metadata_filter or {})
+        md.setdefault("modality", modality)
+        allowed = await self.meta_store.search(
+            metadata_filters=md,
+            limit=max(len(candidates), k * 5),
             level=level,
         )
-        allowed_map = {m.id: m for m in allowed_mems}
+        allowed_map = {m.id: m for m in allowed}
         if not allowed_map:
             return []
-        candidates = [(_id, dist) for _id, dist in candidates if _id in allowed_map][:k]
 
-        # Materialize Memory objects from the cached mapping and build result
+        filtered = [(_id, dist) for _id, dist in candidates if _id in allowed_map][:k]
+
         if return_distance:
-            return [(allowed_map[_id], float(dist)) for _id, dist in candidates]
-        return [allowed_map[_id] for _id, _ in candidates]
+            return [(allowed_map[_id], float(dist)) for _id, dist in filtered]
+        return [allowed_map[_id] for _id, _ in filtered]
 
     async def list_memories(self, user_id: str | None = None) -> list[Memory]:
         """List memories, optionally filtering by ``user_id``."""
         if user_id:
-            return await self._store.search(metadata_filters={"user_id": user_id})
-        return await self._store.search(limit=1000)
+            return await self.meta_store.search(metadata_filters={"user_id": user_id})
+        return await self.meta_store.search(limit=1000)
 
-    # Long-term memory maintenance API
+    # ---- Long-term maintenance ----------------------------------------------
+
     async def consolidate_memories(
         self,
         *,
@@ -464,8 +380,8 @@ class EnhancedMemoryStore:
         from memory_system.core.maintenance import consolidate_store
 
         return await consolidate_store(
-            self._store,
-            self._index,
+            self.meta_store,
+            getattr(self.vector_store, "index", None),
             threshold=threshold,
             strategy=strategy,
         )
@@ -480,8 +396,8 @@ class EnhancedMemoryStore:
         from memory_system.core.maintenance import forget_old_memories
 
         return await forget_old_memories(
-            self._store,
-            self._index,
+            self.meta_store,
+            getattr(self.vector_store, "index", None),
             min_total=min_total,
             retain_fraction=retain_fraction,
         )
