@@ -26,7 +26,6 @@ import logging
 import uuid
 
 # stdlib
-from collections import deque
 from collections.abc import MutableMapping, Sequence
 
 # local
@@ -84,25 +83,6 @@ ASYNC_TIMEOUT = 5  # seconds – safety net for accidental long‑running operat
 
 # Process-wide default store used when no explicit store is provided.
 _DEFAULT_STORE: MemoryStoreProtocol | None = None
-
-# ---------------------------------------------------------------------------
-# Working memory helpers
-# ---------------------------------------------------------------------------
-
-WORKING_MEMORY_CAPACITY = 9
-_working_memory: deque[Memory] = deque(maxlen=WORKING_MEMORY_CAPACITY)
-
-
-def push_working_memory(memory: Memory) -> None:
-    """Add *memory* to the working memory buffer."""
-
-    _working_memory.append(memory)
-
-
-def get_working_memory() -> Sequence[Memory]:
-    """Return the current working memory contents in order of insertion."""
-
-    return list(_working_memory)
 
 
 def set_default_store(store: MemoryStoreProtocol) -> None:
@@ -393,8 +373,6 @@ __all__ = [
     "delete",
     "update",
     "reinforce",
-    "push_working_memory",
-    "get_working_memory",
     "list_best",
     "list_recent",
     "set_default_store",
