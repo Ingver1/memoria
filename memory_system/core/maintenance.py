@@ -115,18 +115,37 @@ async def consolidate_store(
     max_fetch: int = 100_000,
     strategy: str | SummaryStrategy = "head2tail",
     chunk_size: int = 1_000,
+    min_level: int | None = None,
+    final: bool | None = None,
 ) -> List[Memory]:
     """
     Cluster similar memories, create a summary memory per cluster, then delete
     the originals that were consolidated.
 
-    Returns the list of created summary memories.
+    Parameters
+    ----------
+    min_level:
+        If provided, only process memories with ``level >= min_level``.
+    final:
+        If ``True`` or ``False``, restrict to memories where
+        ``metadata['final']`` matches the value. ``False`` also includes
+        memories without the ``final`` flag.
+
+    Returns
+    -------
+    list[Memory]
+        The summary memories that were created.
     """
     created: List[Memory] = []
     ids_to_remove: List[str] = []
     pending_adds: List[tuple[Memory, np.ndarray]] = []
 
-    async for chunk in store.search_iter(limit=max_fetch, chunk_size=chunk_size):
+    async for chunk in store.search_iter(
+        limit=max_fetch,
+        chunk_size=chunk_size,
+        min_level=min_level,
+        final=final,
+    ):
         texts = [m.text for m in chunk]
         embeddings = embed_text(texts)
         if isinstance(embeddings, np.ndarray) and embeddings.ndim == 1:
@@ -208,6 +227,8 @@ async def forget_old_memories(
     max_fetch: int = 150_000,
     chunk_size: int = 1_000,
     ttl: float | None = None,
+    min_level: int | None = None,
+    final: bool | None = None,
 ) -> int:
     """
     Forget the lowest-scoring memories until we drop to the target size.
@@ -216,6 +237,14 @@ async def forget_old_memories(
     always expired: their importance is lowered and they are removed regardless
     of ``retain_fraction``.
 
+    Parameters
+    ----------
+    min_level:
+        If provided, only consider memories with ``level >= min_level``.
+    final:
+        If set, restrict to memories with matching ``metadata['final']`` value.
+        ``False`` also includes memories lacking the flag
+
     Returns the number of deleted memories.
     """
     now = _now_utc()
@@ -223,7 +252,12 @@ async def forget_old_memories(
     scored: list[tuple[float, str]] = []
     expired: list[str] = []
     total = 0
-    async for chunk in store.search_iter(limit=max_fetch, chunk_size=chunk_size):
+    async for chunk in store.search_iter(
+        limit=max_fetch,
+        chunk_size=chunk_size,
+        min_level=min_level,
+        final=final,
+    ):
         for m in chunk:
             last_access = m.created_at
             if ttl is not None and m.metadata:
