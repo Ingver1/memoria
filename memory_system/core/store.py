@@ -78,6 +78,15 @@ class _LibSQLConnection:
     async def commit(self) -> None:  # pragma: no cover - libsql auto commits
         return None
 
+    async def rollback(self) -> None:  # pragma: no cover - libsql auto commits
+        """Provide rollback API for parity with :mod:`aiosqlite`.
+
+        libSQL performs implicit commits, so a rollback operation is a
+        no-op.  The method exists to mirror the interface of
+        :class:`aiosqlite.Connection` which the rest of the store expects.
+        """
+        return None
+
     async def close(self) -> None:
         await self._client.close()
 
