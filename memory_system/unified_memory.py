@@ -23,6 +23,7 @@ import asyncio
 import copy
 import datetime as _dt
 import logging
+import math
 import uuid
 
 # stdlib
@@ -171,6 +172,9 @@ async def add(
     Returns:
         Memory: The persisted memory object.
     """
+    now = _dt.datetime.utcnow().replace(tzinfo=_dt.timezone.utc)
+    meta: MutableMapping[str, Any] = dict(copy.deepcopy(metadata) if metadata else {})
+    meta.setdefault("last_accessed", now.isoformat())
     memory = Memory(
         memory_id=str(uuid.uuid4()),
         text=text,
@@ -180,15 +184,15 @@ async def add(
         episode_id=episode_id,
         modality=modality,
         connections=dict(copy.deepcopy(connections)) if connections else None,
-        metadata=dict(copy.deepcopy(metadata)) if metadata else {},
-        created_at=_dt.datetime.utcnow().replace(tzinfo=_dt.timezone.utc),
+        metadata=meta,
+        created_at=now,
     )
 
     st = await _resolve_store(store)
     try:
         await asyncio.wait_for(st.add_memory(memory), timeout=ASYNC_TIMEOUT)
         weights = _get_ranking_weights()
-        score = _score_best(memory, weights)
+        score = _score_decay(memory, weights)
         await asyncio.wait_for(
             st.upsert_scores([(memory.memory_id, score)]),
             timeout=ASYNC_TIMEOUT,
@@ -316,7 +320,7 @@ async def update(
             timeout=ASYNC_TIMEOUT,
         )
         weights = _get_ranking_weights()
-        score = _score_best(updated, weights)
+        score = _score_decay(updated, weights)
         await asyncio.wait_for(
             st.upsert_scores([(memory_id, score)]),
             timeout=ASYNC_TIMEOUT,
@@ -369,7 +373,7 @@ async def reinforce(
             timeout=ASYNC_TIMEOUT,
         )
         weights = _get_ranking_weights()
-        score = _score_best(updated, weights)
+        score = _score_decay(updated, weights)
         await asyncio.wait_for(
             st.upsert_scores([(memory_id, score)]),
             timeout=ASYNC_TIMEOUT,
@@ -445,6 +449,39 @@ def _score_best(m: Memory, weights: ListBestWeights) -> float:
         + weights.emotional_intensity * m.emotional_intensity
         + valence_weight * m.valence
     )
+
+
+def _last_accessed(m: Memory) -> _dt.datetime:
+    """Return the last accessed timestamp for *m*.
+
+    Falls back to ``m.created_at`` when the ``metadata`` lacks the
+    ``last_accessed`` key or contains an invalid timestamp.
+    """
+
+    if m.metadata:
+        ts = m.metadata.get("last_accessed")
+        if isinstance(ts, str):
+            try:
+                return _dt.datetime.fromisoformat(ts)
+            except ValueError:
+                pass
+    return m.created_at
+
+
+def _score_decay(m: Memory, weights: ListBestWeights) -> float:
+    """Return a time-decayed ranking score for *m*.
+
+    The base score is derived from :func:`_score_best` and is exponentially
+    decayed over roughly one month based on the elapsed time since
+    ``last_accessed``.
+    """
+
+    base = _score_best(m, weights)
+    last = _last_accessed(m)
+    age_days = max(
+        0.0, (_dt.datetime.utcnow().replace(tzinfo=_dt.timezone.utc) - last).total_seconds() / 86_400.0
+    )
+    return base * math.exp(-age_days / 30.0)
 
 
 def _ensure_memory(m: Any) -> Memory:
