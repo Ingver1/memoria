@@ -34,6 +34,9 @@ class Connection:
         cur = await asyncio.to_thread(self._conn.execute, sql, params)
         return Cursor(cur)
 
+    async def executemany ( self, sql: str , seq_of_params: Sequence [ Sequence [ Any ]] ) -> None :
+        await asyncio.to_thread( self ._conn.executemany, sql, seq_of_params)
+
     async def executescript(self, script: str) -> None:
         await asyncio.to_thread(self._conn.executescript, script)
 
