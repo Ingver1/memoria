@@ -280,14 +280,25 @@ def test_update_memory_emotional_intensity_delta_clamps(
 
 def test_unified_update_applies_deltas(store: SQLiteMemoryStore) -> None:
     async def _run() -> None:
-        mem = await um_add("hi", store=store)
+        mem = await um_add("hi", importance=0.1, store=store)
         updated = await um_update(
             mem.memory_id,
             valence_delta=0.6,
             emotional_intensity_delta=0.4,
+            importance_delta=0.2,
             store=store,
         )
         assert abs(updated.valence - 0.6) < 1e-6
         assert abs(updated.emotional_intensity - 0.4) < 1e-6
+        assert abs(updated.importance - 0.3) < 1e-6
+
+    asyncio.run(_run())
+
+
+def test_unified_update_sets_importance(store: SQLiteMemoryStore) -> None:
+    async def _run() -> None:
+        mem = await um_add("hi", importance=0.1, store=store)
+        updated = await um_update(mem.memory_id, importance=0.8, store=store)
+        assert abs(updated.importance - 0.8) < 1e-6
 
     asyncio.run(_run())
