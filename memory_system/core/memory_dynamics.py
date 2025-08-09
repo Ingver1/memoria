@@ -47,9 +47,7 @@ class MemoryDynamics:
         if self.store is None:
             raise RuntimeError("store is required for reinforcement")
 
-        meta = {
-            "last_accessed": dt.datetime.utcnow().replace(tzinfo=dt.timezone.utc).isoformat()
-        }
+        meta = {"last_accessed": dt.datetime.utcnow().replace(tzinfo=dt.timezone.utc).isoformat()}
         updated = await self.store.update(
             memory_id,
             importance_delta=amount,
@@ -67,9 +65,7 @@ class MemoryDynamics:
 
     def score(self, memory: Memory, *, now: dt.datetime | None = None) -> float:
         """Return the time-decayed ranking score for *memory*."""
-        valence_weight = (
-            self.weights.valence_pos if memory.valence >= 0 else self.weights.valence_neg
-        )
+        valence_weight = self.weights.valence_pos if memory.valence >= 0 else self.weights.valence_neg
         base = (
             self.weights.importance * memory.importance
             + self.weights.emotional_intensity * memory.emotional_intensity
