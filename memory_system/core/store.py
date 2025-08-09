@@ -209,7 +209,16 @@ class SQLiteMemoryStore:
     );
     """
 
-    def __init__(self, dsn: str | Path = "file:memories.db?mode=rwc", *, pool_size: int = 5) -> None:
+    def __init__(
+        self,
+        dsn: str | Path = "file:memories.db?mode=rwc",
+        *,
+        pool_size: int = 5,
+        wal: bool = True,
+        synchronous: str = "NORMAL",
+        page_size: int | None = None,
+        cache_size: int | None = None,
+    ) -> None:
         """Initialise the store with a SQLite or libSQL DSN and pool size."""
         self._use_libsql = False
         if isinstance(dsn, Path):
@@ -242,6 +251,10 @@ class SQLiteMemoryStore:
         if not self._use_libsql:
             self._path.parent.mkdir(parents=True, exist_ok=True)
         self._pool_size = pool_size
+        self._wal = wal
+        self._synchronous = synchronous.upper()
+        self._page_size = page_size
+        self._cache_size = cache_size
         self._pool: asyncio.LifoQueue[Any] = asyncio.LifoQueue(maxsize=pool_size)
         self._conn = object()  # placeholder for tests
         self._acquired: set[Any] = set()
@@ -276,9 +289,14 @@ class SQLiteMemoryStore:
         except asyncio.QueueEmpty:
             if self._created < self._pool_size:
                 conn = await aiosqlite.connect(self._dsn, uri=True, timeout=30, check_same_thread=False)
-                await conn.execute("PRAGMA journal_mode=WAL")
+                if self._page_size is not None:
+                    await conn.execute(f"PRAGMA page_size={self._page_size}")
+                if self._cache_size is not None:
+                    await conn.execute(f"PRAGMA cache_size={self._cache_size}")
+                if self._wal:
+                    await conn.execute("PRAGMA journal_mode=WAL")
                 await conn.execute("PRAGMA foreign_keys=ON")
-                await conn.execute("PRAGMA synchronous=NORMAL")
+                await conn.execute(f"PRAGMA synchronous={self._synchronous}")
                 conn.row_factory = aiosqlite.Row
                 self._created += 1
             else:
