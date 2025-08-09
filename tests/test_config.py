@@ -415,6 +415,7 @@ class TestUnifiedSettings:
         assert "performance" in summary
         assert "api" in summary
         assert "monitoring" in summary
+        assert "ranking" in summary
 
         # Check that sensitive data is not included
         assert "api_token" not in str(summary)

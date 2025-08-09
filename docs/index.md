@@ -22,6 +22,23 @@ Clusters can be condensed using different approaches:
 Callers may also provide custom callables implementing their own summarization
 logic when invoking the maintenance APIs.
 
+### Ranking best memories
+
+The `/api/v1/memory/best` endpoint scores memories using weighted attributes:
+
+- `importance`
+- `emotional_intensity`
+- `valence_pos` *(positive valence weight)*
+- `valence_neg` *(negative valence penalty)*
+
+Defaults are configured via `RankingConfig` and may be overridden with
+environment variables such as `AI_RANKING__IMPORTANCE=2.0`.
+Per-request weights can be supplied as query parameters:
+
+```bash
+curl "http://localhost:8000/api/v1/memory/best?limit=2&importance=2.0&valence_neg=1.0"
+```
+
 ## Database Encryption
 
 To enable SQLCipher for the SQLite backend, set `encrypt_at_rest` to `true`
