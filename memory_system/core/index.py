@@ -574,24 +574,16 @@ class FaissHNSWIndex:
 
 
 class MultiModalFaissIndex:
-    """Manage separate FAISS indices for multiple modalities."""
+    """Manage separate FAISS indices for multiple modalities.
 
-    def __init__(
-        self,
-        vector_dims: dict[str, int],
-        *,
-        M: int | None = None,
-        ef_construction: int | None = None,
-        ef_search: int | None = None,
-    ) -> None:
+    All keyword arguments are forwarded to :class:`FaissHNSWIndex`, enabling
+    access to any underlying FAISS option such as IVF, PQ, GPU, etc.
+    """
+
+    def __init__(self, vector_dims: dict[str, int], **faiss_kwargs) -> None:
         self._indices: dict[str, FaissHNSWIndex] = {}
         for mod, dim in vector_dims.items():
-            self._indices[mod] = FaissHNSWIndex(
-                dim=dim,
-                M=M,
-                ef_construction=ef_construction,
-                ef_search=ef_search,
-            )
+            self._indices[mod] = FaissHNSWIndex(dim=dim, **faiss_kwargs)
 
     # Basic routing operations -------------------------------------------------
     def add_vectors(self, modality: str, ids: list[str], vectors: NDArray, **kwargs: Any) -> None:
