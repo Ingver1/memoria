@@ -97,3 +97,30 @@ async def test_level_and_metadata_filters(store):
 
     best_user = await um.list_best(n=5, store=store, metadata_filter={"user_id": "u1"})
     assert [m.memory_id for m in best_user] == [mem0.id]
+
+
+@pytest.mark.asyncio
+async def test_dynamic_ranking_surfaces_low_precomputed(store):
+    """Store-level weighting should surface memories excluded by default scores."""
+    for i in range(25):
+        await um.add(
+            f"pos{i}",
+            valence=0.4,
+            emotional_intensity=1.0,
+            importance=1.0,
+            store=store,
+        )
+    neg = await um.add(
+        "neg but important",
+        valence=-0.1,
+        emotional_intensity=0.0,
+        importance=1.5,
+        store=store,
+    )
+
+    default_best = await um.list_best(n=2, store=store)
+    assert neg.memory_id not in [m.memory_id for m in default_best]
+
+    weights = mh.ListBestWeights(importance=3.0)
+    weighted_best = await um.list_best(n=2, store=store, weights=weights)
+    assert weighted_best[0].memory_id == neg.memory_id
