@@ -49,6 +49,10 @@ class DatabaseConfig(BaseModel):
     qdrant_url: str = "http://localhost:6333"
     qdrant_api_key: str | None = None
     qdrant_collection: str = "memory"
+    wal: bool = True
+    synchronous: Literal["OFF", "NORMAL", "FULL", "EXTRA"] = "NORMAL"
+    page_size: PositiveInt | None = None
+    cache_size: int | None = None
 
     model_config = {"frozen": True}
 
