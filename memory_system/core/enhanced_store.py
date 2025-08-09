@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime as dt
+import logging
 import time
 import uuid
 from contextlib import suppress
@@ -15,14 +16,13 @@ from typing import Any
 
 import numpy as np
 from cryptography.fernet import Fernet
-import logging
 
 __all__ = ["EnhancedMemoryStore", "HealthComponent"]
 
 log = logging.getLogger(__name__)
 
 from memory_system.config.settings import UnifiedSettings
-from memory_system.core.index import MultiModalFaissIndex
+from memory_system.core.index import FaissHNSWIndex, MultiModalFaissIndex
 from memory_system.core.store import Memory, SQLiteMemoryStore
 from memory_system.core.summarization import SummaryStrategy
 
