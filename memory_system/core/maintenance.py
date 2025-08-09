@@ -190,12 +190,14 @@ def _decay_score(
     """
     Age-aware retention score (higher -> keep):
 
-        base = 0.5*importance + 0.3*emotional_intensity + 0.2*max(valence, 0)
+        base = 0.4*importance + 0.3*emotional_intensity + 0.3*valence
         score = base * exp(-age_days / 30)
 
-    Tuned to decay over ~1 month while preserving high-importance/intense items.
+    Negative valence lowers the base score, increasing the chance of forgetting,
+    while positive valence boosts retention.  Tuned to decay over ~1 month while
+    preserving high-importance/intense items.
     """
-    base = 0.5 * importance + 0.3 * emotional_intensity + 0.2 * max(valence, 0.0)
+    base = 0.4 * importance + 0.3 * emotional_intensity + 0.3 * valence
     decay = float(np.exp(-age_days / 30.0))
     return base * decay
 
