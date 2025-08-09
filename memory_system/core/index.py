@@ -243,38 +243,51 @@ class FaissHNSWIndex:
         when necessary.
         """
 
-        base_index = faiss.downcast_index(self.index.index)
-        needs_training = not getattr(base_index, "is_trained", True)
+        # If the index already contains data we assume training has happened.
+        # FAISS crashes with a segmentation fault if ``add_with_ids`` is
+        # called on an un‑trained IVF/PQ based index.  Some wrappers (notably
+        # :class:`IndexIDMap2` and :class:`IndexPreTransform`) may report
+        # themselves as trained even when their inner IVF/PQ components are
+        # not.  To avoid relying on fragile ``is_trained`` heuristics we train
+        # on the first insert whenever the index type requires it.
 
-        # Attempt to locate an IVF component hidden inside wrappers
-        ivf_index = None
-        try:
-            ivf_index = base_index if isinstance(base_index, faiss.IndexIVF) else faiss.extract_index_ivf(base_index)
-        except Exception:
-            ivf_index = None
-        if ivf_index is not None and not ivf_index.is_trained:
-            needs_training = True
+        if self.index.ntotal > 0:
+            return
 
-        # PQ based indexes expose a ``pq`` attribute that also needs
-        # training.  It may appear either on the base index or on the IVF
-        # component.
-        pq = None
-        try:
-            if hasattr(base_index, "pq"):
-                pq = base_index.pq  # type: ignore[attr-defined]
-            elif ivf_index is not None and hasattr(ivf_index, "pq"):
-                pq = ivf_index.pq  # type: ignore[attr-defined]
-        except Exception:
-            pq = None
-        if pq is not None and not pq.is_trained:
-            needs_training = True
+        if self.index_type in {"IVF", "IVFFLAT", "IVFPQ", "HNSWPQ", "OPQ"}:
+            try:
+                # ``self.index`` forwards training to the wrapped FAISS index
+                # (IDMap2, PreTransform, ...).  Calling ``train`` here is safe
+                # even if the underlying index already considered itself
+                # trained.
+                self.index.train(vecs)
+            except Exception:
+                # If training fails we fall back to the previous best‑effort
+                # inspection in case the caller expects an exception.
+                base_index = faiss.downcast_index(self.index.index)
+                needs_training = not getattr(base_index, "is_trained", True)
 
-        if needs_training:
-            # ``self.index`` forwards the training call to the wrapped FAISS
-            # index (IDMap2, PreTransform, ...).  Training via this public
-            # API is safer than calling ``train`` on the downcast base index
-            # because it ensures all inner components are updated.
-            self.index.train(vecs)
+                ivf_index = None
+                try:
+                    ivf_index = base_index if isinstance(base_index, faiss.IndexIVF) else faiss.extract_index_ivf(base_index)
+                except Exception:
+                    ivf_index = None
+                if ivf_index is not None and not ivf_index.is_trained:
+                    needs_training = True
+
+                pq = None
+                try:
+                    if hasattr(base_index, "pq"):
+                        pq = base_index.pq  # type: ignore[attr-defined]
+                    elif ivf_index is not None and hasattr(ivf_index, "pq"):
+                        pq = ivf_index.pq  # type: ignore[attr-defined]
+                except Exception:
+                    pq = None
+                if pq is not None and not pq.is_trained:
+                    needs_training = True
+
+                if needs_training:
+                    self.index.train(vecs)
 
     def auto_tune(self, sample_vectors: NDArray) -> tuple[int, int, int]:
         """Benchmark several HNSW configurations and pick the best.
