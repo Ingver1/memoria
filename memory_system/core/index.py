@@ -332,8 +332,11 @@ class FaissHNSWIndex:
             except Exception:
                 ivf_index = None
             if (not base_index.is_trained) or (ivf_index and not ivf_index.is_trained):
-                # Indices like IVF/PQ require training before adding vectors
-                self.index.train(vecs)
+                # Indices like IVF/PQ require training before adding vectors.  The
+                # training call must target the *base* FAISS index rather than the
+                # ``IndexIDMap2`` wrapper; otherwise the underlying index remains
+                # untrained and ``add_with_ids`` may trigger a segmentation fault.
+                base_index.train(vecs)
             self.index.add_with_ids(vecs, id_arr)
             for idx, int_id in enumerate(id_arr):
                 self._vectors[int(int_id)] = vecs[idx]
