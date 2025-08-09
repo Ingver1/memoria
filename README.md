@@ -35,6 +35,7 @@ UMS is a plug-and-play semantic memory service for LLM agents. It’s small, fas
 - **Prometheus metrics & health checks**: easy monitoring
 - **100% test coverage**: unit, property, fuzz, performance
 - **Pluggable key management**: local JSON keyring with a stub for AWS KMS
+- **Hierarchical summarisation**: clusters similar memories into higher `level`s and marks singletons as final ([docs](docs/architecture.md#4-hierarchical-summarisation))
 - **Simple install**: `pip install ai-memory` or Docker one-liner
 
 ---
