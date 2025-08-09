@@ -49,6 +49,10 @@ All CPU-bound FAISS calls run in the default thread pool for snappy event loop.
 - Shrinks .index blob with FAISS in-place merge
 - VACUUMs SQLite and ANALYZEs indices
 
+**Adaptive recall tuning:**
+- Background task issues control queries and measures recall
+- `ef_search` increases when recall < 0.9 SLA, decreases when safely above
+
 ---
 
 ## 3. Retrieval 🔎
@@ -74,6 +78,10 @@ All endpoints use FastAPI + OpenTelemetryMiddleware for full span tracing.
 | Metrics   | prometheus_client (latency, faiss_queries) |
 | Tracing   | OTEL SDK → OTLP HTTP → Tempo/Jaeger       |
 | Logs      | logging.yaml → plaintext/JSON (LOG_JSON=1) |
+
+Additional metrics:
+- `ums_ann_query_latency_seconds` — histogram of FAISS search latency
+- `ums_ann_index_size` — gauge of current index size
 
 ---
 
