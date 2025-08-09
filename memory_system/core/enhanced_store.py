@@ -172,6 +172,7 @@ class EnhancedMemoryStore:
         k: int = 5,
         return_distance: bool = False,
         ef_search: int | None = None,
+        level: int | None = None,
     ) -> list[Any]:
         """Perform a semantic embedding search.
 
@@ -186,6 +187,8 @@ class EnhancedMemoryStore:
             Otherwise only :class:`Memory` instances are returned.
         ef_search:
             Controls HNSW search quality.
+        level:
+            When provided, restrict results to memories stored at this level.
 
         Returns
         -------
@@ -193,11 +196,18 @@ class EnhancedMemoryStore:
             A list of memories, optionally paired with their distance from the
             query embedding.
         """
-        ids, dists = self._index.search(np.asarray(embedding, dtype=np.float32), k=k, ef_search=ef_search)
+        search_k = k * 5 if level is not None else k
+        ids, dists = self._index.search(
+            np.asarray(embedding, dtype=np.float32), k=search_k, ef_search=ef_search
+        )
         results: list[Any] = []
         for _id, dist in zip(ids, dists, strict=False):
+            if len(results) >= k:
+                break
             mem = await self._store.get(_id)
             if mem is None:
+                continue
+            if level is not None and mem.level != level:
                 continue
             if return_distance:
                 results.append((mem, float(dist)))
