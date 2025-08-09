@@ -78,17 +78,18 @@ class MemoryDynamics:
     # ------------------------------------------------------------------
 
     def score(self, memory: Memory, *, now: dt.datetime | None = None) -> float:
-        """Return the time-decayed ranking score for *memory*."""
+        """Return the ranking score for *memory* with intensity decay."""
         valence_weight = self.weights.valence_pos if memory.valence >= 0 else self.weights.valence_neg
         imp = max(0.0, min(1.0, memory.importance))
         inten = max(0.0, min(1.0, memory.emotional_intensity))
         val = max(-1.0, min(1.0, memory.valence))
-        base = self.weights.importance * imp + self.weights.emotional_intensity * inten + valence_weight * val
         last = self._last_accessed(memory)
         if now is None:
             now = dt.datetime.utcnow().replace(tzinfo=dt.timezone.utc)
         age_days = max(0.0, (now - last).total_seconds() / 86_400.0)
-        return base * math.exp(-age_days / _decay_rate())
+        decay = math.exp(-age_days / _decay_rate())
+        inten *= decay
+        return self.weights.importance * imp + self.weights.emotional_intensity * inten + valence_weight * val
 
     @staticmethod
     def _last_accessed(memory: Memory) -> dt.datetime:
