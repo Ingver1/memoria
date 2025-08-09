@@ -310,7 +310,15 @@ class FaissHNSWIndex:
             if self.space == "cosine":
                 faiss.normalize_L2(vecs)
             id_arr = np.array([self._string_to_int(i) for i in ids], dtype="int64")
-            if not self.index.is_trained:
+
+            # ``IndexIDMap2`` reports itself as trained even if the underlying
+            # FAISS index still requires training (e.g. IVF/PQ variants). This
+            # previously meant that PQ-based indexes were left untrained and
+            # calling ``add_with_ids`` would crash the interpreter with a
+            # segmentation fault. To avoid this we explicitly inspect the base
+            # index and train it when necessary before adding any vectors.
+            base_index = faiss.downcast_index(self.index.index)
+            if not base_index.is_trained:
                 # Indices like IVF require training before adding vectors
                 self.index.train(vecs)
             self.index.add_with_ids(vecs, id_arr)
@@ -398,7 +406,8 @@ class FaissHNSWIndex:
         if self._vectors:
             ids = np.array(list(self._vectors.keys()), dtype="int64")
             vecs = np.vstack(list(self._vectors.values())).astype("float32")
-            if not new_index.is_trained:
+            base_index = faiss.downcast_index(new_index.index)
+            if not base_index.is_trained:
                 new_index.train(vecs)
             new_index.add_with_ids(vecs, ids)
         self.index = new_index
