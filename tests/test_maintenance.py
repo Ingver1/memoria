@@ -105,3 +105,27 @@ async def test_property_forgetting(store, index, random_texts, fake_embed, data)
             assert await store.get(m.id) is not None
         else:
             assert await store.get(m.id) is None
+
+
+async def test_negative_valence_increases_forgetting(store, index, fake_embed):
+    """Memories with negative valence should be forgotten before positive ones."""
+    pos = Memory.new(
+        "pleasant", importance=0.5, valence=0.5, emotional_intensity=0.5
+    )
+    neg = Memory.new(
+        "unpleasant", importance=0.5, valence=-0.5, emotional_intensity=0.5
+    )
+
+    for mem in (pos, neg):
+        await store.add(mem)
+        vec = fake_embed(mem.text)
+        if isinstance(vec, np.ndarray) and vec.ndim == 1:
+            vec = vec.reshape(1, -1)
+        index.add_vectors([mem.id], vec.astype(np.float32))
+
+    deleted = await forget_old_memories(store, index, min_total=0, retain_fraction=0.5)
+    assert deleted == 1
+
+    remaining = {m.id for m in await store.search(limit=10)}
+    assert pos.id in remaining
+    assert neg.id not in remaining
