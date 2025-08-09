@@ -21,9 +21,9 @@ import numpy as np
 from embedder import embed as embed_text
 from memory_system.core.hierarchical_summarizer import HierarchicalSummarizer
 from memory_system.core.index import FaissHNSWIndex
+from memory_system.core.memory_dynamics import MemoryDynamics
 from memory_system.core.store import Memory, SQLiteMemoryStore
 from memory_system.core.summarization import STRATEGIES, SummaryStrategy
-from memory_system.core.memory_dynamics import MemoryDynamics
 
 # ----------------------------- small utils -----------------------------
 

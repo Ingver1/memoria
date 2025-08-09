@@ -10,21 +10,21 @@ import time
 import uuid
 from contextlib import suppress
 from dataclasses import dataclass
-from typing import Any, AsyncIterator, Iterable, Sequence, MutableMapping, cast
+from typing import Any, AsyncIterator, Iterable, MutableMapping, Sequence, cast
 
 import numpy as np
 from cryptography.fernet import Fernet
 
-__all__ = ["EnhancedMemoryStore", "HealthComponent"]
-
-log = logging.getLogger(__name__)
-
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.faiss_vector_store import FaissVectorStore
 from memory_system.core.interfaces import MetaStore, VectorStore
+from memory_system.core.memory_dynamics import MemoryDynamics
 from memory_system.core.store import Memory, SQLiteMemoryStore
 from memory_system.core.summarization import SummaryStrategy
-from memory_system.core.memory_dynamics import MemoryDynamics
+
+__all__ = ["EnhancedMemoryStore", "HealthComponent"]
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -61,7 +61,7 @@ class EnhancedMemoryStore:
         self._dynamics = MemoryDynamics(self.meta_store)
 
         # Backwards-compat for legacy tests that access private fields:
-        self._store = self.meta_store          # type: ignore[attr-defined]
+        self._store = self.meta_store  # type: ignore[attr-defined]
         self._index = getattr(self.vector_store, "index", None)  # type: ignore[attr-defined]
 
         vec_path = settings.database.vec_path
@@ -389,10 +389,8 @@ class EnhancedMemoryStore:
         """
         # ANN search with over-sampling to improve recall
         vec = np.asarray(vector, dtype=np.float32)
-        ids, dists = self.vector_store.search(
-            vec, k=max(k * 5, k), modality=modality, ef_search=ef_search
-        )
-        candidates = list(zip(ids, dists))
+        ids, dists = self.vector_store.search(vec, k=max(k * 5, k), modality=modality, ef_search=ef_search)
+        candidates = list(zip(ids, dists, strict=True))
 
         # Filter by metadata and/or level via the meta store
         md = dict(metadata_filter or {})

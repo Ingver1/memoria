@@ -14,11 +14,21 @@ import logging
 import os
 from typing import TYPE_CHECKING, Any, AsyncIterator, cast
 
-from fastapi import FastAPI, Request, Response, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRouter
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.requests import Request as StarletteRequest
+
+from memory_system import __version__
+from memory_system.api.middleware import MaintenanceModeMiddleware, RateLimitingMiddleware
+from memory_system.api.routes import admin as admin_routes
+from memory_system.api.routes import health as health_routes
+from memory_system.api.routes import memory as memory_routes
+from memory_system.config.settings import UnifiedSettings, configure_logging, get_settings
+from memory_system.core.enhanced_store import EnhancedMemoryStore
+from memory_system.core.store import Memory, get_memory_store
+from memory_system.memory_helpers import MemoryStoreProtocol, add, delete, search
 
 if TYPE_CHECKING:  # Only for type checking, not at runtime
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
@@ -41,20 +51,6 @@ if not hasattr(StarletteRequest, "_ums_app_setter"):
 
     StarletteRequest.app = property(lambda self: self.scope.get("app"), _set_app)
     StarletteRequest._ums_app_setter = True
-
-from memory_system import __version__
-from memory_system.api.middleware import MaintenanceModeMiddleware, RateLimitingMiddleware
-from memory_system.api.routes import admin as admin_routes
-from memory_system.api.routes import health as health_routes
-from memory_system.api.routes import memory as memory_routes
-from memory_system.config.settings import (
-    UnifiedSettings,
-    configure_logging,
-    get_settings,
-)
-from memory_system.core.enhanced_store import EnhancedMemoryStore
-from memory_system.core.store import Memory, get_memory_store
-from memory_system.memory_helpers import MemoryStoreProtocol, add, delete, search
 
 logger = logging.getLogger(__name__)
 
