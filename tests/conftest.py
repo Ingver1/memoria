@@ -20,6 +20,8 @@ try:
     import numpy as np
 except Exception:  # pragma: no cover - optional dependency
     np = None  # type: ignore[assignment]
+import types
+
 import pytest
 from _pytest.config import Config
 from _pytest.fixtures import FixtureRequest
@@ -48,6 +50,30 @@ except Exception:  # pragma: no cover - optional dependency
 from memory_system.core.store import SQLiteMemoryStore
 
 # ...existing code...
+
+
+def _install_crypto_stub() -> None:
+    try:
+        import cryptography.fernet  # noqa: F401
+
+        return
+    except Exception:
+        pass
+
+    from tests._stubs.cryptography import fernet as f_stub
+
+    crypto_pkg = types.ModuleType("cryptography")
+    sys.modules["cryptography"] = crypto_pkg
+    sys.modules["cryptography.fernet"] = f_stub
+    crypto_pkg.fernet = f_stub
+
+
+_install_crypto_stub()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _inject_crypto_stub_if_missing() -> None:
+    _install_crypto_stub()
 
 
 def pytest_configure(config: Config) -> None:

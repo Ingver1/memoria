@@ -29,6 +29,5 @@ python-jose[cryptography]>=3.3
 passlib[bcrypt]>=1.7
 
 # Monitoring and logging
-prometheus-client>=0.20
 structlog>=23.2
 python-json-logger>=2.0

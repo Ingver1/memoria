@@ -44,6 +44,8 @@ UMS is a plug-and-play semantic memory service for LLM agents. It’s small, fas
 
 ```bash
 pip install ai-memory        # production
+pip install ai-memory[security]  # +encryption support (or `pip install .[security]`)
+pip install ai-memory[metrics]   # +Prometheus metrics
 pip install ai-memory[dev]   # +tests & tooling
 pip install -e .[dev]       # editable for local dev
 uvicorn memory_system.api.app:create_app --reload

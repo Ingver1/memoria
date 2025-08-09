@@ -13,9 +13,30 @@ from dataclasses import dataclass
 from typing import Any, AsyncIterator, Iterable, MutableMapping, Sequence, cast
 
 import numpy as np
-from cryptography.fernet import Fernet
-from embedder import embed as embed_text
 
+try:
+    from cryptography.fernet import Fernet
+
+    _CRYPTO_OK = True
+except Exception:  # pragma: no cover - optional dependency
+    _CRYPTO_OK = False
+
+    class Fernet:  # pragma: no cover - simple stub
+        @staticmethod
+        def generate_key() -> bytes:
+            return b"0" * 32
+
+        def __init__(self, key: bytes) -> None:
+            self._k = key
+
+        def encrypt(self, data: bytes) -> bytes:
+            return data
+
+        def decrypt(self, token: bytes) -> bytes:
+            return token
+
+
+from embedder import embed as embed_text
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.faiss_vector_store import FaissVectorStore
 from memory_system.core.interfaces import MetaStore, VectorStore

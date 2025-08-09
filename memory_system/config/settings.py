@@ -10,7 +10,30 @@ from types import SimpleNamespace
 from typing import Any, Literal, cast
 from urllib.parse import quote
 
-from cryptography.fernet import Fernet, InvalidToken
+try:
+    from cryptography.fernet import Fernet, InvalidToken
+
+    _CRYPTO_OK = True
+except Exception:  # pragma: no cover - optional dependency
+    _CRYPTO_OK = False
+
+    class InvalidToken(Exception): ...
+
+    class Fernet:  # pragma: no cover - simple stub
+        @staticmethod
+        def generate_key() -> bytes:
+            return b"0" * 32
+
+        def __init__(self, key: bytes) -> None:
+            self._k = key
+
+        def encrypt(self, data: bytes) -> bytes:
+            return data
+
+        def decrypt(self, token: bytes) -> bytes:
+            return token
+
+
 from pydantic import (
     BaseModel,
     Field,
@@ -27,6 +50,7 @@ __all__ = [
     "DatabaseConfig",
     "ModelConfig",
     "SecurityConfig",
+    "CacheConfig",
     "PerformanceConfig",
     "ReliabilityConfig",
     "RankingConfig",
@@ -118,6 +142,11 @@ class SecurityConfig(BaseModel):
     model_config = {"frozen": True}
 
     def __init__(self, **data: Any) -> None:
+        if data.get("encrypt_at_rest") and not _CRYPTO_OK:
+            raise RuntimeError(
+                "encrypt_at_rest requires the 'cryptography' package. "
+                "Install optional dependency with `pip install ai-memory[security]`."
+            )
         super().__init__(**data)
         if len(self.api_token) < 8:
             raise ValueError("API token must be at least 8 characters long")
@@ -127,8 +156,14 @@ class SecurityConfig(BaseModel):
             object.__setattr__(self, "encryption_key", Fernet.generate_key().decode())
 
     def __setattr__(self, name: str, value: Any) -> None:  # pragma: no cover
-        if name == "encrypt_at_rest" and value and not getattr(self, "encryption_key", ""):
-            object.__setattr__(self, "encryption_key", Fernet.generate_key().decode())
+        if name == "encrypt_at_rest" and value:
+            if not _CRYPTO_OK:
+                raise RuntimeError(
+                    "encrypt_at_rest requires the 'cryptography' package. "
+                    "Install optional dependency with `pip install ai-memory[security]`."
+                )
+            if not getattr(self, "encryption_key", ""):
+                object.__setattr__(self, "encryption_key", Fernet.generate_key().decode())
         super().__setattr__(name, value)
 
     @field_validator("encryption_key")
@@ -158,6 +193,15 @@ class SecurityConfig(BaseModel):
         if value not in allowed:
             raise ValueError(f"kms_backend must be one of {allowed}")
         return value
+
+
+class CacheConfig(BaseModel):
+    """Generic in-memory cache configuration."""
+
+    size: PositiveInt = 1_000
+    ttl_seconds: PositiveInt = 300
+
+    model_config = {"frozen": True}
 
 
 class PerformanceConfig(BaseModel):
@@ -266,6 +310,7 @@ class UnifiedSettings(BaseSettings):
     database: DatabaseConfig = DatabaseConfig()
     model: ModelConfig = ModelConfig()
     security: SecurityConfig = SecurityConfig()
+    cache: CacheConfig = CacheConfig()
     performance: PerformanceConfig = PerformanceConfig()
     reliability: ReliabilityConfig = ReliabilityConfig()
     ranking: RankingConfig = RankingConfig()
@@ -281,6 +326,7 @@ class UnifiedSettings(BaseSettings):
         object.__setattr__(self, "database", DatabaseConfig(**self.database.model_dump()))
         object.__setattr__(self, "model", ModelConfig(**self.model.model_dump()))
         object.__setattr__(self, "security", SecurityConfig(**self.security.model_dump()))
+        object.__setattr__(self, "cache", CacheConfig(**self.cache.model_dump()))
         object.__setattr__(
             self,
             "performance",
@@ -345,6 +391,7 @@ class UnifiedSettings(BaseSettings):
         return cls(
             profile="testing",
             database=DatabaseConfig(),
+            cache=CacheConfig(size=100, ttl_seconds=10),
             performance=PerformanceConfig(max_workers=2, cache_size=100, cache_ttl_seconds=10),
             monitoring=MonitoringConfig(enable_metrics=False, health_check_interval=5),
             api=APIConfig(port=0),
@@ -356,6 +403,7 @@ class UnifiedSettings(BaseSettings):
         return cls(
             profile="production",
             database=DatabaseConfig(connection_pool_size=20),
+            cache=CacheConfig(size=5_000),
             performance=PerformanceConfig(max_workers=8, cache_size=5_000),
             security=SecurityConfig(encrypt_at_rest=True, filter_pii=True),
         )
@@ -365,6 +413,7 @@ class UnifiedSettings(BaseSettings):
         return cls(
             profile="development",
             database=DatabaseConfig(connection_pool_size=5),
+            cache=CacheConfig(size=500),
             performance=PerformanceConfig(max_workers=2, cache_size=500),
             monitoring=MonitoringConfig(enable_metrics=True, log_level="DEBUG", health_check_interval=10),
             api=APIConfig(enable_cors=True),

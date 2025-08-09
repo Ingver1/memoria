@@ -344,6 +344,8 @@ class TestUnifiedSettings:
         assert settings.performance.max_workers == 2
         assert settings.performance.cache_size == 100
         assert settings.performance.cache_ttl_seconds == 10
+        assert settings.cache.size == 100
+        assert settings.cache.ttl_seconds == 10
         assert settings.api.port == 0
         assert settings.monitoring.enable_metrics is False
         assert settings.monitoring.health_check_interval == 5
@@ -356,6 +358,7 @@ class TestUnifiedSettings:
         assert settings.database.connection_pool_size == 20
         assert settings.performance.max_workers == 8
         assert settings.performance.cache_size == 5_000
+        assert settings.cache.size == 5_000
         assert settings.security.encrypt_at_rest is True
         assert settings.security.filter_pii is True
         assert settings.security.rate_limit_per_minute == 1_000
@@ -368,6 +371,7 @@ class TestUnifiedSettings:
         assert settings.database.connection_pool_size == 5
         assert settings.performance.max_workers == 2
         assert settings.performance.cache_size == 500
+        assert settings.cache.size == 500
         assert settings.monitoring.enable_metrics is True
         assert settings.monitoring.log_level == "DEBUG"
         assert settings.monitoring.health_check_interval == 10
