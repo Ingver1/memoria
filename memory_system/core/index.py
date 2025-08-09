@@ -350,7 +350,21 @@ class FaissHNSWIndex:
                     ivf_index = faiss.extract_index_ivf(base_index)
             except Exception:
                 ivf_index = None
-            if (not base_index.is_trained) or (ivf_index and not ivf_index.is_trained):
+
+            pq = None
+            try:  # HNSWPQ exposes a "pq" member that needs to be trained
+                if hasattr(base_index, "pq"):
+                    pq = base_index.pq  # type: ignore[attr-defined]
+                elif ivf_index and hasattr(ivf_index, "pq"):
+                    pq = ivf_index.pq  # type: ignore[attr-defined]
+            except Exception:
+                pq = None
+
+            if (
+                (not base_index.is_trained)
+                or (ivf_index and not ivf_index.is_trained)
+                or (pq is not None and not pq.is_trained)
+            ):
                 # Indices like IVF/PQ require training before adding vectors.  The
                 # training call must target the *base* FAISS index rather than the
                 # ``IndexIDMap2`` wrapper; otherwise the underlying index remains
