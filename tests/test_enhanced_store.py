@@ -18,6 +18,7 @@ import pytest_asyncio
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.enhanced_store import EnhancedMemoryStore
 from memory_system.core.index import ANNIndexError
+from memory_system.core.store import Memory
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -88,6 +89,66 @@ async def test_invalid_embedding_length(store: EnhancedMemoryStore) -> None:
     bad_embedding = [0.1, 0.2, 0.3]
     with pytest.raises(ANNIndexError):
         await store.semantic_search(embedding=bad_embedding, k=1)
+
+
+@pytest.mark.asyncio
+async def test_semantic_search_filters_by_level_and_is_faster(monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = UnifiedSettings.for_testing()
+    store = EnhancedMemoryStore(settings)
+
+    dim = store.settings.model.vector_dim
+    emb0 = np.random.rand(dim).astype("float32").tolist()
+    emb1 = np.random.rand(dim).astype("float32").tolist()
+
+    # memory at level 0
+    mem0 = Memory.new("lvl0", level=0)
+    await store._store.add(mem0)
+    store._index.add_vectors("text", [mem0.id], np.asarray([emb0], dtype=np.float32))
+
+    # memory at level 1
+    mem1 = Memory.new("lvl1", level=1)
+    await store._store.add(mem1)
+    store._index.add_vectors("text", [mem1.id], np.asarray([emb1], dtype=np.float32))
+
+    # slow down individual get calls to highlight performance difference
+    orig_get = store._store.get
+
+    async def slow_get(mid: str) -> Memory | None:  # type: ignore[override]
+        await asyncio.sleep(0.01)
+        return await orig_get(mid)
+
+    monkeypatch.setattr(store._store, "get", slow_get)
+
+    async def naive_search(vec: list[float], level: int) -> list[Memory]:
+        vec_np = np.asarray(vec, dtype=np.float32)
+        ids, dists = store._index.search("text", vec_np, k=5)
+        candidates = list(zip(ids, dists))
+        total = store._index.stats("text").total_vectors or 5
+        allowed_mems = await store._store.search(metadata_filters={"modality": "text"}, limit=total)
+        allowed_ids = {m.id for m in allowed_mems}
+        allowed_ids = {
+            mid for mid in allowed_ids if getattr(await store._store.get(mid), "level", None) == level
+        }
+        candidates = [(_id, dist) for _id, dist in candidates if _id in allowed_ids][:1]
+        result = []
+        for _id, _ in candidates:
+            mem = await store._store.get(_id)
+            if mem:
+                result.append(mem)
+        return result
+
+    start = time.perf_counter()
+    old_res = await naive_search(emb0, level=0)
+    old_time = time.perf_counter() - start
+
+    start = time.perf_counter()
+    new_res = await store.semantic_search(vector=emb0, k=1, level=0)
+    new_time = time.perf_counter() - start
+
+    assert [m.id for m in new_res] == [m.id for m in old_res]
+    assert new_time < old_time
+
+    await store.close()
 
 
 # Optional extended check
