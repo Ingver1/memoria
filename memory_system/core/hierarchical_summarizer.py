@@ -103,9 +103,13 @@ class HierarchicalSummarizer:
             cluster_mems = [mems[i] for i in group]
             summary_text = self.strategy(cluster_mems)
             importance = float(np.mean([m.importance for m in cluster_mems]))
+            valence = float(np.mean([m.valence for m in cluster_mems]))
+            intensity = float(np.mean([m.emotional_intensity for m in cluster_mems]))
             summary = Memory.new(
                 summary_text,
                 importance=importance,
+                valence=valence,
+                emotional_intensity=intensity,
                 metadata={"source_ids": [m.id for m in cluster_mems], "cluster_size": len(cluster_mems)},
                 level=target_level,
             )

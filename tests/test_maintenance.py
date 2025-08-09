@@ -76,16 +76,31 @@ async def test_property_consolidation(store, index, random_texts, fake_embed):
 
 
 async def test_concat_strategy(store, index, fake_embed):
-    texts = ["a cat", "the cat"]
-    importances = [0.2, 0.4]
-    await _add_with_vectors(store, index, texts, importance=importances, embed=fake_embed)
+    mem1 = Memory.new(
+        "a cat", importance=0.2, valence=0.4, emotional_intensity=0.6
+    )
+    mem2 = Memory.new(
+        "the cat", importance=0.4, valence=-0.2, emotional_intensity=0.2
+    )
+    for m in (mem1, mem2):
+        await store.add(m)
+        vec = fake_embed(m.text)
+        if isinstance(vec, np.ndarray) and vec.ndim == 1:
+            vec = vec.reshape(1, -1)
+        index.add_vectors([m.id], vec.astype(np.float32))
 
     created = await consolidate_store(store, index, threshold=0.8, strategy="concat")
 
     assert len(created) == 1
     summary = created[0]
     assert summary.text == "a cat the cat"
-    assert abs(summary.importance - np.mean(importances)) < 1e-6
+    assert summary.importance == pytest.approx(
+        np.mean([mem1.importance, mem2.importance])
+    )
+    assert summary.valence == pytest.approx(np.mean([mem1.valence, mem2.valence]))
+    assert summary.emotional_intensity == pytest.approx(
+        np.mean([mem1.emotional_intensity, mem2.emotional_intensity])
+    )
 
 
 # Property-based test for forgetting low-scored memories
