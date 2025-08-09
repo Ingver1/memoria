@@ -562,6 +562,17 @@ class TestMemoryEndpoints:
         )
         assert resp_weighted.json()[0]["text"] == "bad but vital"
 
+    def test_best_memories_score_parts_dev(self) -> None:
+        """score_parts flag should return breakdown in development profile."""
+        settings = UnifiedSettings.for_development()
+        app = create_app(settings)
+        with TestClient(app) as client:
+            client.post("/api/v1/memory/", json={"text": "hello"})
+            resp = client.get("/api/v1/memory/best", params={"score_parts": True})
+            assert resp.status_code == 200
+            payload = resp.json()
+            assert "score_parts" in payload[0]
+
 
 class TestErrorHandling:
     """Test error handling."""

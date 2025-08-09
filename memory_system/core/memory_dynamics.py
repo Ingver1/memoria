@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import datetime as dt
+import logging
 import math
 from dataclasses import dataclass, field
 from typing import Any, Protocol, Sequence
 
 from memory_system.core.store import Memory
 from memory_system.unified_memory import ListBestWeights
+
+log = logging.getLogger(__name__)
 
 
 class SupportsDynamics(Protocol):
@@ -36,6 +39,17 @@ def _decay_rate() -> float:
         return max(dyn.decay_rate, 1e-9)
     except Exception:  # pragma: no cover - settings module optional
         return 30.0
+
+
+def _is_dev_mode() -> bool:
+    """Return ``True`` when running in development profile."""
+    try:  # Lazy import to avoid heavy deps at import time
+        from memory_system.config.settings import get_settings
+
+        cfg = get_settings()
+        return getattr(cfg, "profile", "") == "development"
+    except Exception:  # pragma: no cover - settings module optional
+        return False
 
 
 @dataclass
@@ -77,8 +91,19 @@ class MemoryDynamics:
     # Scoring helpers
     # ------------------------------------------------------------------
 
-    def score(self, memory: Memory, *, now: dt.datetime | None = None) -> float:
-        """Return the ranking score for *memory* with intensity decay."""
+    def score(
+        self,
+        memory: Memory,
+        *,
+        now: dt.datetime | None = None,
+        return_parts: bool = False,
+    ) -> float | tuple[float, dict[str, float]]:
+        """Return the ranking score for *memory* with intensity decay.
+
+        When ``return_parts`` is ``True`` the individual weighted components
+        are returned alongside the final score as ``(score, parts)`` where
+        ``parts`` is a mapping of component name to its contribution.
+        """
         valence_weight = self.weights.valence_pos if memory.valence >= 0 else self.weights.valence_neg
         imp = max(0.0, min(1.0, memory.importance))
         inten = max(0.0, min(1.0, memory.emotional_intensity))
@@ -89,7 +114,29 @@ class MemoryDynamics:
         age_days = max(0.0, (now - last).total_seconds() / 86_400.0)
         decay = math.exp(-age_days / _decay_rate())
         inten *= decay
-        return self.weights.importance * imp + self.weights.emotional_intensity * inten + valence_weight * val
+
+        imp_part = self.weights.importance * imp
+        inten_part = self.weights.emotional_intensity * inten
+        val_part = valence_weight * val
+        score = imp_part + inten_part + val_part
+
+        if _is_dev_mode():
+            log.debug(
+                "score parts for %s: importance=%.3f, intensity=%.3f, valence=%.3f -> %.3f",
+                memory.id,
+                imp_part,
+                inten_part,
+                val_part,
+                score,
+            )
+
+        if return_parts:
+            return score, {
+                "importance": imp_part,
+                "emotional_intensity": inten_part,
+                "valence": val_part,
+            }
+        return score
 
     @staticmethod
     def _last_accessed(memory: Memory) -> dt.datetime:
