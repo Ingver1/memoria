@@ -279,6 +279,26 @@ class FaissHNSWIndex:
         # we actually have data stored.
         self._warm_up()
 
+    def add_vectors_streaming(
+        self,
+        iterator: Iterable[tuple[str, NDArray | Sequence[float]]],
+        *,
+        batch_size: int = 1000,
+    ) -> None:
+        """Add vectors from an iterator without loading all data at once."""
+
+        ids: list[str] = []
+        vecs: list[NDArray] = []
+        for _id, vec in iterator:
+            ids.append(_id)
+            vecs.append(np.asarray(vec, dtype=np.float32))
+            if len(ids) >= batch_size:
+                self.add_vectors(ids, np.asarray(vecs, dtype=np.float32))
+                ids.clear()
+                vecs.clear()
+        if ids:
+            self.add_vectors(ids, np.asarray(vecs, dtype=np.float32))
+
     def _rebuild_from_vectors(self) -> None:
         """Reconstruct the FAISS index from vectors kept in memory."""
         metric = faiss.METRIC_INNER_PRODUCT if self.space == "cosine" else faiss.METRIC_L2
