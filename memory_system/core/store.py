@@ -366,6 +366,54 @@ class SQLiteMemoryStore:
         else:
             await self._release(conn)
 
+    async def add_many(self, memories: Sequence[Memory], *, batch_size: int = 100) -> None:
+        """Insert multiple memories using batched commits.
+
+        Parameters
+        ----------
+        memories:
+            Sequence of :class:`Memory` objects to insert.
+        batch_size:
+            Number of records to insert before issuing a ``commit``.
+        """
+
+        await self.initialise()
+        conn = await self._acquire()
+        try:
+            sql = (
+                "INSERT INTO memories (id, text, created_at, importance, valence, emotional_intensity, metadata) "
+                "VALUES (?, ?, ?, ?, ?, ?, json(?))"
+            )
+            batch: list[tuple[Any, ...]] = []
+            for mem in memories:
+                batch.append(
+                    (
+                        mem.id,
+                        mem.text,
+                        mem.created_at.isoformat(),
+                        mem.importance,
+                        mem.valence,
+                        mem.emotional_intensity,
+                        json.dumps(mem.metadata) if mem.metadata else "null",
+                    )
+                )
+                if len(batch) >= batch_size:
+                    await conn.executemany(sql, batch)
+                    await conn.commit()
+                    await self._run_commit_hooks()
+                    batch.clear()
+            if batch:
+                await conn.executemany(sql, batch)
+                await conn.commit()
+                await self._run_commit_hooks()
+        except Exception:
+            await conn.rollback()
+            await conn.close()
+            self._created -= 1
+            raise
+        else:
+            await self._release(conn)
+
     async def get(self, memory_id: str) -> Optional[Memory]:
         """Fetch a memory by its ID."""
         await self.initialise()
