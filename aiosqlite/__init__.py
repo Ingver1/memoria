@@ -1,8 +1,9 @@
 import sqlite3
 import asyncio
-from typing import Any, Sequence, Optional
+from typing import Any, Sequence
 
 Row = sqlite3.Row
+
 
 class Cursor:
     def __init__(self, cursor: sqlite3.Cursor) -> None:
@@ -13,6 +14,7 @@ class Cursor:
 
     async def fetchall(self) -> list[Any]:
         return await asyncio.to_thread(self._cursor.fetchall)
+
 
 class Connection:
     def __init__(self, conn: sqlite3.Connection) -> None:
@@ -27,7 +29,9 @@ class Connection:
         self._conn.row_factory = value
 
     async def execute(self, sql: str, params: Sequence[Any] | None = None) -> Cursor:
-        cur = await asyncio.to_thread(self._conn.execute, sql, params or [])
+        if params is None:
+            params = ()
+        cur = await asyncio.to_thread(self._conn.execute, sql, params)
         return Cursor(cur)
 
     async def executescript(self, script: str) -> None:
@@ -39,18 +43,15 @@ class Connection:
     async def close(self) -> None:
         await asyncio.to_thread(self._conn.close)
 
-async def connect(
-    dsn: str, *, uri: bool = False, timeout: float | None = None
-) -> Connection:
-    """Lightweight async wrapper around :func:`sqlite3.connect`.
-
-    The real aiosqlite library exposes a ``timeout`` parameter – some parts of
-    the codebase rely on it.  Support it here for compatibility but fall back to
-    the default ``sqlite3`` behaviour if omitted.
+async def connect(dsn: str, *, uri: bool = False, timeout: float | None = None) -> Connection:
     """
-
+    Lightweight async wrapper around `sqlite3.connect`.
+    We expose `timeout` for compatibility with the real aiosqlite API,
+    but keep it optional to preserve existing call sites.
+    """
     if timeout is None:
         conn = await asyncio.to_thread(sqlite3.connect, dsn, uri=uri)
     else:
         conn = await asyncio.to_thread(sqlite3.connect, dsn, uri=uri, timeout=timeout)
+    conn.row_factory = sqlite3.Row
     return Connection(conn)

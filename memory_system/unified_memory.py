@@ -282,13 +282,22 @@ async def reinforce(
     memory_id: str,
     amount: float = 0.1,
     *,
+    valence_delta: float | None = None,
+    intensity_delta: float | None = None,
     store: MemoryStoreProtocol | None = None,
 ) -> Memory:
-    """Reinforce the importance of a memory by *amount* and return the updated object.
+    """Reinforce a memory's importance and optionally its emotional context.
+
+    By default only the ``importance`` field is reinforced. Supplying
+    ``valence_delta`` and/or ``intensity_delta`` applies the same deltas to
+    the respective ``valence`` and ``emotional_intensity`` attributes.
 
     Args:
         memory_id (str): The memory identifier.
-        amount (float, optional): Amount to reinforce. Defaults to 0.1.
+        amount (float, optional): Importance increment. Defaults to 0.1.
+        valence_delta (float | None, optional): Change applied to ``valence``.
+        intensity_delta (float | None, optional): Change applied to
+            ``emotional_intensity``.
         store (MemoryStoreProtocol | None, optional): Store object. Defaults to None.
 
     Returns:
@@ -300,7 +309,13 @@ async def reinforce(
     }
     try:
         updated = await asyncio.wait_for(
-            st.update_memory(memory_id, importance_delta=amount, metadata=meta),
+            st.update_memory(
+                memory_id,
+                importance_delta=amount,
+                valence_delta=valence_delta,
+                emotional_intensity_delta=intensity_delta,
+                metadata=meta,
+            ),
             timeout=ASYNC_TIMEOUT,
         )
         logger.debug("Memory %s reinforced by %.2f.", memory_id, amount)

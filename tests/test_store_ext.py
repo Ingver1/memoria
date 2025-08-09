@@ -207,10 +207,36 @@ def test_update_memory_clamps_importance_lower_bound(store: SQLiteMemoryStore) -
 
 def test_reinforce_returns_updated_importance(store: SQLiteMemoryStore) -> None:
     async def _run() -> None:
-        mem = await um_add("hi", importance=0.1, store=store)
+        mem = await um_add("hi", importance=0.1, valence=0.2, emotional_intensity=0.4, store=store)
         updated = await reinforce(mem.memory_id, 0.2, store=store)
 
         assert abs(updated.importance - 0.3) < 1e-6
+        assert updated.valence == pytest.approx(0.2)
+        assert updated.emotional_intensity == pytest.approx(0.4)
+
+    asyncio.run(_run())
+
+
+def test_reinforce_combined_fields(store: SQLiteMemoryStore) -> None:
+    async def _run() -> None:
+        mem = await um_add(
+            "hi",
+            importance=0.1,
+            valence=0.0,
+            emotional_intensity=0.2,
+            store=store,
+        )
+        updated = await reinforce(
+            mem.memory_id,
+            0.2,
+            valence_delta=0.3,
+            intensity_delta=0.4,
+            store=store,
+        )
+
+        assert updated.importance == pytest.approx(0.3)
+        assert updated.valence == pytest.approx(0.3)
+        assert updated.emotional_intensity == pytest.approx(0.6)
 
     asyncio.run(_run())
 
