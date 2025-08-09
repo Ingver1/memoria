@@ -1,9 +1,12 @@
 """Hierarchical summarisation utilities.
 
 This module implements a simple RAPTOR-like approach for building a
-hierarchy of clustered memories.  Memories on a given level are grouped
-by cosine similarity; each cluster is summarised into a new memory on the
-next level.  The summarised memories are written back to the
+hierarchy of clustered memories. Memories have an integer ``level`` where
+``0`` denotes raw inputs. Memories on a given level are grouped by cosine
+similarity; each cluster is summarised into a new memory on the next
+level. Items without sufficiently similar neighbours are marked with
+``metadata['final']`` so they are excluded from future promotion. The
+summarised memories are written back to the
 :class:`~memory_system.core.store.SQLiteMemoryStore` and added to the
 vector index so they can participate in subsequent searches.
 """
@@ -51,7 +54,12 @@ def _cluster_embeddings(embeddings: Sequence[np.ndarray], threshold: float) -> L
 
 
 class HierarchicalSummarizer:
-    """Build a hierarchy of memory summaries."""
+    """Build and maintain summary levels for stored memories.
+
+    Each pass groups memories from a source ``level`` and writes a summary
+    to ``level + 1``. Memories that cannot be clustered are tagged with
+    ``metadata['final']`` and will not be considered in subsequent passes.
+    """
 
     def __init__(
         self,
@@ -72,9 +80,11 @@ class HierarchicalSummarizer:
     async def build_level(self, source_level: int) -> List[Memory]:
         """Build the next summary level from ``source_level``.
 
-        Returns a list of newly created summary memories belonging to
-        ``source_level + 1``.  If no memories exist on the source level the
-        function returns an empty list.
+        Memories already marked ``metadata['final']`` are skipped. Returns a
+        list of newly created summary memories belonging to ``source_level +
+        1``. Singletons are marked as final to prevent further promotion. If
+        no memories exist on the source level the function returns an empty
+        list.
         """
         mems = await self.store.search(limit=100_000, level=source_level)
         mems = [m for m in mems if not m.metadata or not m.metadata.get("final")]
