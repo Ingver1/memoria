@@ -24,6 +24,7 @@ from memory_system.core.faiss_vector_store import FaissVectorStore
 from memory_system.core.interfaces import MetaStore, VectorStore
 from memory_system.core.store import Memory, SQLiteMemoryStore
 from memory_system.core.summarization import SummaryStrategy
+from memory_system.core.memory_dynamics import MemoryDynamics
 
 
 @dataclass
@@ -47,6 +48,9 @@ class EnhancedMemoryStore:
         dsn = settings.get_database_url()
         self.meta_store: MetaStore = SQLiteMemoryStore(dsn)
         self.vector_store: VectorStore = FaissVectorStore(settings)
+
+        # Helper for reinforcement/decay/score operations
+        self._dynamics = MemoryDynamics(self.meta_store)
 
         # Backwards-compat for legacy tests that access private fields:
         self._store = self.meta_store          # type: ignore[attr-defined]
@@ -210,6 +214,44 @@ class EnhancedMemoryStore:
         await asyncio.to_thread(self.vector_store.save, str(self.settings.database.vec_path))
         self._memory_count += 1
         return mem
+
+    # ---- Memory dynamics ---------------------------------------------------
+
+    async def reinforce(
+        self,
+        memory_id: str,
+        amount: float = 0.1,
+        *,
+        valence_delta: float | None = None,
+        intensity_delta: float | None = None,
+    ) -> Memory:
+        """Delegate reinforcement to :class:`MemoryDynamics`."""
+        return await self._dynamics.reinforce(
+            memory_id,
+            amount,
+            valence_delta=valence_delta,
+            intensity_delta=intensity_delta,
+        )
+
+    def score(self, memory: Memory) -> float:
+        """Return the time-decayed ranking score for ``memory``."""
+        return self._dynamics.score(memory)
+
+    @staticmethod
+    def decay(
+        *,
+        importance: float,
+        valence: float,
+        emotional_intensity: float,
+        age_days: float,
+    ) -> float:
+        """Expose :func:`MemoryDynamics.decay` for convenience."""
+        return MemoryDynamics.decay(
+            importance=importance,
+            valence=valence,
+            emotional_intensity=emotional_intensity,
+            age_days=age_days,
+        )
 
     async def add_memories_batch(self, items: Sequence[dict[str, Any]]) -> list[Memory]:
         """Add multiple memories with embeddings in one batch."""
