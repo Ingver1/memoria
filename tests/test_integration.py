@@ -36,6 +36,7 @@ class TestEndToEndMemoryWorkflow:
 
         # Create components
         store = EnhancedMemoryStore(settings)
+        await store.start()
         embedding_service = EnhancedEmbeddingService("all-MiniLM-L6-v2", settings)
 
         # Create temporary paths

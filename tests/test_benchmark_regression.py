@@ -29,6 +29,7 @@ EMBEDDING = np.random.rand(DIM).astype("float32").tolist()
 @pytest_asyncio.fixture(scope="session")
 async def bench_store() -> AsyncGenerator[EnhancedMemoryStore, None]:
     s = EnhancedMemoryStore(UnifiedSettings.for_testing())
+    await s.start()
     for _ in range(1_000):
         await s.add_memory(text="bench", embedding=np.random.rand(DIM).tolist())
     yield s

@@ -26,6 +26,7 @@ async def test_enhanced_store_multi_modality(tmp_path):
     object.__setattr__(settings.database, "vec_path", tmp_path / "memory.vectors")
 
     store = EnhancedMemoryStore(settings)
+    await store.start()
     await store.add_memory(text="hello", embedding=[0.1] * settings.model.vector_dims["text"], modality="text")
     await store.add_memory(text="picture", embedding=[0.1, 0.2, 0.3], modality="image")
 

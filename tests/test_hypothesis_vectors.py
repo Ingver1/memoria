@@ -39,8 +39,11 @@ def _float32_arrays() -> SearchStrategy[List[float]]:
 async def store() -> AsyncGenerator[EnhancedMemoryStore, None]:
     """Create an EnhancedMemoryStore instance for testing."""
     s = EnhancedMemoryStore(UnifiedSettings.for_testing())
-    yield s
-    await s.close()
+    await s.start()
+    try:
+        yield s
+    finally:
+        await s.close()
 
 
 @given(vec=_float32_arrays())

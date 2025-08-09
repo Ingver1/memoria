@@ -15,6 +15,7 @@ async def test_enhanced_store_add_search_list_stats(tmp_path: Path) -> None:
     os.environ["DATABASE__VEC_PATH"] = str(tmp_path / "mem.vectors")
     settings = UnifiedSettings.for_testing()
     store = EnhancedMemoryStore(settings)
+    await store.start()
     try:
         vec_dim = settings.model.vector_dim
         emb1 = list(np.random.rand(vec_dim).astype(np.float32))
@@ -65,6 +66,7 @@ async def test_enhanced_store_add_search_list_stats(tmp_path: Path) -> None:
     assert settings.database.vec_path.exists()
 
     store = EnhancedMemoryStore(settings)
+    await store.start()
     try:
         results_after_reload = await store.semantic_search(embedding=emb1, k=1)
         assert results_after_reload and results_after_reload[0].id == mem1.id

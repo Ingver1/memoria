@@ -31,6 +31,7 @@ async def populated_store() -> AsyncGenerator[EnhancedMemoryStore, None]:
     """Fill the index with 2 000 random embeddings to make the test realistic."""
     settings = UnifiedSettings.for_testing()
     store = EnhancedMemoryStore(settings)
+    await store.start()
     for _ in range(2_000):
         await store.add_memory(
             text="dummy",

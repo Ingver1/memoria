@@ -58,6 +58,7 @@ settings = UnifiedSettings.for_testing()
 store = EnhancedMemoryStore(settings)
 
 async def demo():
+    await store.start()
     await store.add_memory(text="Hello world!", embedding=np.random.rand(settings.model.vector_dim).tolist())
     hits = await store.semantic_search(
         vector=np.random.rand(settings.model.vector_dim).tolist(), k=3, return_distance=True

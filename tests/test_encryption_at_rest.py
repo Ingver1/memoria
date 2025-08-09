@@ -21,6 +21,7 @@ async def test_sqlcipher_encryption(tmp_path: Path) -> None:
     cfg.security = cfg.security.model_copy(update={"encrypt_at_rest": True})
 
     store = EnhancedMemoryStore(cfg)
+    await store.start()
     await store.add_memory(text="secret-string", embedding=[0.0] * cfg.model.vector_dim)
     await store.close()
 

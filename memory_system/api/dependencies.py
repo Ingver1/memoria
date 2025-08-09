@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import functools
 import logging
 import typing
@@ -33,7 +34,12 @@ def get_settings() -> UnifiedSettings:
 @functools.lru_cache
 def get_memory_store() -> EnhancedMemoryStore:
     """Provide a cached EnhancedMemoryStore instance (singleton)."""
-    return EnhancedMemoryStore(get_settings())  # Note: runs in sync for simplicity
+    store = EnhancedMemoryStore(get_settings())  # Note: runs in sync for simplicity
+    try:
+        asyncio.get_running_loop().create_task(store.start())
+    except RuntimeError:
+        pass
+    return store
 
 
 @functools.lru_cache

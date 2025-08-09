@@ -22,6 +22,7 @@ async def test_db_invariants(tmp_path: Path) -> None:
     # Replace database configuration with a new path
     cfg.database = DatabaseConfig(db_path=tmp_path / "inv.db")
     store = EnhancedMemoryStore(cfg)
+    await store.start()
 
     await store.add_memory(text="inv", embedding=np.random.rand(DIM).tolist())
 
@@ -49,3 +50,4 @@ async def test_db_invariants(tmp_path: Path) -> None:
 
     # vector index dimension must match config
     assert store._index.stats().dim == DIM
+    await store.close()
