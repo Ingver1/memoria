@@ -240,16 +240,24 @@ async def update(
     *,
     text: str | None = None,
     metadata: MutableMapping[str, Any] | None = None,
+    importance: float | None = None,
+    importance_delta: float | None = None,
     valence_delta: float | None = None,
     emotional_intensity_delta: float | None = None,
     store: MemoryStoreProtocol | None = None,
 ) -> Memory:
-    """Update text and/or metadata of an existing memory and return the new object.
+    """Update text, metadata or scoring fields of an existing memory.
+
+    This helper allows changing the ``importance`` score directly without
+    calling :func:`reinforce` by supplying either ``importance`` or
+    ``importance_delta``.
 
     Args:
         memory_id (str): The memory identifier.
         text (str | None, optional): New text. Defaults to None.
         metadata (MutableMapping[str, Any] | None, optional): New metadata. Defaults to None.
+        importance (float | None, optional): New importance value. Defaults to None.
+        importance_delta (float | None, optional): Increment for importance. Defaults to None.
         valence_delta (float | None, optional): Increment for emotional valence.
             Defaults to None.
         emotional_intensity_delta (float | None, optional): Increment for
@@ -266,6 +274,8 @@ async def update(
                 memory_id,
                 text=text,
                 metadata=metadata,
+                importance=importance,
+                importance_delta=importance_delta,
                 valence_delta=valence_delta,
                 emotional_intensity_delta=emotional_intensity_delta,
             ),
