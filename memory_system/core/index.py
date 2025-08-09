@@ -25,10 +25,19 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from time import perf_counter
+from typing import Any, TYPE_CHECKING
 
 import faiss
-import numpy as np
-from numpy import ndarray as NDArray
+try:  # optional numpy
+    import numpy as np
+except ModuleNotFoundError:  # pragma: no cover - optional dependency
+    np = None  # type: ignore[assignment]
+
+if TYPE_CHECKING:  # pragma: no cover - typing helper
+    from numpy import ndarray as NDArray
+else:
+    NDArray = Any
+
 from prometheus_client import Gauge, Histogram
 
 from memory_system.utils.exceptions import StorageError
@@ -36,6 +45,14 @@ from memory_system.utils.metrics import prometheus_counter
 from memory_system.utils.rwlock import RWLock
 
 log = logging.getLogger(__name__)
+
+
+def _require_numpy() -> Any:
+    if np is None:
+        raise ModuleNotFoundError(
+            "numpy is required for FaissHNSWIndex operations. Install ai-memory[core]."
+        )
+    return np
 
 # ───────────────────── Prometheus collectors ─────────────────────
 _VEC_ADDED = prometheus_counter("ums_vectors_added_total", "Vectors added to ANN index")
@@ -185,6 +202,7 @@ class FaissHNSWIndex:
         that FAISS does not allocate memory or compute graph structures
         until the index actually contains data.
         """
+        np = _require_numpy()
         if not self._warmed_up and self.index.ntotal > 0:
             dummy = np.asarray([[0.0] * self.dim], dtype=np.float32)
             if self.space == "cosine":
@@ -197,6 +215,7 @@ class FaissHNSWIndex:
     @staticmethod
     def _to_float32(arr: NDArray) -> NDArray:
         """Ensure array is float32 dtype."""
+        np = _require_numpy()
         return arr.astype(np.float32, copy=False)
 
     def _string_to_int(self, s: str) -> int:
@@ -227,9 +246,9 @@ class FaissHNSWIndex:
             ``(M, ef_construction, ef_search)`` of the selected configuration.
         """
 
+        np = _require_numpy()
         if sample_vectors.size == 0:
             return (self.DEFAULT_HNSW_M, self.DEFAULT_EF_CONSTRUCTION, self.DEFAULT_EF_SEARCH)
-
         vecs = self._to_float32(np.asarray(sample_vectors))
         if vecs.shape[1] != self.dim:
             raise ANNIndexError(f"dimension mismatch: expected dim={self.dim}, got {vecs.shape[1]}")
@@ -292,6 +311,7 @@ class FaissHNSWIndex:
     # ─────────────────────── Mutators ────────────────────────
     def add_vectors(self, ids: Sequence[str], vectors: NDArray) -> None:
         """Add vectors with external string IDs."""
+        np = _require_numpy()
         if len(ids) != len(vectors):
             raise ANNIndexError("ids and vectors length mismatch")
         if vectors.shape[1] != self.dim:
@@ -359,7 +379,7 @@ class FaissHNSWIndex:
         batch_size: int = 1000,
     ) -> None:
         """Add vectors from an iterator without loading all data at once."""
-
+        np = _require_numpy()
         ids: list[str] = []
         vecs: list[NDArray] = []
         for _id, vec in iterator:
@@ -374,6 +394,7 @@ class FaissHNSWIndex:
 
     def _rebuild_from_vectors(self) -> None:
         """Reconstruct the FAISS index from vectors kept in memory."""
+        np = _require_numpy()
         metric = faiss.METRIC_INNER_PRODUCT if self.space == "cosine" else faiss.METRIC_L2
         if self.index_type in {"IVF", "IVFFLAT"}:
             quantizer = faiss.IndexFlatL2(self.dim) if metric == faiss.METRIC_L2 else faiss.IndexFlatIP(self.dim)
@@ -434,6 +455,7 @@ class FaissHNSWIndex:
 
     def remove_ids(self, ids: Iterable[str]) -> None:
         """Remove vectors by string IDs."""
+        np = _require_numpy()
         int_ids = [self._reverse_id_map.get(i) for i in ids if i in self._reverse_id_map]
         if not int_ids:
             return
@@ -470,6 +492,7 @@ class FaissHNSWIndex:
         ef_search: int | None = None,
     ) -> tuple[list[str], list[float]]:
         """Search for k nearest neighbors of a vector."""
+        np = _require_numpy()
         if vector.shape[-1] != self.dim:
             raise ANNIndexError(f"dimension mismatch: expected dim={self.dim}, got {vector.shape[-1]}")
 

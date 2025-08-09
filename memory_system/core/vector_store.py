@@ -30,11 +30,26 @@ import uuid
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Any, Literal, cast, TYPE_CHECKING
 
 import faiss
-import numpy as _np
-from numpy.typing import NDArray
+try:  # optional numpy
+    import numpy as _np
+except ModuleNotFoundError:  # pragma: no cover - optional dependency
+    _np = None  # type: ignore[assignment]
+
+if TYPE_CHECKING:  # pragma: no cover - typing helper
+    from numpy.typing import NDArray
+else:
+    NDArray = Any
+
+
+def _require_numpy() -> Any:
+    if _np is None:
+        raise ModuleNotFoundError(
+            "numpy is required for vector store operations. Install ai-memory[core]."
+        )
+    return _np
 
 from memory_system.utils.exceptions import StorageError, ValidationError
 from memory_system.utils.rwlock import AsyncRWLock
@@ -206,19 +221,21 @@ class AsyncFaissHNSWStore(AbstractVectorStore):
 # ---------------------------------------------------------------------------
 # ––– Utility helpers –––
 # ---------------------------------------------------------------------------
-def _to_faiss_array(vectors: Sequence[Sequence[float]]) -> NDArray[_np.float32]:
+def _to_faiss_array(vectors: Sequence[Sequence[float]]) -> NDArray:
     """Convert a sequence of vectors to a 2-D float32 NumPy array."""
-    arr = cast(NDArray[_np.float32], _np.array(vectors, dtype=_np.float32))
+    np = _require_numpy()
+    arr = cast(NDArray, np.array(vectors, dtype=np.float32))
     if arr.ndim == 1:
         arr = arr.reshape(1, -1)
     return arr
 
 
-def _to_faiss_ids(ids: Sequence[str]) -> NDArray[_np.int64]:
+def _to_faiss_ids(ids: Sequence[str]) -> NDArray:
     """Map UUID strings to FAISS-compatible ``int64`` identifiers."""
+    np = _require_numpy()
     return cast(
-        NDArray[_np.int64],
-        _np.array([uuid.UUID(_id).int & ((1 << 64) - 1) for _id in ids], dtype=_np.int64),
+        NDArray,
+        np.array([uuid.UUID(_id).int & ((1 << 64) - 1) for _id in ids], dtype=np.int64),
     )
 
 
@@ -238,7 +255,7 @@ import threading
 import time
 from typing import Sequence as _Seq
 
-import numpy as np
+# numpy is optional; loaded lazily via _require_numpy
 
 
 class VectorStore:
@@ -261,6 +278,7 @@ class VectorStore:
     # ------------------------------------------------------------------
     def _validate_vector(self, vector: _Seq[float] | np.ndarray) -> NDArray[np.float32]:
         """Validate ``vector`` and convert it to ``np.float32`` array."""
+        np = _require_numpy()
 
         if isinstance(vector, np.ndarray):
             if vector.dtype != np.float32:
@@ -297,6 +315,7 @@ class VectorStore:
 
     def get_vector(self, vector_id: str) -> NDArray[np.float32]:
         """Return the stored vector for ``vector_id``."""
+        np = _require_numpy()
         with self._db_lock:
             row = self._conn.execute(
                 "SELECT offset FROM vectors WHERE id=?",

@@ -14,9 +14,23 @@ from __future__ import annotations
 
 import asyncio
 import datetime as dt
-from typing import Dict, List, Sequence, Tuple
+from typing import Dict, List, Sequence, Tuple, TYPE_CHECKING, Any
 
-import numpy as np
+try:  # optional numpy
+    import numpy as np
+except ModuleNotFoundError:  # pragma: no cover - optional dependency
+    np = None  # type: ignore[assignment]
+
+if TYPE_CHECKING:  # pragma: no cover - typing helper
+    import numpy as _np
+
+
+def _require_numpy() -> Any:
+    if np is None:
+        raise ModuleNotFoundError(
+            "numpy is required for maintenance operations. Install ai-memory[core]."
+        )
+    return np
 
 from embedder import embed as embed_text
 from memory_system.core.hierarchical_summarizer import HierarchicalSummarizer
@@ -28,8 +42,9 @@ from memory_system.core.summarization import STRATEGIES, SummaryStrategy
 # ----------------------------- small utils -----------------------------
 
 
-def _cos_sim(a: np.ndarray, b: np.ndarray) -> float:
+def _cos_sim(a: "_np.ndarray", b: "_np.ndarray") -> float:
     """Cosine similarity for two 1D embeddings (assumed L2-normalized)."""
+    np = _require_numpy()
     return float(np.dot(a, b))
 
 
@@ -41,7 +56,7 @@ def _now_utc() -> dt.datetime:
 
 
 def cluster_memories(
-    embeddings: Sequence[np.ndarray],
+    embeddings: Sequence["_np.ndarray"],
     threshold: float = 0.83,
 ) -> List[List[int]]:
     """
@@ -98,6 +113,7 @@ def summarize_cluster(
     else:
         fn = strategy
 
+    np = _require_numpy()
     summary_text = fn(memories)
     avg_importance = float(np.mean([m.importance for m in memories]))
     avg_valence = float(np.mean([m.valence for m in memories]))
@@ -139,6 +155,7 @@ async def consolidate_store(
     """
     created: List[Memory] = []
     ids_to_remove: List[str] = []
+    np = _require_numpy()
     pending_adds: List[tuple[Memory, np.ndarray]] = []
 
     async for chunk in store.search_iter(

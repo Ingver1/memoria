@@ -1,10 +1,17 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Sequence
+from typing import Any, Sequence, TYPE_CHECKING
 
-import numpy as np
-from numpy.typing import NDArray
+try:  # optional numpy for typing
+    import numpy as np
+except ModuleNotFoundError:  # pragma: no cover - optional dependency
+    np = None  # type: ignore[assignment]
+
+if TYPE_CHECKING:  # pragma: no cover - typing helper
+    from numpy.typing import NDArray
+else:
+    NDArray = Any
 
 from memory_system.core.store import Memory
 

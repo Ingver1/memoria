@@ -10,9 +10,23 @@ import time
 import uuid
 from contextlib import suppress
 from dataclasses import dataclass
-from typing import Any, AsyncIterator, Iterable, MutableMapping, Sequence, cast
+from typing import Any, AsyncIterator, Iterable, MutableMapping, Sequence, cast, TYPE_CHECKING
 
-import numpy as np
+try:  # optional numpy
+    import numpy as np
+except ModuleNotFoundError:  # pragma: no cover - optional dependency
+    np = None  # type: ignore[assignment]
+
+if TYPE_CHECKING:  # pragma: no cover - typing helper
+    import numpy as _np
+
+
+def _require_numpy() -> Any:
+    if np is None:
+        raise ModuleNotFoundError(
+            "numpy is required for EnhancedMemoryStore. Install ai-memory[core]."
+        )
+    return np
 
 try:
     from cryptography.fernet import Fernet
@@ -134,6 +148,7 @@ class EnhancedMemoryStore:
 
     async def rebuild_index(self) -> None:
         """Recreate FAISS index from all records in the metadata store."""
+        np = _require_numpy()
         if self._closed:
             raise RuntimeError("store is closed")
         self._reindexing = True
@@ -211,6 +226,7 @@ class EnhancedMemoryStore:
 
     def add_control_query(self, embedding: list[float], expected_ids: list[str]) -> None:
         """Register a control query used for recall monitoring."""
+        np = _require_numpy()
         vec = np.asarray(embedding, dtype=np.float32)
         self._control_queries.append((vec, set(expected_ids)))
 
@@ -278,6 +294,7 @@ class EnhancedMemoryStore:
         updated_at: float | None = None,
     ) -> Memory:
         """Add a memory entry to the database and index."""
+        np = _require_numpy()
         ts = created_at if created_at is not None else time.time()
         text_to_store = text
         if self.settings.security.encrypt_at_rest:
@@ -347,6 +364,7 @@ class EnhancedMemoryStore:
 
     async def add_memories_batch(self, items: Sequence[dict[str, Any]]) -> list[Memory]:
         """Add multiple memories with embeddings in one batch."""
+        np = _require_numpy()
         entries: list[tuple[str, Memory, np.ndarray]] = []
         for item in items:
             text = item["text"]
@@ -389,6 +407,8 @@ class EnhancedMemoryStore:
         batch_size: int = 100,
     ) -> int:
         """Stream memories into the store and index without full buffering."""
+
+        np = _require_numpy()
 
         async def _aiter(it: Iterable[dict[str, Any]] | AsyncIterator[dict[str, Any]]):
             if hasattr(it, "__aiter__"):
@@ -489,6 +509,7 @@ class EnhancedMemoryStore:
         list[Any]
             A list of memories (optionally paired with their distance).
         """
+        np = _require_numpy()
         # ANN search with over-sampling to improve recall
         vec = np.asarray(vector, dtype=np.float32)
         async with self._search_lock:

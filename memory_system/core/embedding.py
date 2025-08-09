@@ -17,19 +17,45 @@ import logging
 import threading
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any, cast, TYPE_CHECKING
 
-import numpy as np
+try:  # optional numpy
+    import numpy as np
+except ModuleNotFoundError:  # pragma: no cover - optional dependency
+    np = None  # type: ignore[assignment]
+
+try:  # optional sentence-transformers
+    from sentence_transformers import SentenceTransformer
+except ModuleNotFoundError:  # pragma: no cover - optional dependency
+    SentenceTransformer = None  # type: ignore[assignment]
+
+if TYPE_CHECKING:  # pragma: no cover - typing helper
+    import numpy as _np
 
 from memory_system.config.settings import UnifiedSettings
 from memory_system.utils.cache import SmartCache
 from memory_system.utils.loop import get_or_create_loop
 from memory_system.utils.metrics import EMBEDDING_QUEUE_LENGTH, MET_ERRORS_TOTAL
-from sentence_transformers import SentenceTransformer
 
 __all__ = ["EmbeddingError", "EmbeddingJob", "EnhancedEmbeddingService"]
 
 log = logging.getLogger(__name__)
+
+
+def _require_numpy() -> Any:
+    if np is None:
+        raise ModuleNotFoundError(
+            "numpy is required for embedding services. Install ai-memory[embedding]."
+        )
+    return np
+
+
+def _require_sentence_transformers() -> Any:
+    if SentenceTransformer is None:
+        raise ModuleNotFoundError(
+            "sentence-transformers is required for embedding services."
+        )
+    return SentenceTransformer
 
 ###############################################################################
 # Exceptions & Data Containers
@@ -111,7 +137,8 @@ class EmbeddingService:
                 return
             try:
                 log.info("Loading embedding model: %s", self.model_name)
-                self._model = SentenceTransformer(self.model_name)
+                st = _require_sentence_transformers()
+                self._model = st(self.model_name)
                 log.info(
                     "Model loaded: %s (dim=%d)",
                     self.model_name,
@@ -123,7 +150,8 @@ class EmbeddingService:
                 if self.model_name != fallback:
                     try:
                         log.info("Attempting fallback model: %s", fallback)
-                        self._model = SentenceTransformer(fallback)
+                        st = _require_sentence_transformers()
+                        self._model = st(fallback)
                         self.model_name = fallback
                         log.info("Fallback model loaded: %s", fallback)
                     except Exception as fexc:
@@ -141,6 +169,7 @@ class EmbeddingService:
 
     def _batch_loop(self) -> None:
         """Background thread loop that processes queued embedding jobs in batches."""
+        np = _require_numpy()
         batch_size = self.settings.model.batch_add_size
         log.debug("Batch processor loop started (batch_size=%d)", batch_size)
         while not self._shutdown.is_set():
@@ -177,7 +206,7 @@ class EmbeddingService:
 
     # Public API
 
-    async def embed_text(self, text: str | Sequence[str]) -> np.ndarray:
+    async def embed_text(self, text: str | Sequence[str]) -> "_np.ndarray":
         """Return an embedding for the given text (string or sequence of strings)."""
         if isinstance(text, str):
             # Single text -> returns shape (1, dim) array
@@ -188,8 +217,9 @@ class EmbeddingService:
 
     # Internal async helpers
 
-    async def _embed_single(self, text: str) -> np.ndarray:
+    async def _embed_single(self, text: str) -> "_np.ndarray":
         """Embed a single string into a 1 x dim embedding vector (as numpy array)."""
+        np = _require_numpy()
         if not text:
             raise ValueError("text must not be empty")
         # Attempt cache lookup first
@@ -219,8 +249,9 @@ class EmbeddingService:
         self.cache.put(key, embedding)
         return embedding.reshape(1, -1)
 
-    async def _embed_multi(self, texts: list[str]) -> np.ndarray:
+    async def _embed_multi(self, texts: list[str]) -> "_np.ndarray":
         """Embed a list of texts into an array of embeddings."""
+        np = _require_numpy()
         # For multiple texts, we can process them directly (and possibly cache each)
         embeddings = []
         for text in texts:
@@ -229,8 +260,9 @@ class EmbeddingService:
         # Concatenate results into one array
         return cast(np.ndarray, np.vstack(embeddings))
 
-    def _embed_direct(self, texts: list[str]) -> np.ndarray:
+    def _embed_direct(self, texts: list[str]) -> "_np.ndarray":
         """Directly embed a batch of texts (runs in background thread)."""
+        np = _require_numpy()
         if self._model is None:
             raise EmbeddingError("Embedding model is not loaded")
         embedding = self._model.encode(texts)
