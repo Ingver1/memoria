@@ -177,6 +177,10 @@ class MemoryRead(MemoryBase):
         serialization_alias="arousal",
     )
     importance: float = Field(0.0, ge=0.0, le=1.0)
+    score_parts: dict[str, float] | None = Field(
+        default=None,
+        description="Optional weighted score components",
+    )
 
 
 # ---------------------------------------------------------------------------

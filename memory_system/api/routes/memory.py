@@ -23,6 +23,7 @@ from memory_system.unified_memory import (
     reinforce,
     update,
 )
+from memory_system.core.memory_dynamics import MemoryDynamics
 from memory_system.utils.security import EnhancedPIIFilter
 
 log = logging.getLogger(__name__)
@@ -149,6 +150,10 @@ async def best_memories(
     ),
     valence_pos: Optional[float] = Query(None, ge=0.0, description="Weight for positive valence"),
     valence_neg: Optional[float] = Query(None, ge=0.0, description="Weight for negative valence"),
+    score_parts: bool = Query(
+        False,
+        description="Include score component breakdown (dev only)",
+    ),
 ):
     store = await _store(request)
     meta = {"user_id": user_id} if user_id else None
@@ -169,5 +174,24 @@ async def best_memories(
         metadata_filter=meta,
         weights=weights,
     )
-    payload = [MemoryRead.model_validate(asdict(r)) for r in records]
+
+    include_parts = False
+    if score_parts:
+        try:
+            from memory_system.config.settings import get_settings
+
+            include_parts = get_settings().profile == "development"
+        except Exception:  # pragma: no cover - settings optional
+            include_parts = False
+
+    dyn = MemoryDynamics(weights=weights) if include_parts else None
+    payload: list[dict[str, Any]] = []
+    for r in records:
+        data = asdict(r)
+        if include_parts and dyn is not None:
+            score, parts = dyn.score(r, return_parts=True)
+            parts["total"] = score
+            data["score_parts"] = parts
+        model = MemoryRead.model_validate(data)
+        payload.append(model.model_dump(exclude_none=True))
     return payload
