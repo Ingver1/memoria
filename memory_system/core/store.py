@@ -441,19 +441,23 @@ class SQLiteMemoryStore:
             await self._release(conn)
 
     async def add_many(self, memories: Sequence[Memory], *, batch_size: int = 100) -> None:
-        """Insert multiple memories using batched commits.
+        """Insert multiple memories using a single transaction.
 
         Parameters
         ----------
         memories:
             Sequence of :class:`Memory` objects to insert.
         batch_size:
-            Number of records to insert before issuing a ``commit``.
+            Number of records to send per ``executemany`` call.
         """
+
+        if not memories:
+            return
 
         await self.initialise()
         conn = await self._acquire()
         try:
+            await conn.execute("BEGIN")
             sql = (
                 "INSERT INTO memories (id, text, created_at, importance, valence, emotional_intensity, level, episode_id, modality, connections, metadata) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, json(?), json(?))"
@@ -479,13 +483,11 @@ class SQLiteMemoryStore:
                 )
                 if len(batch) >= batch_size:
                     await conn.executemany(sql, batch)
-                    await conn.commit()
-                    await self._run_commit_hooks()
                     batch.clear()
             if batch:
                 await conn.executemany(sql, batch)
-                await conn.commit()
-                await self._run_commit_hooks()
+            await conn.commit()
+            await self._run_commit_hooks()
         except Exception:
             await conn.rollback()
             await conn.close()
@@ -744,6 +746,7 @@ class SQLiteMemoryStore:
         await self.initialise()
         conn = await self._acquire()
         try:
+            await conn.execute("BEGIN")
             await conn.executemany(
                 "INSERT INTO memory_scores(memory_id, score) VALUES (?, ?) "
                 "ON CONFLICT(memory_id) DO UPDATE SET score = excluded.score",
@@ -751,7 +754,12 @@ class SQLiteMemoryStore:
             )
             await conn.commit()
             await self._run_commit_hooks()
-        finally:
+        except Exception:
+            await conn.rollback()
+            await conn.close()
+            self._created -= 1
+            raise
+        else:
             await self._release(conn)
 
     async def top_n_by_score(
