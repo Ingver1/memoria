@@ -114,6 +114,7 @@ async def consolidate_store(
     threshold: float = 0.83,
     max_fetch: int = 100_000,
     strategy: str | SummaryStrategy = "head2tail",
+    chunk_size: int = 1_000,
 ) -> List[Memory]:
     """
     Cluster similar memories, create a summary memory per cluster, then delete
@@ -121,64 +122,55 @@ async def consolidate_store(
 
     Returns the list of created summary memories.
     """
-    # Fetch a large batch; the store does not have "fetch all" semantics.
-    all_mems = await store.search(limit=max_fetch)
-    if not all_mems:
-        return []
-
-    # Batch embeddings (faster than per-item).
-    texts = [m.text for m in all_mems]
-    embeddings = embed_text(texts)  # shape: (N, D)
-    if isinstance(embeddings, np.ndarray) and embeddings.ndim == 1:
-        embeddings = embeddings.reshape(1, -1)
-    assert embeddings.shape[0] == len(all_mems), "Embedding batch size mismatch"
-
-    clusters = cluster_memories([embeddings[i] for i in range(embeddings.shape[0])], threshold)
-
     created: List[Memory] = []
     ids_to_remove: List[str] = []
+    pending_adds: List[tuple[Memory, np.ndarray]] = []
 
-    for group in clusters:
-        # Ignore singletons (no consolidation needed).
-        if len(group) <= 1:
-            continue
+    async for chunk in store.search_iter(limit=max_fetch, chunk_size=chunk_size):
+        texts = [m.text for m in chunk]
+        embeddings = embed_text(texts)
+        if isinstance(embeddings, np.ndarray) and embeddings.ndim == 1:
+            embeddings = embeddings.reshape(1, -1)
+        clusters = cluster_memories([embeddings[i] for i in range(embeddings.shape[0])], threshold)
 
-        cluster_mems = [all_mems[i] for i in group]
-        summary_text, importance, valence, intensity = summarize_cluster(cluster_mems, strategy=strategy)
-        if not summary_text:
-            continue
+        for group in clusters:
+            if len(group) <= 1:
+                continue
 
-        summary_mem = Memory.new(
-            summary_text,
-            importance=importance,
-            valence=valence,
-            emotional_intensity=intensity,
-            metadata={
-                "type": "summary",
-                "source_ids": [m.id for m in cluster_mems],
-                "cluster_size": len(cluster_mems),
-            },
-        )
+            cluster_mems = [chunk[i] for i in group]
+            summary_text, importance, valence, intensity = summarize_cluster(cluster_mems, strategy=strategy)
+            if not summary_text:
+                continue
 
-        # Persist new memory & add embedding to ANN index.
-        await store.add(summary_mem)
-        summary_embedding = embed_text(summary_text)
-        if summary_embedding.ndim == 1:
-            summary_embedding = np.asarray([summary_embedding], dtype=np.float32)
-        index.add_vectors([summary_mem.id], summary_embedding.astype(np.float32, copy=False))
-        created.append(summary_mem)
+            summary_mem = Memory.new(
+                summary_text,
+                importance=importance,
+                valence=valence,
+                emotional_intensity=intensity,
+                metadata={
+                    "type": "summary",
+                    "source_ids": [m.id for m in cluster_mems],
+                    "cluster_size": len(cluster_mems),
+                },
+            )
 
-        # Schedule originals for removal.
-        ids_to_remove.extend(m.id for m in cluster_mems)
+            summary_embedding = embed_text(summary_text)
+            if summary_embedding.ndim == 1:
+                summary_embedding = np.asarray([summary_embedding], dtype=np.float32)
+            pending_adds.append((summary_mem, summary_embedding))
+            created.append(summary_mem)
+            ids_to_remove.extend(m.id for m in cluster_mems)
+
+    for mem, emb in pending_adds:
+        await store.add(mem)
+        index.add_vectors([mem.id], emb.astype(np.float32, copy=False))
 
     if ids_to_remove:
-        # Remove embeddings first, then rows.
         index.remove_ids(ids_to_remove)
         for mid in ids_to_remove:
             try:
                 await store.delete_memory(mid)
             except Exception:
-                # If a row is already gone, keep going.
                 pass
 
     return created
@@ -213,34 +205,36 @@ async def forget_old_memories(
     min_total: int = 1_000,
     retain_fraction: float = 0.85,
     max_fetch: int = 150_000,
+    chunk_size: int = 1_000,
 ) -> int:
     """
     Forget the lowest-scoring memories until we drop to the target size.
 
     Returns the number of deleted memories.
     """
-    all_mems = await store.search(limit=max_fetch)
-    total = len(all_mems)
+    now = _now_utc()
+
+    scored: list[tuple[float, str]] = []
+    total = 0
+    async for chunk in store.search_iter(limit=max_fetch, chunk_size=chunk_size):
+        for m in chunk:
+            total += 1
+            age_days = max(0.0, (now - m.created_at).total_seconds() / 86_400.0)
+            score = _decay_score(
+                importance=m.importance,
+                valence=m.valence,
+                emotional_intensity=m.emotional_intensity,
+                age_days=age_days,
+            )
+            scored.append((score, m.id))
+
     if total <= min_total:
         return 0
 
-    now = _now_utc()
-
-    # Compute scores.
-    scores: Dict[str, float] = {}
-    for m in all_mems:
-        age_days = max(0.0, (now - m.created_at).total_seconds() / 86_400.0)
-        scores[m.id] = _decay_score(
-            importance=m.importance,
-            valence=m.valence,
-            emotional_intensity=m.emotional_intensity,
-            age_days=age_days,
-        )
-
-    # Keep the top-K by score; forget the rest.
-    sorted_ids = sorted(scores, key=lambda k: scores[k], reverse=True)
     keep_count = max(min_total, int(total * retain_fraction))
-    ids_to_forget = sorted_ids[keep_count:]
+    scored.sort(key=lambda x: x[0], reverse=True)
+    keep_ids = {mid for _, mid in scored[:keep_count]}
+    ids_to_forget = [mid for _, mid in scored if mid not in keep_ids]
 
     if ids_to_forget:
         index.remove_ids(ids_to_forget)

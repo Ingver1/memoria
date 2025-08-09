@@ -497,6 +497,7 @@ class SQLiteMemoryStore:
         metadata_filters: Optional[Dict[str, Any]] = None,
         limit: int = 20,
         level: int | None = None,
+        offset: int = 0,
     ) -> List[Memory]:
         """Full-text + JSON1 metadata search (no vectors here)."""
         await self.initialise()
@@ -522,7 +523,7 @@ class SQLiteMemoryStore:
                 if level is not None:
                     sql += " AND m.level = ?"
                     params.append(level)
-                sql += " ORDER BY bm25(memories_fts) LIMIT ?"
+                sql += " ORDER BY bm25(memories_fts) LIMIT ? OFFSET ?"
             else:
                 clauses: List[str] = []
                 if metadata_filters:
@@ -539,13 +540,46 @@ class SQLiteMemoryStore:
                 sql = "SELECT id, text, created_at, importance, valence, emotional_intensity, level, episode_id, modality, connections, metadata FROM memories"
                 if clauses:
                     sql += " WHERE " + " AND ".join(clauses)
-                sql += " ORDER BY created_at DESC LIMIT ?"
-            params.append(limit)
+                sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+            params.extend([limit, offset])
             cursor = await conn.execute(sql, params)
             rows = await cursor.fetchall()
             return [self._row_to_memory(r) for r in rows]
         finally:
             await self._release(conn)
+
+    async def search_iter(
+        self,
+        text_query: Optional[str] = None,
+        *,
+        metadata_filters: Optional[Dict[str, Any]] = None,
+        limit: int | None = None,
+        level: int | None = None,
+        chunk_size: int = 1000,
+    ) -> AsyncIterator[list[Memory]]:
+        """Yield search results in chunks to keep memory usage bounded."""
+
+        fetched = 0
+        offset = 0
+        while True:
+            batch_limit = chunk_size
+            if limit is not None:
+                remaining = limit - fetched
+                if remaining <= 0:
+                    break
+                batch_limit = min(batch_limit, remaining)
+            batch = await self.search(
+                text_query,
+                metadata_filters=metadata_filters,
+                limit=batch_limit,
+                level=level,
+                offset=offset,
+            )
+            if not batch:
+                break
+            yield batch
+            fetched += len(batch)
+            offset += len(batch)
 
     async def list_recent(self, *, n: int = 20, level: int | None = None) -> List[Memory]:
         """Return the most recent *n* memories, optionally filtered by level."""
