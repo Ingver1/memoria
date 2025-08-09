@@ -78,7 +78,13 @@ class MemoryStoreProtocol(Protocol):
 
     async def upsert_scores(self, scores: Sequence[tuple[str, float]]) -> None: ...
 
-    async def top_n_by_score(self, n: int) -> Sequence[Memory]: ...
+    async def top_n_by_score(
+        self,
+        n: int,
+        *,
+        level: int | None = None,
+        metadata_filter: MutableMapping[str, Any] | None = None,
+    ) -> Sequence[Memory]: ...
 
 
 logger = logging.getLogger(__name__)
@@ -446,13 +452,35 @@ async def list_best(
     n: int = 5,
     *,
     store: MemoryStoreProtocol | None = None,
+    level: int | None = None,
+    metadata_filter: MutableMapping[str, Any] | None = None,
+    weights: ListBestWeights | None = None,
 ) -> Sequence[Memory]:
-    """Return *n* memories with the highest precomputed score."""
+    """Return *n* memories with the highest precomputed score.
+
+    Parameters
+    ----------
+    n:
+        Number of memories to return.
+    store:
+        Optional explicit memory store.
+    level:
+        Optional level filter applied before ranking.
+    metadata_filter:
+        Additional metadata constraints, matched exactly.
+    weights:
+        Present for backwards compatibility; currently ignored as scores
+        are precomputed when memories are stored.
+    """
 
     st = await _resolve_store(store)
     try:
         candidates = await asyncio.wait_for(
-            st.top_n_by_score(n),
+            st.top_n_by_score(
+                n,
+                level=level,
+                metadata_filter=metadata_filter,
+            ),
             timeout=ASYNC_TIMEOUT,
         )
     except Exception as e:
