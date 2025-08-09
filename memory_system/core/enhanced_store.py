@@ -12,7 +12,7 @@ import time
 import uuid
 from contextlib import suppress
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, AsyncIterator, Iterable, Sequence, cast
 
 import numpy as np
 from cryptography.fernet import Fernet
@@ -247,7 +247,7 @@ class EnhancedMemoryStore:
     ) -> Memory:
         """Add a memory entry to the database and index."""
         ts = created_at if created_at is not None else time.time()
-  elif avg_recall > self._recall_target + 0.05 and self._index.ef_search > self._min_ef_search:      text_to_store = text
+        text_to_store = text
         if self.settings.security.encrypt_at_rest:
             f = Fernet(self.settings.security.encryption_key.encode())
             text_to_store = f.encrypt(text.encode()).decode()
@@ -420,15 +420,7 @@ class EnhancedMemoryStore:
                 continue
             results.append((mem, float(dist)) if return_distance else mem)
 
-        return resultallowed_mems = await self._store.search(
-                metadata_filters=metadata_filter,
-                limit=total,  # cover whole corpus; store caps internally if needed
-            )
-            allowed_ids = {m.id for m in allowed_mems}
-            if level is not None:
-                # If Memory has a `level` field, filter by it as well
-                allowed_ids = {
-                    mid for mid in allowed_ids if (getattr(await self._store.get(mid), "level", None) == level)
+        return results
 
     async def list_memories(self, user_id: str | None = None) -> list[Memory]:
         """List memories, optionally filtering by ``user_id``."""
