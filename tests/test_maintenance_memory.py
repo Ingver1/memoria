@@ -1,4 +1,5 @@
 import tracemalloc
+
 import pytest
 
 np = pytest.importorskip("numpy")
@@ -19,6 +20,7 @@ async def test_consolidate_store_memory_usage_bounded(store, index, fake_embed, 
         index.add_vectors([mem.id], vec.astype(np.float32))
 
     import memory_system.core.maintenance as maint
+
     monkeypatch.setattr(maint, "embed_text", fake_embed)
 
     tracemalloc.start()

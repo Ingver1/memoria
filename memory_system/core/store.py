@@ -660,15 +660,14 @@ class SQLiteMemoryStore:
         emotional_intensity: float | None = None,
         emotional_intensity_delta: float | None = None,
     ) -> Memory:
-        """Update text, emotional attributes and/or metadata of a memory.
+    """
+    Update text, importance, valence, emotional_intensity and/or metadata.
 
-        If ``*_delta`` values are provided the respective columns are adjusted
-        by that amount (clamped to their valid ranges).  Explicit ``importance``,
-        ``valence`` or ``emotional_intensity`` values override existing ones.
-        Metadata is **merged** with existing JSON rather than replacing it
-        outright.
-        """
-
+    Absolute fields (`importance`, `valence`, `emotional_intensity`) are
+    written directly (clamped). `*_delta` fields increment current values
+    (also clamped). Metadata is shallow-merged as JSON.
+    Ranges: importance ∈ [0,1], emotional_intensity ∈ [0,1], valence ∈ [-1,1].
+    """
         await self.initialise()
         conn = await self._acquire()
         try:

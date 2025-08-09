@@ -8,7 +8,7 @@ import pytest
 
 from memory_system.core.store import Memory, SQLiteMemoryStore, get_store
 from memory_system.unified_memory import add as um_add
-from memory_system.unified_memory import reinforce
+from memory_system.unified_memory import reinforce, update as um_update
 
 
 @pytest.fixture
@@ -237,5 +237,56 @@ def test_reinforce_combined_fields(store: SQLiteMemoryStore) -> None:
         assert updated.importance == pytest.approx(0.3)
         assert updated.valence == pytest.approx(0.3)
         assert updated.emotional_intensity == pytest.approx(0.6)
+
+    asyncio.run(_run())
+
+
+def test_update_memory_valence_delta_clamps(store: SQLiteMemoryStore) -> None:
+    async def _run() -> None:
+        mem = Memory.new("base", valence=0.0)
+        await store.add(mem)
+
+        updated = await store.update_memory(mem.id, valence_delta=0.5)
+        assert abs(updated.valence - 0.5) < 1e-6
+
+        updated = await store.update_memory(mem.id, valence_delta=1.0)
+        assert abs(updated.valence - 1.0) < 1e-6
+
+        updated = await store.update_memory(mem.id, valence_delta=-3.0)
+        assert abs(updated.valence - (-1.0)) < 1e-6
+
+    asyncio.run(_run())
+
+
+def test_update_memory_emotional_intensity_delta_clamps(
+    store: SQLiteMemoryStore,
+) -> None:
+    async def _run() -> None:
+        mem = Memory.new("base", emotional_intensity=0.4)
+        await store.add(mem)
+
+        updated = await store.update_memory(mem.id, emotional_intensity_delta=0.3)
+        assert abs(updated.emotional_intensity - 0.7) < 1e-6
+
+        updated = await store.update_memory(mem.id, emotional_intensity_delta=1.0)
+        assert abs(updated.emotional_intensity - 1.0) < 1e-6
+
+        updated = await store.update_memory(mem.id, emotional_intensity_delta=-2.0)
+        assert abs(updated.emotional_intensity - 0.0) < 1e-6
+
+    asyncio.run(_run())
+
+
+def test_unified_update_applies_deltas(store: SQLiteMemoryStore) -> None:
+    async def _run() -> None:
+        mem = await um_add("hi", store=store)
+        updated = await um_update(
+            mem.memory_id,
+            valence_delta=0.6,
+            emotional_intensity_delta=0.4,
+            store=store,
+        )
+        assert abs(updated.valence - 0.6) < 1e-6
+        assert abs(updated.emotional_intensity - 0.4) < 1e-6
 
     asyncio.run(_run())

@@ -267,12 +267,20 @@ class TestSchemas:
         assert update.text is None
         assert update.role is None
         assert update.tags is None
+        assert update.valence_delta is None
+        assert update.emotional_intensity_delta is None
 
         # Partial update
-        update = MemoryUpdate(text="Updated text")
+        update = MemoryUpdate(
+            text="Updated text",
+            valence_delta=0.2,
+            emotional_intensity_delta=-0.1,
+        )
         assert update.text == "Updated text"
         assert update.role is None
         assert update.tags is None
+        assert abs(update.valence_delta - 0.2) < 1e-9
+        assert abs(update.emotional_intensity_delta + 0.1) < 1e-9
 
     def test_memory_query_schema(self) -> None:
         """Test MemoryQuery schema."""
