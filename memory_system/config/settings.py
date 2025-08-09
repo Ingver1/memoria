@@ -29,6 +29,7 @@ __all__ = [
     "SecurityConfig",
     "PerformanceConfig",
     "ReliabilityConfig",
+    "RankingConfig",
     "APIConfig",
     "MonitoringConfig",
     "UnifiedSettings",
@@ -188,6 +189,17 @@ class ReliabilityConfig(BaseModel):
     model_config = {"frozen": True}
 
 
+class RankingConfig(BaseModel):
+    """Weighting for ranking memories via :func:`list_best`."""
+
+    importance: float = 1.0
+    emotional_intensity: float = 1.0
+    valence_pos: float = 1.0
+    valence_neg: float = 0.5
+
+    model_config = {"frozen": True}
+
+
 class APIConfig(BaseModel):
     """HTTP API options."""
 
@@ -252,6 +264,7 @@ class UnifiedSettings(BaseSettings):
     security: SecurityConfig = SecurityConfig()
     performance: PerformanceConfig = PerformanceConfig()
     reliability: ReliabilityConfig = ReliabilityConfig()
+    ranking: RankingConfig = RankingConfig()
     api: APIConfig = APIConfig()
     monitoring: MonitoringConfig = MonitoringConfig()
 
@@ -270,6 +283,7 @@ class UnifiedSettings(BaseSettings):
             PerformanceConfig(**self.performance.model_dump()),
         )
         object.__setattr__(self, "reliability", ReliabilityConfig(**self.reliability.model_dump()))
+        object.__setattr__(self, "ranking", RankingConfig(**self.ranking.model_dump()))
         object.__setattr__(self, "api", APIConfig(**self.api.model_dump()))
         object.__setattr__(self, "monitoring", MonitoringConfig(**self.monitoring.model_dump()))
 
@@ -408,6 +422,7 @@ class UnifiedSettings(BaseSettings):
             "security": scrub(self.security),
             "performance": scrub(self.performance),
             "reliability": scrub(self.reliability),
+            "ranking": scrub(self.ranking),
             "api": scrub(self.api),
             "monitoring": scrub(self.monitoring),
         }
