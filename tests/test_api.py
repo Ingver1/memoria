@@ -484,6 +484,7 @@ class TestMemoryEndpoints:
     def test_best_memories_custom_weights(self, test_client: TestClient, tmp_path: Path) -> None:
         """Updating precomputed scores should change ranking."""
         import asyncio
+
         from memory_system.core.store import get_store
 
         loop = asyncio.get_event_loop()
@@ -520,9 +521,7 @@ class TestMemoryEndpoints:
                 + val_w * m.valence
             )
 
-        loop.run_until_complete(
-            store.upsert_scores([(good.memory_id, _score(good)), (bad.memory_id, _score(bad))])
-        )
+        loop.run_until_complete(store.upsert_scores([(good.memory_id, _score(good)), (bad.memory_id, _score(bad))]))
 
         resp_weighted = test_client.get("/api/v1/memory/best", params={"limit": 2})
         assert resp_weighted.json()[0]["text"] == "bad but vital"

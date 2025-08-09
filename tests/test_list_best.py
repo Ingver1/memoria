@@ -31,7 +31,7 @@ async def test_negative_can_surface_when_important(store):
 @pytest.mark.asyncio
 async def test_custom_weights_change_ranking(store):
     """Custom weights allow tweaking ranking behaviour."""
-    pos = await um.add("good", valence=0.5, emotional_intensity=1.0, importance=1.0, store=store)
+    await um.add("good", valence=0.5, emotional_intensity=1.0, importance=1.0, store=store)
     neg = await um.add(
         "bad but vital",
         valence=-0.5,
@@ -48,9 +48,7 @@ async def test_custom_weights_change_ranking(store):
     def _score(m):
         val_w = weights.valence_pos if m.valence >= 0 else weights.valence_neg
         return (
-            weights.importance * m.importance
-            + weights.emotional_intensity * m.emotional_intensity
-            + val_w * m.valence
+            weights.importance * m.importance + weights.emotional_intensity * m.emotional_intensity + val_w * m.valence
         )
 
     await store.upsert_scores(
@@ -72,7 +70,13 @@ async def test_config_weights_change_ranking(monkeypatch, store):
     settings.ranking = RankingConfig(importance=2.0)
     monkeypatch.setattr("memory_system.config.settings.get_settings", lambda env=None: settings)
 
-    pos = await um.add("good", valence=0.5, emotional_intensity=1.0, importance=1.0, store=store)
+    await um.add(
+        "good",
+        valence=0.5,
+        emotional_intensity=1.0,
+        importance=1.0,
+        store=store,
+    )
     neg = await um.add(
         "bad but vital",
         valence=-0.5,
