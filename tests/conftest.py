@@ -16,7 +16,10 @@ import tempfile
 import uuid
 from typing import Any, List
 
-import numpy as np
+try:
+    import numpy as np
+except Exception:  # pragma: no cover - optional dependency
+    np = None  # type: ignore[assignment]
 import pytest
 from _pytest.config import Config
 from _pytest.fixtures import FixtureRequest
@@ -29,9 +32,18 @@ except Exception:  # FastAPI or its dependencies may be missing
     TestClient = None  # type: ignore[assignment]
 
 from memory_system import __version__
-from memory_system.api.app import create_app
-from memory_system.config.settings import UnifiedSettings
-from memory_system.core.index import FaissHNSWIndex
+try:
+    from memory_system.api.app import create_app
+except Exception:  # pragma: no cover - optional FastAPI dependency
+    create_app = None  # type: ignore[assignment]
+try:
+    from memory_system.config.settings import UnifiedSettings
+except Exception:  # pragma: no cover - optional dependency
+    UnifiedSettings = None  # type: ignore[assignment]
+try:
+    from memory_system.core.index import FaissHNSWIndex
+except Exception:  # pragma: no cover - optional dependency
+    FaissHNSWIndex = None  # type: ignore[assignment]
 from memory_system.core.store import SQLiteMemoryStore
 
 # ...existing code...
@@ -82,15 +94,16 @@ _raise_log_level.__annotations__ = {"caplog": object, "return": None}
 @pytest.fixture(scope="session")
 def test_settings() -> UnifiedSettings:
     """Create test settings."""
-    try:
-        return UnifiedSettings.for_testing()
-    except ImportError:
+    if UnifiedSettings is None:
         pytest.skip("memory_system.config.settings not available")
+    return UnifiedSettings.for_testing()
 
 
 @pytest.fixture
 def test_app(test_settings: UnifiedSettings) -> Any:
     """Create FastAPI application for tests."""
+    if create_app is None:
+        pytest.skip("fastapi not available")
     return create_app()
 
 
@@ -158,6 +171,8 @@ store.__annotations__ = {"tmp_path": Path, "return": SQLiteMemoryStore}
 @pytest.fixture
 def index() -> FaissHNSWIndex:
     """3D index to match the fake embedder."""
+    if FaissHNSWIndex is None:
+        pytest.skip("faiss not available")
     return FaissHNSWIndex(dim=3)
 
 
@@ -167,6 +182,8 @@ index.__annotations__ = {"return": FaissHNSWIndex}
 @pytest.fixture
 def fake_embed(monkeypatch) -> Any:
     """Deterministic embedder for tests."""
+    if np is None:
+        pytest.skip("numpy not available")
     import memory_system.core.maintenance as maint
 
     def _embed(texts):

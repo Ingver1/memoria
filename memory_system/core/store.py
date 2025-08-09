@@ -577,8 +577,17 @@ class SQLiteMemoryStore:
         *,
         text: str | None = None,
         metadata: Dict[str, Any] | None = None,
+        importance: float | None = None,
+        importance_delta: float | None = None,
     ) -> Memory:
-        """Update text and/or metadata of an existing memory and return the updated row."""
+        """Update text, importance and/or metadata of an existing memory.
+
+        If ``importance_delta`` is provided, the ``importance`` column is
+        incremented by that amount.  A concrete ``importance`` value overrides
+        the existing one.  Metadata is **merged** with existing JSON rather than
+        replacing it outright.
+        """
+
         await self.initialise()
         conn = await self._acquire()
         try:
@@ -587,11 +596,35 @@ class SQLiteMemoryStore:
                     "UPDATE memories SET text = ? WHERE id = ?",
                     (text, memory_id),
                 )
-            if metadata is not None:
+
+            if importance is not None:
+                await conn.execute(
+                    "UPDATE memories SET importance = ? WHERE id = ?",
+                    (importance, memory_id),
+                )
+            elif importance_delta is not None:
+                await conn.execute(
+                    "UPDATE memories SET importance = importance + ? WHERE id = ?",
+                    (importance_delta, memory_id),
+                )
+
+            if metadata is not None and metadata:
+                cursor = await conn.execute(
+                    "SELECT metadata FROM memories WHERE id = ?",
+                    (memory_id,),
+                )
+                row = await cursor.fetchone()
+                if not row:
+                    raise RuntimeError("Memory not found")
+                existing = json.loads(row[0] or "{}")
+                if existing is None:
+                    existing = {}
+                existing.update(metadata)
                 await conn.execute(
                     "UPDATE memories SET metadata = json(?) WHERE id = ?",
-                    (json.dumps(metadata), memory_id),
+                    (json.dumps(existing), memory_id),
                 )
+
             await conn.commit()
             await self._run_commit_hooks()
             cursor = await conn.execute(
@@ -691,16 +724,20 @@ async def get_store(path: str | Path | None = None) -> SQLiteMemoryStore:
         return _STORE
 
 
-from memory_system.core.enhanced_store import (
-    EnhancedMemoryStore,
-    HealthComponent,
-)  # Ensure EnhancedMemoryStore & HealthComponent are accessible via core.store
+try:  # pragma: no cover - optional dependency
+    from memory_system.core.enhanced_store import (
+        EnhancedMemoryStore,
+        HealthComponent,
+    )  # Ensure EnhancedMemoryStore & HealthComponent are accessible via core.store
+except Exception:  # pragma: no cover - optional dependency missing
+    EnhancedMemoryStore = None  # type: ignore[assignment]
+    HealthComponent = None  # type: ignore[assignment]
 
 __all__ = [
     "Memory",
     "SQLiteMemoryStore",
     "persist_index_on_commit",
     "get_store",
-    "EnhancedMemoryStore",
-    "HealthComponent",
 ]
+if EnhancedMemoryStore is not None and HealthComponent is not None:
+    __all__.extend(["EnhancedMemoryStore", "HealthComponent"])
