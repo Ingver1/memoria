@@ -42,7 +42,6 @@ class Memory:
     created_at: _dt.datetime
     valence: float = 0.0
     emotional_intensity: float = 0.0
-    arousal: float = 0.0
     importance: float = 0.0
     episode_id: str | None = None
     modality: str = "text"
@@ -135,7 +134,6 @@ async def add(
     *,
     valence: float = 0.0,
     emotional_intensity: float = 0.0,
-    arousal: float = 0.0,
     importance: float = 0.0,
     episode_id: str | None = None,
     modality: str = "text",
@@ -149,7 +147,6 @@ async def add(
         text (str): Raw textual content of the memory.
         valence (float, optional): Emotional valence. Defaults to 0.0.
         emotional_intensity (float, optional): Intensity of emotion. Defaults to 0.0.
-        arousal (float, optional): Arousal level. Defaults to 0.0.
         importance (float, optional): Importance score. Defaults to 0.0.
         episode_id (str | None, optional): Episode identifier. Defaults to None.
         modality (str, optional): Modality type. Defaults to "text".
@@ -165,7 +162,6 @@ async def add(
         text=text,
         valence=valence,
         emotional_intensity=emotional_intensity,
-        arousal=arousal,
         importance=importance,
         episode_id=episode_id,
         modality=modality,
@@ -390,7 +386,6 @@ def _ensure_memory(m: Any) -> Memory:
         created_at=m.created_at,
         valence=getattr(m, "valence", 0.0),
         emotional_intensity=getattr(m, "emotional_intensity", 0.0),
-        arousal=getattr(m, "arousal", 0.0),
         importance=getattr(m, "importance", 0.0),
         episode_id=getattr(m, "episode_id", None),
         modality=getattr(m, "modality", "text"),
