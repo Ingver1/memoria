@@ -134,10 +134,23 @@ async def reinforce_memory(
 @router.get("/best", response_model=list[MemoryRead])
 async def best_memories(
     request: Request,
-    limit: int = Query(5, ge=1, le=50),
-) -> list[MemoryRead]:
-    """Return the most important memories ranked by score."""
+    n: int = Query(50, ge=1, le=500),
+    importance: Optional[float] = Query(None, ge=0.0),
+    arousal: Optional[float] = Query(None, ge=0.0),          # alias для emotional_intensity
+    valence_pos: Optional[float] = Query(None, ge=0.0),
+    valence_neg: Optional[float] = Query(None, ge=0.0),
+):
     store = await _store(request)
-    records = await unified_memory.list_best(n=limit, store=store)
+
+    weights = None
+    if any(v is not None for v in (importance, arousal, valence_pos, valence_neg)):
+        weights = ListBestWeights(
+            importance=importance or 1.0,
+            emotional_intensity=arousal or 1.0,
+            valence_pos=valence_pos or 1.0,
+            valence_neg=valence_neg or 0.5,
+        )
+
+    records = await unified_memory.list_best(n=n, store=store, weights=weights)
     payload = [MemoryRead.model_validate(asdict(r)) for r in records]
     return payload
