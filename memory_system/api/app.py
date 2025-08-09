@@ -40,7 +40,7 @@ try:  # pragma: no cover - optional dependency
         "type[FastAPIInstrumentor]",
         _fastapi_instr_mod.FastAPIInstrumentor,
     )
-except Exception:  # pragma: no cover - optional dependency
+except ImportError:  # pragma: no cover - optional dependency
     fastapi_instrumentor = None
 
 # Allow tests to set ``Request.app`` manually for middleware checks
