@@ -33,7 +33,7 @@ class MemoryBase(BaseModel):
         0.0,
         ge=0.0,
         le=1.0,
-        description="Strength of emotional reaction"
+        description="Strength of emotional reaction",
         validation_alias=AliasChoices("arousal", "emotional_intensity"),
     )
     importance: float = Field(

@@ -90,9 +90,7 @@ async def search_memories(
 
 
 @router.patch("/{memory_id}", response_model=MemoryRead)
-async def update_memory(
-    memory_id: str, payload: MemoryUpdate, request: Request
-) -> MemoryRead:
+async def update_memory(memory_id: str, payload: MemoryUpdate, request: Request) -> MemoryRead:
     """Patch existing memory fields and metadata."""
     store = await _store(request)
     metadata: dict[str, Any] = {}
@@ -115,9 +113,7 @@ async def update_memory(
 
 
 @router.post("/{memory_id}/reinforce", response_model=MemoryRead)
-async def reinforce_memory(
-    memory_id: str, payload: MemoryReinforce, request: Request
-) -> MemoryRead:
+async def reinforce_memory(memory_id: str, payload: MemoryReinforce, request: Request) -> MemoryRead:
     """Reinforce a memory's scoring attributes."""
     store = await _store(request)
     updated = await unified_memory.reinforce(
@@ -136,7 +132,7 @@ async def best_memories(
     request: Request,
     n: int = Query(50, ge=1, le=500),
     importance: Optional[float] = Query(None, ge=0.0),
-    arousal: Optional[float] = Query(None, ge=0.0),          # alias для emotional_intensity
+    arousal: Optional[float] = Query(None, ge=0.0),  # alias для emotional_intensity
     valence_pos: Optional[float] = Query(None, ge=0.0),
     valence_neg: Optional[float] = Query(None, ge=0.0),
 ):

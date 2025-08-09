@@ -314,9 +314,7 @@ class SQLiteMemoryStore:
                     )
                     """
                 )
-                await conn.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_memory_scores_score ON memory_scores(score)"
-                )
+                await conn.execute("CREATE INDEX IF NOT EXISTS idx_memory_scores_score ON memory_scores(score)")
                 # Ensure FTS virtual table and triggers exist
                 await conn.executescript(
                     """
@@ -652,7 +650,7 @@ class SQLiteMemoryStore:
                     if limit is not None:
                         remaining = limit - fetched
                         if remaining <= 0:
-                        break
+                            break
                         batch_size = min(batch_size, remaining)
                     rows = await asyncio.to_thread(cursor._cursor.fetchmany, batch_size)
                     if not rows:
@@ -670,7 +668,10 @@ class SQLiteMemoryStore:
         conn = await self._acquire()
         try:
             params: tuple[Any, ...]
-            sql = "SELECT id, text, created_at, importance, valence, emotional_intensity, level, episode_id, modality, connections, metadata FROM memories"
+            sql = (
+                "SELECT id, text, created_at, importance, valence, emotional_intensity, level, "
+                "episode_id, modality, connections, metadata FROM memories"
+            )
             if level is not None:
                 sql += " WHERE level = ? ORDER BY created_at DESC LIMIT ?"
                 params = (level, n)
@@ -679,40 +680,7 @@ class SQLiteMemoryStore:
                 params = (n,)
             cursor = await conn.execute(sql, params)
             rows = await cursor.fetchall()
-            return [self._row_to_memory("""Yield search results in chunks to keep memory usage bounded.
-
-        Results are streamed using a SQLite cursor and ``fetchmany`` to avoid
-        loading the entire result set into memory. Additional filters allow
-        callers to restrict the range of levels via ``min_level`` and to
-        include only memories marked as final or not via ``final``.
-        """
-
-        await self.initialise()
-        conn = await self._acquire()
-        try:
-            params: list[Any] = []
-            if text_query:
-                sql = (
-                    "SELECT m.id, m.text, m.created_at, m.importance, m.valence, "
-                    "m.emotional_intensity, m.level, m.episode_id, m.modality, m.connections, m.metadata "
-                    "FROM memories_fts JOIN memories m ON m.rowid = memories_fts.rowid "
-                    "WHERE memories_fts MATCH ?"
-                )
-                params.append(text_query)
-                if metadata_filters:
-                    for key, val in metadata_filters.items():
-                        if key in {"episode_id", "modality"}:
-                            sql += f" AND m.{key} = ?"
-                            params.append(val)
-                        else:
-                            sql += " AND json_extract(m.metadata, ?) = ?"
-                            params.extend([f"$.{key}", val])
-                if level is not None:
-                    sql += " AND m.level = ?"
-                    params.append(level)
-                if min_level is not None:
-                    sql += " AND m.level >= ?"
-                    params.append(min_level)r) for r in rows]
+            return [self._row_to_memory(r) for r in rows]
         finally:
             await self._release(conn)
 
@@ -840,9 +808,7 @@ class SQLiteMemoryStore:
                 )
             elif importance_delta is not None:
                 await conn.execute(
-                    "UPDATE memories "
-                    "SET importance = MAX(0.0, MIN(1.0, importance + ?)) "
-                    "WHERE id = ?",
+                    "UPDATE memories SET importance = MAX(0.0, MIN(1.0, importance + ?)) WHERE id = ?",
                     (importance_delta, memory_id),
                 )
 
@@ -853,9 +819,7 @@ class SQLiteMemoryStore:
                 )
             elif valence_delta is not None:
                 await conn.execute(
-                    "UPDATE memories "
-                    "SET valence = MAX(-1.0, MIN(1.0, valence + ?)) "
-                    "WHERE id = ?",
+                    "UPDATE memories SET valence = MAX(-1.0, MIN(1.0, valence + ?)) WHERE id = ?",
                     (valence_delta, memory_id),
                 )
 
