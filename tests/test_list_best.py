@@ -46,3 +46,17 @@ async def test_custom_weights_change_ranking(store):
     weights = mh.ListBestWeights(importance=2.0)
     custom_best = await mh.list_best(n=2, store=store, weights=weights)
     assert custom_best[0].memory_id == neg.memory_id
+
+
+@pytest.mark.asyncio
+async def test_include_all_scans_beyond_recent(store):
+    """When include_all is True older high-value memories surface."""
+    old = await um.add("ancient", importance=5.0, store=store)
+    for i in range(30):
+        await um.add(f"recent {i}", importance=0.1, store=store)
+
+    recent_only = await um.list_best(n=1, store=store)
+    assert recent_only[0].memory_id != old.memory_id
+
+    full_scan = await um.list_best(n=1, store=store, include_all=True)
+    assert full_scan[0].memory_id == old.memory_id
