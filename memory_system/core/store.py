@@ -15,6 +15,7 @@ import json
 import logging
 import uuid
 from collections.abc import AsyncIterator
+import heapq
 
 # ───────────────────────── local imports ───────────────────────────
 from dataclasses import asdict, dataclass, field
@@ -600,6 +601,34 @@ class SQLiteMemoryStore:
         finally:
             await self._release(conn)
 
+    async def top_n_by_score(
+        self,
+        n: int,
+        score_fn: Callable[[Memory], float],
+        *,
+        chunk_size: int = 1000,
+    ) -> List[Memory]:
+        """Return ``n`` memories with the highest ``score_fn`` values.
+
+        The database is scanned in chunks to keep memory usage bounded while a
+        small in-memory heap maintains the top candidates.  This allows callers
+        to sample the *entire* store without loading every row at once.
+        """
+
+        heap: list[tuple[float, Memory]] = []
+        async for batch in self.search_iter(limit=None, chunk_size=chunk_size):
+            for mem in batch:
+                score = score_fn(mem)
+                if len(heap) < n:
+                    heapq.heappush(heap, (score, mem))
+                else:
+                    # Maintain a min-heap of size ``n``
+                    if score > heap[0][0]:
+                        heapq.heapreplace(heap, (score, mem))
+
+        # Highest scores first
+        return [m for _, m in sorted(heap, key=lambda x: x[0], reverse=True)]
+
     async def add_memory(self, mem_obj: Any) -> None:
         """Add a memory object, accepting either :class:`Memory` or a similar object."""
         await self.initialise()
@@ -663,9 +692,9 @@ class SQLiteMemoryStore:
         """
         Update text, importance, valence, emotional_intensity and/or metadata.
 
-        Absolute fields (`importance`, `valence`, `emotional_intensity`) are
-        written directly (clamped). `*_delta` fields increment current values
-        (also clamped). Metadata is shallow-merged as JSON.
+        Absolute fields (``importance``, ``valence``, ``emotional_intensity``)
+        are written directly (clamped). ``*_delta`` fields increment current
+        values (also clamped). Metadata is shallow-merged as JSON.
         Ranges: importance ∈ [0,1], emotional_intensity ∈ [0,1], valence ∈ [-1,1].
         """
         await self.initialise()
