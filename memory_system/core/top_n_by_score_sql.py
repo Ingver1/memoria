@@ -13,6 +13,7 @@ def build_top_n_by_score_sql(
     *,
     level: int | None = None,
     metadata_filter: MutableMapping[str, Any] | None = None,
+    ids: Sequence[str] | None = None,
 ) -> tuple[str, Sequence[Any]]:
     """Return SQL and params to fetch *n* memories ranked by weighted score."""
     clauses: list[str] = []
@@ -28,6 +29,10 @@ def build_top_n_by_score_sql(
             else:
                 clauses.append("json_extract(m.metadata, ?) = ?")
                 params.extend([f"$.{key}", val])
+    if ids:
+        placeholders = ", ".join(["?"] * len(ids))
+        clauses.append(f"m.id IN ({placeholders})")
+        params.extend(ids)
     sql = (
         "SELECT m.id, m.text, m.created_at, m.importance, m.valence, "
         "m.emotional_intensity, m.level, m.episode_id, m.modality, m.connections, m.metadata "

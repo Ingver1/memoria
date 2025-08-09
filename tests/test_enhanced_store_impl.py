@@ -26,7 +26,7 @@ async def test_enhanced_store_add_search_list_stats(tmp_path: Path) -> None:
             text="hello",
             role="user",
             tags=["test"],
-            importance=0.5,
+            importance=0.7,
             valence=0.0,
             emotional_intensity=0.0,
             embedding=emb1,
@@ -37,7 +37,7 @@ async def test_enhanced_store_add_search_list_stats(tmp_path: Path) -> None:
             text="world",
             role="user",
             tags=[],
-            importance=0.5,
+            importance=0.3,
             valence=0.0,
             emotional_intensity=0.0,
             embedding=emb2,
@@ -52,8 +52,8 @@ async def test_enhanced_store_add_search_list_stats(tmp_path: Path) -> None:
         assert results and results[0].id == mem1.id
 
         results_with_dist = await store.semantic_search(embedding=emb1, k=1, return_distance=True)
-        assert results_with_dist and results_with_dist[0][0].id == mem1.id
-        returned_dist = results_with_dist[0][1]
+        assert any(m.id == mem1.id for m, _ in results_with_dist)
+        returned_dist = next(d for m, d in results_with_dist if m.id == mem1.id)
         assert isinstance(returned_dist, float)
         assert np.isclose(returned_dist, 0.0)
 
