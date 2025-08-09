@@ -383,47 +383,32 @@ class EnhancedMemoryStore:
         list[Any]
             A list of memories (optionally paired with their distance).
         """
-        # Widen the ANN probe only if we plan to post-filter.
+        # Always filter by modality (and optional user metadata), retrieving
+        # matching rows in a single query so that we can avoid per-ID lookups.
         metadata_filter = dict(metadata_filter or {})
         metadata_filter.setdefault("modality", modality)
-        need_filter = True
         total = self._index.stats(modality).total_vectors or k
-        search_k = min((k * 5) if need_filter else k, max(1, total))
+        search_k = min(k * 5, max(1, total))
 
         vec = np.asarray(vector, dtype=np.float32)
 
         ids, dists = self._index.search(modality, vec, k=search_k, ef_search=ef_search)
         candidates = list(zip(ids, dists, strict=False))
 
-        if need_filter:
-            allowed_mems = await self._store.search(
-                metadata_filters=metadata_filter,
-                limit=total,  # cover whole corpus; store caps internally if needed
-            )
-            allowed_ids = {m.id for m in allowed_mems}
-            if level is not None:
-                # If Memory has a `level` field, filter by it as well
-                allowed_ids = {
-                    mid for mid in allowed_ids if (getattr(await self._store.get(mid), "level", None) == level)
-                }
-            if not allowed_ids:
-                return []
-            candidates = [(_id, dist) for _id, dist in candidates if _id in allowed_ids][:k]
-        else:
-            candidates = candidates[:k]
+        allowed_mems = await self._store.search(
+            metadata_filters=metadata_filter,
+            limit=total,  # cover whole corpus; store caps internally if needed
+            level=level,
+        )
+        allowed_map = {m.id: m for m in allowed_mems}
+        if not allowed_map:
+            return []
+        candidates = [(_id, dist) for _id, dist in candidates if _id in allowed_map][:k]
 
-        # Materialize Memory objects and build the final result list
-        results: list[Any] = []
-        for _id, dist in candidates:
-            mem = await self._store.get(_id)
-            if mem is None:
-                continue
-            if (level is not None) and (getattr(mem, "level", None) != level):
-                # Defensive guard in case the store call above didn’t filter by level
-                continue
-            results.append((mem, float(dist)) if return_distance else mem)
-
-        return results
+        # Materialize Memory objects from the cached mapping and build result
+        if return_distance:
+            return [(allowed_map[_id], float(dist)) for _id, dist in candidates]
+        return [allowed_map[_id] for _id, _ in candidates]
 
     async def list_memories(self, user_id: str | None = None) -> list[Memory]:
         """List memories, optionally filtering by ``user_id``."""
