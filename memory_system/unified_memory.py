@@ -529,21 +529,19 @@ def _last_accessed(m: Memory) -> _dt.datetime:
 
 
 def _score_decay(m: Memory, weights: ListBestWeights) -> float:
-    """Return a time-decayed ranking score for *m*.
+    """Return a ranking score for *m* with intensity decay."""
 
-    The base score is derived from :func:`_score_best` and is exponentially
-    decayed over roughly one month based on the elapsed time since
-    ``last_accessed``.
-    """
-
-    base = _score_best(m, weights)
     last = _last_accessed(m)
-    age_days = max(
-        0.0,
-        (_dt.datetime.utcnow().replace(tzinfo=_dt.timezone.utc) - last).total_seconds() / 86_400.0,
-    )
+    now = _dt.datetime.utcnow().replace(tzinfo=_dt.timezone.utc)
+    age_days = max(0.0, (now - last).total_seconds() / 86_400.0)
     rate = max(_get_dynamics().decay_rate, 1e-9)
-    return base * math.exp(-age_days / rate)
+    decayed_intensity = m.emotional_intensity * math.exp(-age_days / rate)
+    valence_weight = weights.valence_pos if m.valence >= 0 else weights.valence_neg
+    return (
+        weights.importance * m.importance
+        + weights.emotional_intensity * decayed_intensity
+        + valence_weight * m.valence
+    )
 
 
 def _ensure_memory(m: Any) -> Memory:
