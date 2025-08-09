@@ -207,18 +207,40 @@ async def forget_old_memories(
     retain_fraction: float = 0.85,
     max_fetch: int = 150_000,
     chunk_size: int = 1_000,
+    ttl: float | None = None,
 ) -> int:
     """
     Forget the lowest-scoring memories until we drop to the target size.
+
+    Memories with a ``last_accessed`` timestamp older than ``ttl`` seconds are
+    always expired: their importance is lowered and they are removed regardless
+    of ``retain_fraction``.
 
     Returns the number of deleted memories.
     """
     now = _now_utc()
 
     scored: list[tuple[float, str]] = []
+    expired: list[str] = []
     total = 0
     async for chunk in store.search_iter(limit=max_fetch, chunk_size=chunk_size):
         for m in chunk:
+            last_access = m.created_at
+            if ttl is not None and m.metadata:
+                ts = m.metadata.get("last_accessed")
+                if isinstance(ts, str):
+                    try:
+                        last_access = dt.datetime.fromisoformat(ts)
+                    except ValueError:
+                        last_access = m.created_at
+            if ttl is not None and (now - last_access).total_seconds() > ttl:
+                try:
+                    await store.update_memory(m.id, importance=0.0)
+                except Exception:
+                    pass
+                expired.append(m.id)
+                continue
+
             total += 1
             age_days = max(0.0, (now - m.created_at).total_seconds() / 86_400.0)
             score = _decay_score(
@@ -229,8 +251,16 @@ async def forget_old_memories(
             )
             scored.append((score, m.id))
 
+    if expired:
+        index.remove_ids(expired)
+        for mid in expired:
+            try:
+                await store.delete_memory(mid)
+            except Exception:
+                pass
+
     if total <= min_total:
-        return 0
+        return len(expired)
 
     keep_count = max(min_total, int(total * retain_fraction))
     scored.sort(key=lambda x: x[0], reverse=True)
@@ -245,7 +275,7 @@ async def forget_old_memories(
             except Exception:
                 pass
 
-    return len(ids_to_forget)
+    return len(ids_to_forget) + len(expired)
 
 
 async def periodic_hierarchy_update(
