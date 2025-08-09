@@ -82,8 +82,9 @@ async def search_memories(
     return payload
 
 
-@router.get("/best", response_model=list[MemoryRead])
-async def best_memories(request: Request, limit: int = Query(5, ge=1, le=50)) -> list[MemoryRead]:
+@router.get("/recent", response_model=list[MemoryRead])
+async def recent_memories(request: Request, limit: int = Query(5, ge=1, le=50)) -> list[MemoryRead]:
+    """Return the most recently added memories."""
     store = await _store(request)
     records = await store.list_recent(n=limit)
     payload = [MemoryRead.model_validate(asdict(r)) for r in records]
