@@ -319,23 +319,29 @@ async def list_recent(
 # Positive valence is treated as a benefit while negative valence is
 # penalised with a reduced weight so that strongly negative memories
 # need additional importance or intensity to surface.
-IMPORTANCE_WEIGHT = 1.0
-EMOTIONAL_INTENSITY_WEIGHT = 1.0
-VALENCE_POS_WEIGHT = 1.0
-VALENCE_NEG_WEIGHT = 0.5
 
 
-def _score_best(m: Memory) -> float:
+@dataclass(slots=True)
+class ListBestWeights:
+    """Configuration for weighting memory attributes when ranking."""
+
+    importance: float = 1.0
+    emotional_intensity: float = 1.0
+    valence_pos: float = 1.0
+    valence_neg: float = 0.5
+
+
+def _score_best(m: Memory, weights: ListBestWeights) -> float:
     """Return the ranking score for a memory.
 
     ``valence`` contributes positively for pleasant memories and is
-    penalised when negative using :data:`VALENCE_NEG_WEIGHT`.
+    penalised when negative via ``weights.valence_neg``.
     """
 
-    valence_weight = VALENCE_POS_WEIGHT if m.valence >= 0 else VALENCE_NEG_WEIGHT
+    valence_weight = weights.valence_pos if m.valence >= 0 else weights.valence_neg
     return (
-        IMPORTANCE_WEIGHT * m.importance
-        + EMOTIONAL_INTENSITY_WEIGHT * m.emotional_intensity
+        weights.importance * m.importance
+        + weights.emotional_intensity * m.emotional_intensity
         + valence_weight * m.valence
     )
 
@@ -344,21 +350,26 @@ async def list_best(
     n: int = 5,
     *,
     store: MemoryStoreProtocol | None = None,
+    weights: ListBestWeights | None = None,
 ) -> Sequence[Memory]:
     """Return *n* most important memories ranked by score.
 
     Args:
         n (int, optional): Number of top memories. Defaults to 5.
         store (MemoryStoreProtocol | None, optional): Store object. Defaults to None.
+        weights (ListBestWeights | None, optional): Weight configuration for
+            ranking. Defaults to :class:`ListBestWeights`.
 
     Returns:
         Sequence[Memory]: List of best memories ordered by score where
         negative ``valence`` reduces the overall ranking.
     """
     st = await _resolve_store(store)
+    if weights is None:
+        weights = ListBestWeights()
     try:
         candidates = await asyncio.wait_for(st.list_recent(n=max(n * 5, 20)), timeout=ASYNC_TIMEOUT)
-        scored = sorted(candidates, key=_score_best, reverse=True)
+        scored = sorted(candidates, key=lambda m: _score_best(m, weights), reverse=True)
     except Exception as e:
         logger.error("List best failed: %s", e)
         raise
@@ -368,6 +379,7 @@ async def list_best(
 __all__ = [
     "Memory",
     "MemoryStoreProtocol",
+    "ListBestWeights",
     "add",
     "search",
     "delete",
