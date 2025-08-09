@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import copy
 import datetime as _dt
+import functools
 import logging
 import math
 import uuid
@@ -33,6 +34,8 @@ from types import SimpleNamespace
 # local
 from dataclasses import dataclass
 from typing import Any, Protocol
+
+from memory_system.utils.cache import SmartCache
 
 
 @dataclass(slots=True)
@@ -109,6 +112,23 @@ ASYNC_TIMEOUT = 5  # seconds – safety net for accidental long‑running operat
 
 # Process-wide default store used when no explicit store is provided.
 _DEFAULT_STORE: MemoryStoreProtocol | None = None
+
+_CACHE: SmartCache | None = None
+
+
+def _get_cache() -> SmartCache:
+    """Return module-wide cache instance configured from settings."""
+
+    global _CACHE
+    if _CACHE is None:
+        try:  # local import to avoid heavy config dependency at import time
+            from memory_system.config.settings import get_settings
+
+            cfg = get_settings()
+            _CACHE = SmartCache(max_size=cfg.cache.size, ttl=cfg.cache.ttl_seconds)
+        except Exception:  # pragma: no cover - settings module optional
+            _CACHE = SmartCache()
+    return _CACHE
 
 
 def set_default_store(store: MemoryStoreProtocol) -> None:
@@ -246,19 +266,27 @@ async def search(
     Returns:
         Sequence[Memory]: List of matching memories.
     """
+    cache = _get_cache()
+    meta = dict(metadata_filter or {})
+    meta.setdefault("modality", modality)
+    key = repr((query, k, tuple(sorted(meta.items())), level))
+    cached = cache.get(key)
+    if cached is not None:
+        return cached
+
     st = await _resolve_store(store)
     try:
-        meta = dict(metadata_filter or {})
-        meta.setdefault("modality", modality)
         results = await asyncio.wait_for(
             st.search_memory(query=query, k=k, metadata_filter=meta, level=level),
             timeout=ASYNC_TIMEOUT,
         )
-        logger.debug("Search for '%s' returned %d result(s).", query, len(results))
+        results_list = list(results)
+        cache.put(key, results_list)
+        logger.debug("Search for '%s' returned %d result(s).", query, len(results_list))
     except Exception as e:
         logger.error("Search failed: %s", e)
         raise
-    return results
+    return results_list
 
 
 async def delete(
@@ -275,6 +303,7 @@ async def delete(
     st = await _resolve_store(store)
     try:
         await asyncio.wait_for(st.delete_memory(memory_id), timeout=ASYNC_TIMEOUT)
+        _get_cache().clear()
         logger.debug("Memory %s deleted.", memory_id)
     except Exception as e:
         logger.error("Delete failed: %s", e)
@@ -347,6 +376,7 @@ async def update(
             st.upsert_scores([(memory_id, score)]),
             timeout=ASYNC_TIMEOUT,
         )
+        _get_cache().clear()
         logger.debug("Memory %s updated.", memory_id)
     except Exception as e:
         logger.error("Update failed: %s", e)
