@@ -165,6 +165,81 @@ class EnhancedMemoryStore:
         self._memory_count += 1
         return mem
 
+    async def add_memories_batch(self, items: Sequence[dict[str, Any]]) -> list[Memory]:
+        """Add multiple memories with embeddings in one batch."""
+
+        mems: list[Memory] = []
+        vectors: list[np.ndarray] = []
+        for item in items:
+            text = item["text"]
+            text_to_store = text
+            if self.settings.security.encrypt_at_rest:
+                f = Fernet(self.settings.security.encryption_key.encode())
+                text_to_store = f.encrypt(text.encode()).decode()
+            mem = Memory(
+                id=str(uuid.uuid4()),
+                text=text_to_store,
+                created_at=dt.datetime.fromtimestamp(item.get("created_at", time.time()), tz=dt.timezone.utc),
+                importance=item.get("importance", 0.0),
+                valence=item.get("valence", 0.0),
+                emotional_intensity=item.get("emotional_intensity", 0.0),
+                metadata={"role": item.get("role"), "tags": item.get("tags", [])},
+            )
+            mems.append(mem)
+            vectors.append(np.asarray(item["embedding"], dtype=np.float32))
+        await self._store.add_many(mems)
+        self._index.add_vectors([m.id for m in mems], np.stack(vectors))
+        self._index.save(str(self.settings.database.vec_path))
+        self._memory_count += len(mems)
+        return mems
+
+    async def add_memories_streaming(
+        self,
+        iterator: Iterable[dict[str, Any]] | AsyncIterator[dict[str, Any]],
+        *,
+        batch_size: int = 100,
+    ) -> int:
+        """Stream memories into the store and index without full buffering."""
+
+        async def _aiter(it: Iterable[dict[str, Any]] | AsyncIterator[dict[str, Any]]):
+            if hasattr(it, "__aiter__"):
+                async for item in cast(AsyncIterator[dict[str, Any]], it):
+                    yield item
+            else:
+                for item in cast(Iterable[dict[str, Any]], it):
+                    yield item
+
+        batch: list[tuple[Memory, np.ndarray]] = []
+        total = 0
+        async for item in _aiter(iterator):
+            text = item["text"]
+            text_to_store = text
+            if self.settings.security.encrypt_at_rest:
+                f = Fernet(self.settings.security.encryption_key.encode())
+                text_to_store = f.encrypt(text.encode()).decode()
+            mem = Memory(
+                id=str(uuid.uuid4()),
+                text=text_to_store,
+                created_at=dt.datetime.fromtimestamp(item.get("created_at", time.time()), tz=dt.timezone.utc),
+                importance=item.get("importance", 0.0),
+                valence=item.get("valence", 0.0),
+                emotional_intensity=item.get("emotional_intensity", 0.0),
+                metadata={"role": item.get("role"), "tags": item.get("tags", [])},
+            )
+            batch.append((mem, np.asarray(item["embedding"], dtype=np.float32)))
+            if len(batch) >= batch_size:
+                await self._store.add_many([m for m, _ in batch])
+                self._index.add_vectors_streaming(((m.id, vec) for m, vec in batch))
+                total += len(batch)
+                batch.clear()
+        if batch:
+            await self._store.add_many([m for m, _ in batch])
+            self._index.add_vectors_streaming(((m.id, vec) for m, vec in batch))
+            total += len(batch)
+        self._index.save(str(self.settings.database.vec_path))
+        self._memory_count += total
+        return total
+
     async def semantic_search(
     self,
     *,
