@@ -14,6 +14,7 @@ from typing import Any, AsyncIterator, Iterable, MutableMapping, Sequence, cast
 
 import numpy as np
 from cryptography.fernet import Fernet
+from embedder import embed as embed_text
 
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.faiss_vector_store import FaissVectorStore
@@ -36,6 +37,7 @@ class HealthComponent:
     message: str
     uptime: int
     checks: dict[str, bool]
+    reindexing: bool = False
 
 
 class EnhancedMemoryStore:
@@ -58,6 +60,7 @@ class EnhancedMemoryStore:
         )
         self.vector_store: VectorStore = FaissVectorStore(settings)
         self._index_lock = asyncio.Lock()
+        self._search_lock = asyncio.Lock()
         self._ef_search = getattr(settings.model, "hnsw_ef_search", 64)
 
         # Helper for reinforcement/decay/score operations
@@ -90,9 +93,11 @@ class EnhancedMemoryStore:
         self._min_ef_search = max(16, self._ef_search // 2)
         self._max_ef_search = self._ef_search * 4
         self._monitor_task: asyncio.Task[None] | None = None
+        self._reindexing = False
 
     async def start(self) -> None:
         """Start background tasks for the store."""
+        await self.rebuild_index()
         loop = asyncio.get_running_loop()
         self._monitor_task = loop.create_task(self._monitor_recall_loop())
 
@@ -105,6 +110,40 @@ class EnhancedMemoryStore:
         if hasattr(self.meta_store, "aclose"):
             await self.meta_store.aclose()  # type: ignore[attr-defined]
         self._closed = True
+
+    async def rebuild_index(self) -> None:
+        """Recreate FAISS index from all records in the metadata store."""
+        if self._closed:
+            raise RuntimeError("store is closed")
+        self._reindexing = True
+        async with self._index_lock:
+            by_mod: dict[str, dict[str, list[Any]]] = {}
+            async for chunk in self.meta_store.search_iter(chunk_size=1000):
+                for mem in chunk:
+                    text = mem.text
+                    if self.settings.security.encrypt_at_rest:
+                        f = Fernet(self.settings.security.encryption_key.encode())
+                        text = f.decrypt(text.encode()).decode()
+                    mod = mem.modality
+                    info = by_mod.setdefault(mod, {"ids": [], "texts": []})
+                    info["ids"].append(mem.id)
+                    info["texts"].append(text)
+
+            total = 0
+            for mod, info in by_mod.items():
+                vecs = embed_text(info["texts"])
+                if isinstance(vecs, np.ndarray) and vecs.ndim == 1:
+                    vecs = vecs.reshape(1, -1)
+                vecs = np.asarray(vecs, dtype=np.float32)
+                ids = info["ids"]
+                if getattr(self.vector_store, "_multimodal", False):
+                    self.vector_store._index._indices[mod].rebuild(vecs, ids)  # type: ignore[attr-defined]
+                else:
+                    self.vector_store._index.rebuild(vecs, ids)  # type: ignore[attr-defined]
+                total += len(ids)
+            await asyncio.to_thread(self.vector_store.save, str(self.settings.database.vec_path))
+            self._memory_count = total
+        self._reindexing = False
 
     async def get_health(self) -> HealthComponent:
         """Get health status."""
@@ -127,7 +166,13 @@ class EnhancedMemoryStore:
 
         healthy = all(checks.values())
         message = "All systems operational" if healthy else "Degraded"
-        return HealthComponent(healthy=healthy, message=message, uptime=uptime, checks=checks)
+        return HealthComponent(
+            healthy=healthy,
+            message=message,
+            uptime=uptime,
+            checks=checks,
+            reindexing=self._reindexing,
+        )
 
     async def get_stats(self) -> dict[str, Any]:
         """Get store statistics."""
@@ -229,17 +274,16 @@ class EnhancedMemoryStore:
             modality=modality,
         )
 
-        await self.meta_store.add(mem)
         async with self._index_lock:
+            await self.meta_store.add(mem)
             await asyncio.to_thread(
                 self.vector_store.add,
                 [mem.id],
                 np.asarray([embedding], dtype=np.float32),
                 modality=modality,
             )
-        # Save the index eagerly (a commit hook will also persist after DB commit)
-        await asyncio.to_thread(self.vector_store.save, str(self.settings.database.vec_path))
-        self._memory_count += 1
+            await asyncio.to_thread(self.vector_store.save, str(self.settings.database.vec_path))
+            self._memory_count += 1
         return mem
 
     # ---- Memory dynamics ---------------------------------------------------
@@ -282,7 +326,7 @@ class EnhancedMemoryStore:
 
     async def add_memories_batch(self, items: Sequence[dict[str, Any]]) -> list[Memory]:
         """Add multiple memories with embeddings in one batch."""
-        mems: list[Memory] = []
+        entries: list[tuple[str, Memory, np.ndarray]] = []
         for item in items:
             text = item["text"]
             text_to_store = text
@@ -301,21 +345,21 @@ class EnhancedMemoryStore:
                 metadata={"role": item.get("role"), "tags": item.get("tags", [])},
                 modality=modality,
             )
-            mems.append(mem)
-
             vec = np.asarray(item["embedding"], dtype=np.float32)
-            async with self._index_lock:
+            entries.append((modality, mem, vec))
+
+        async with self._index_lock:
+            await self.meta_store.add_many([m for _, m, _ in entries])
+            for mod, m, v in entries:
                 await asyncio.to_thread(
                     self.vector_store.add,
-                    [mem.id],
-                    np.asarray([vec], dtype=np.float32),
-                    modality=modality,
+                    [m.id],
+                    np.asarray([v], dtype=np.float32),
+                    modality=mod,
                 )
-
-        await self.meta_store.add_many(mems)
-        await asyncio.to_thread(self.vector_store.save, str(self.settings.database.vec_path))
-        self._memory_count += len(mems)
-        return mems
+            await asyncio.to_thread(self.vector_store.save, str(self.settings.database.vec_path))
+            self._memory_count += len(entries)
+        return [m for _, m, _ in entries]
 
     async def add_memories_streaming(
         self,
@@ -358,29 +402,29 @@ class EnhancedMemoryStore:
             batch.append((modality, mem, vec))
 
             if len(batch) >= batch_size:
-                await self.meta_store.add_many([m for _, m, _ in batch])
-                for mod, m, v in batch:
-                    async with self._index_lock:
+                async with self._index_lock:
+                    await self.meta_store.add_many([m for _, m, _ in batch])
+                    for mod, m, v in batch:
                         await asyncio.to_thread(
                             self.vector_store.add,
                             [m.id],
                             np.asarray([v], dtype=np.float32),
                             modality=mod,
                         )
-                total += len(batch)
+                    total += len(batch)
                 batch.clear()
 
         if batch:
-            await self.meta_store.add_many([m for _, m, _ in batch])
-            for mod, m, v in batch:
-                async with self._index_lock:
+            async with self._index_lock:
+                await self.meta_store.add_many([m for _, m, _ in batch])
+                for mod, m, v in batch:
                     await asyncio.to_thread(
                         self.vector_store.add,
                         [m.id],
                         np.asarray([v], dtype=np.float32),
                         modality=mod,
                     )
-            total += len(batch)
+                total += len(batch)
 
         await asyncio.to_thread(self.vector_store.save, str(self.settings.database.vec_path))
         self._memory_count += total
