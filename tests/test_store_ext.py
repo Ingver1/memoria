@@ -8,7 +8,8 @@ import pytest
 
 from memory_system.core.store import Memory, SQLiteMemoryStore, get_store
 from memory_system.unified_memory import add as um_add
-from memory_system.unified_memory import reinforce, update as um_update
+from memory_system.unified_memory import reinforce
+from memory_system.unified_memory import update as um_update
 
 
 @pytest.fixture
