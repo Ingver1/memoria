@@ -253,7 +253,7 @@ class SQLiteMemoryStore:
             conn = self._pool.get_nowait()
         except asyncio.QueueEmpty:
             if self._created < self._pool_size:
-                conn = await aiosqlite.connect(self._dsn, uri=True, timeout=30)
+                conn = await aiosqlite.connect(self._dsn, uri=True, timeout=30, check_same_thread=False)
                 await conn.execute("PRAGMA journal_mode=WAL")
                 await conn.execute("PRAGMA foreign_keys=ON")
                 await conn.execute("PRAGMA synchronous=NORMAL")
