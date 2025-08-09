@@ -829,6 +829,10 @@ class SQLiteMemoryStore:
         finally:
             await self._release(conn)
 
+    async def delete(self, memory_id: str) -> None:
+        """Alias for :meth:`delete_memory` to satisfy :class:`MetaStore` interface."""
+        await self.delete_memory(memory_id)
+
     async def update_memory(
         self,
         memory_id: str,
@@ -924,6 +928,10 @@ class SQLiteMemoryStore:
             return self._row_to_memory(row)
         finally:
             await self._release(conn)
+
+    async def update(self, memory_id: str, **kwargs: Any) -> Memory:
+        """Alias for :meth:`update_memory` used by :class:`MetaStore`."""
+        return await self.update_memory(memory_id, **kwargs)
 
     async def search_memory(
         self,
