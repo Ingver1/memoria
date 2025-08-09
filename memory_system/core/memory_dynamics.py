@@ -24,6 +24,20 @@ def _default_weights() -> ListBestWeights:
         return ListBestWeights()
 
 
+def _decay_rate() -> float:
+    """Return decay rate from settings or a default."""
+    try:  # lazy import to avoid optional dependency at import time
+        from memory_system.config.settings import get_settings
+
+        cfg = get_settings()
+        dyn = getattr(cfg, "dynamics", None)
+        if dyn is None:
+            raise AttributeError
+        return max(dyn.decay_rate, 1e-9)
+    except Exception:  # pragma: no cover - settings module optional
+        return 30.0
+
+
 @dataclass
 class MemoryDynamics:
     """Utilities for memory reinforcement, decay and scoring."""
@@ -66,16 +80,15 @@ class MemoryDynamics:
     def score(self, memory: Memory, *, now: dt.datetime | None = None) -> float:
         """Return the time-decayed ranking score for *memory*."""
         valence_weight = self.weights.valence_pos if memory.valence >= 0 else self.weights.valence_neg
-        base = (
-            self.weights.importance * memory.importance
-            + self.weights.emotional_intensity * memory.emotional_intensity
-            + valence_weight * memory.valence
-        )
+        imp = max(0.0, min(1.0, memory.importance))
+        inten = max(0.0, min(1.0, memory.emotional_intensity))
+        val = max(-1.0, min(1.0, memory.valence))
+        base = self.weights.importance * imp + self.weights.emotional_intensity * inten + valence_weight * val
         last = self._last_accessed(memory)
         if now is None:
             now = dt.datetime.utcnow().replace(tzinfo=dt.timezone.utc)
         age_days = max(0.0, (now - last).total_seconds() / 86_400.0)
-        return base * math.exp(-age_days / 30.0)
+        return base * math.exp(-age_days / _decay_rate())
 
     @staticmethod
     def _last_accessed(memory: Memory) -> dt.datetime:
@@ -101,6 +114,9 @@ class MemoryDynamics:
         age_days: float,
     ) -> float:
         """Return an age-aware retention score (higher → keep)."""
+        importance = max(0.0, min(1.0, importance))
+        valence = max(-1.0, min(1.0, valence))
+        emotional_intensity = max(0.0, min(1.0, emotional_intensity))
         base = 0.4 * importance + 0.3 * emotional_intensity + 0.3 * valence
         base = max(0.0, base)
-        return base * math.exp(-age_days / 30.0)
+        return base * math.exp(-age_days / _decay_rate())
