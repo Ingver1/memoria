@@ -9,7 +9,6 @@ from typing import Any, Optional, cast
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
 
-from memory_system import unified_memory
 from memory_system.api.schemas import (
     MemoryCreate,
     MemoryQuery,
@@ -18,7 +17,12 @@ from memory_system.api.schemas import (
     MemoryUpdate,
 )
 from memory_system.core.store import Memory, SQLiteMemoryStore, get_memory_store, get_store
-from memory_system.unified_memory import ListBestWeights
+from memory_system.unified_memory import (
+    ListBestWeights,
+    list_best,
+    reinforce,
+    update,
+)
 from memory_system.utils.security import EnhancedPIIFilter
 
 log = logging.getLogger(__name__)
@@ -99,7 +103,7 @@ async def update_memory(memory_id: str, payload: MemoryUpdate, request: Request)
         metadata["role"] = payload.role
     if payload.tags is not None:
         metadata["tags"] = payload.tags
-    updated = await unified_memory.update(
+    updated = await update(
         memory_id,
         text=payload.text,
         metadata=metadata or None,
@@ -107,8 +111,8 @@ async def update_memory(memory_id: str, payload: MemoryUpdate, request: Request)
         importance_delta=payload.importance_delta,
         valence=payload.valence,
         valence_delta=payload.valence_delta,
-        emotional_intensity=payload.arousal,
-        emotional_intensity_delta=payload.arousal_delta,
+        emotional_intensity=payload.emotional_intensity,
+        emotional_intensity_delta=payload.emotional_intensity_delta,
         store=store,
     )
     mem_read = MemoryRead.model_validate(asdict(updated))
@@ -119,11 +123,11 @@ async def update_memory(memory_id: str, payload: MemoryUpdate, request: Request)
 async def reinforce_memory(memory_id: str, payload: MemoryReinforce, request: Request) -> MemoryRead:
     """Reinforce a memory's scoring attributes."""
     store = await _store(request)
-    updated = await unified_memory.reinforce(
+    updated = await reinforce(
         memory_id,
         amount=payload.importance_delta,
         valence_delta=payload.valence_delta,
-        intensity_delta=payload.arousal_delta,
+        intensity_delta=payload.emotional_intensity_delta,
         store=store,
     )
     mem_read = MemoryRead.model_validate(asdict(updated))
@@ -137,9 +141,12 @@ async def best_memories(
     level: int | None = Query(None, ge=0),
     user_id: str | None = Query(None),
     importance: Optional[float] = Query(None, ge=0.0, description="Weight for importance when ranking"),
-    arousal: Optional[float] = Query(
-        None, ge=0.0, description="Weight for emotional intensity (arousal)"
-    ),  # alias для emotional_intensity
+    emotional_intensity: Optional[float] = Query(
+        None,
+        ge=0.0,
+        alias="arousal",
+        description="Weight for emotional intensity (arousal)",
+    ),
     valence_pos: Optional[float] = Query(None, ge=0.0, description="Weight for positive valence"),
     valence_neg: Optional[float] = Query(None, ge=0.0, description="Weight for negative valence"),
 ):
@@ -147,15 +154,15 @@ async def best_memories(
     meta = {"user_id": user_id} if user_id else None
 
     weights = None
-    if any(v is not None for v in (importance, arousal, valence_pos, valence_neg)):
+    if any(v is not None for v in (importance, emotional_intensity, valence_pos, valence_neg)):
         weights = ListBestWeights(
             importance=importance or 1.0,
-            emotional_intensity=arousal or 1.0,
+            emotional_intensity=emotional_intensity or 1.0,
             valence_pos=valence_pos or 1.0,
             valence_neg=valence_neg or 0.5,
         )
 
-    records = await unified_memory.list_best(
+    records = await list_best(
         n=n,
         store=store,
         level=level,
