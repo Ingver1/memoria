@@ -77,6 +77,7 @@ class HierarchicalSummarizer:
         function returns an empty list.
         """
         mems = await self.store.search(limit=100_000, level=source_level)
+        mems = [m for m in mems if not m.metadata or not m.metadata.get("final")]
         if not mems:
             return []
 
@@ -86,28 +87,17 @@ class HierarchicalSummarizer:
             embeddings = embeddings.reshape(1, -1)
         assert embeddings.shape[0] == len(mems)
 
-        clusters = _cluster_embeddings([embeddings[i] for i in range(embeddings.shape[0])], self.threshold)
+        clusters = _cluster_embeddings(
+            [embeddings[i] for i in range(embeddings.shape[0])], self.threshold
+        )
 
         created: List[Memory] = []
         target_level = source_level + 1
         for group in clusters:
             if len(group) <= 1:
-                # Singletons are simply promoted to the next level by copying.
+                # Mark singletons as final to prevent further promotion.
                 m = mems[group[0]]
-                summary = Memory.new(
-                    m.text,
-                    importance=m.importance,
-                    valence=m.valence,
-                    emotional_intensity=m.emotional_intensity,
-                    metadata={"source_ids": [m.id]},
-                    level=target_level,
-                )
-                await self.store.add(summary)
-                vec = embed_text(m.text)
-                if vec.ndim == 1:
-                    vec = np.asarray([vec], dtype=np.float32)
-                self.index.add_vectors([summary.id], vec.astype(np.float32, copy=False))
-                created.append(summary)
+                await self.store.update_memory(m.id, metadata={"final": True})
                 continue
 
             cluster_mems = [mems[i] for i in group]
