@@ -10,8 +10,9 @@ vector index so they can participate in subsequent searches.
 
 from __future__ import annotations
 
-import numpy as np
 from typing import List, Sequence
+
+import numpy as np
 
 from embedder import embed as embed_text
 from memory_system.core.index import FaissHNSWIndex
