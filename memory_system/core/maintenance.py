@@ -12,12 +12,14 @@ SQLite store and FAISS HNSW index.
 
 from __future__ import annotations
 
+import asyncio
 import datetime as dt
 from typing import Dict, List, Sequence, Tuple
 
 import numpy as np
 
 from embedder import embed as embed_text
+from memory_system.core.hierarchical_summarizer import HierarchicalSummarizer
 from memory_system.core.index import FaissHNSWIndex
 from memory_system.core.store import Memory, SQLiteMemoryStore
 from memory_system.core.summarization import STRATEGIES, SummaryStrategy
@@ -243,3 +245,43 @@ async def forget_old_memories(
                 pass
 
     return len(ids_to_forget)
+
+
+async def periodic_hierarchy_update(
+    store: SQLiteMemoryStore,
+    index: FaissHNSWIndex,
+    *,
+    interval: float = 3_600.0,
+    threshold: float = 0.83,
+    strategy: str | SummaryStrategy = "head2tail",
+) -> asyncio.Task:
+    """Start a background task that periodically rebuilds hierarchy levels.
+
+    The task iterates over successive levels starting from ``0`` and builds a
+    summary level for each until no further summaries are produced.  It then
+    sleeps for ``interval`` seconds before repeating the cycle.  The returned
+    :class:`asyncio.Task` can be cancelled by the caller to stop the
+    background activity.
+    """
+
+    summarizer = HierarchicalSummarizer(
+        store,
+        index,
+        threshold=threshold,
+        strategy=strategy,
+    )
+
+    async def _worker() -> None:
+        while True:
+            try:
+                level = 0
+                while True:
+                    created = await summarizer.build_level(level)
+                    if not created:
+                        break
+                    level += 1
+            except Exception:
+                pass
+            await asyncio.sleep(interval)
+
+    return asyncio.create_task(_worker())
