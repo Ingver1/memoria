@@ -60,14 +60,14 @@ def test_pii_redaction(app: FastAPI) -> None:
         assert "user@example.com" not in stored["text"]
 
 
-def test_recent_memories_endpoint(app: FastAPI) -> None:
-    """Test retrieving recent memories with limit parameter."""
+def test_best_memories_endpoint(app: FastAPI) -> None:
+    """Test retrieving top ranked memories with limit parameter."""
     with TestClient(app) as client:
         for i in range(3):
             payload = {"text": f"mem {i}"}
             client.post("/api/v1/memory/", json=payload)
 
-        resp = client.get("/api/v1/memory/recent", params={"limit": 2})
+        resp = client.get("/api/v1/memory/best", params={"limit": 2})
         assert resp.status_code == 200
         assert len(resp.json()) == 2
 
