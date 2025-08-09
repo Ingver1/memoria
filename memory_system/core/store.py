@@ -602,8 +602,18 @@ class SQLiteMemoryStore:
                 sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
             params.extend([limit, offset])
             cursor = await conn.execute(sql, params)
-            rows = await cursor.fetchall()
-            return [self._row_to_memory(r) for r in rows]
+            results: list[Memory] = []
+            if hasattr(cursor, "_cursor") and hasattr(cursor._cursor, "fetchmany"):
+                batch_size = min(limit, 1000)
+                while True:
+                    batch = await asyncio.to_thread(cursor._cursor.fetchmany, batch_size)
+                    if not batch:
+                        break
+                    results.extend(self._row_to_memory(r) for r in batch)
+            else:
+                rows = await cursor.fetchall()
+                results = [self._row_to_memory(r) for r in rows]
+            return results
         finally:
             await self._release(conn)
 
