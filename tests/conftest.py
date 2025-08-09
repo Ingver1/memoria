@@ -16,6 +16,8 @@ import tempfile
 import uuid
 from typing import Any, List
 
+import importlib.util
+
 try:
     import numpy as np
 except Exception:  # pragma: no cover - optional dependency
@@ -52,6 +54,14 @@ from memory_system.core.store import SQLiteMemoryStore
 # ...existing code...
 
 
+def _has(module: str) -> bool:
+    """Return True if the given module can be imported."""
+    return importlib.util.find_spec(module) is not None
+
+
+_has.__annotations__ = {"module": str, "return": bool}
+
+
 def _install_crypto_stub() -> None:
     try:
         import cryptography.fernet  # noqa: F401
@@ -86,8 +96,15 @@ pytest_configure.__annotations__ = {"config": object, "return": None}
 
 
 def pytest_collection_modifyitems(config: Config, items: List[Item]) -> None:
-    """Automatically mark async test functions with pytest.mark.asyncio."""
+    """Automatically mark async tests and skip tests missing optional deps."""
     for item in items:
+        if item.get_closest_marker("needs_numpy") and not _has("numpy"):
+            item.add_marker(pytest.mark.skip(reason="numpy is not installed"))
+        if item.get_closest_marker("needs_fastapi") and not _has("fastapi"):
+            item.add_marker(pytest.mark.skip(reason="fastapi is not installed"))
+        if item.get_closest_marker("needs_httpx") and not _has("httpx"):
+            item.add_marker(pytest.mark.skip(reason="httpx is not installed"))
+
         test_fn = getattr(item, "obj", None)
         if inspect.iscoroutinefunction(test_fn):
             item.add_marker(pytest.mark.asyncio)
