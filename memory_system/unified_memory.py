@@ -448,12 +448,16 @@ async def reinforce(
 async def list_recent(
     n: int = 20,
     *,
+    level: int | None = None,
+    metadata_filter: MutableMapping[str, Any] | None = None,
     store: MemoryStoreProtocol | None = None,
 ) -> Sequence[Memory]:
     """Return *n* most recently added memories in descending chronological order.
 
     Args:
         n (int, optional): Number of memories. Defaults to 20.
+        level (int | None, optional): Exact level filter. Defaults to None.
+        metadata_filter (MutableMapping[str, Any] | None, optional): Additional metadata filters.
         store (MemoryStoreProtocol | None, optional): Store object. Defaults to None.
 
     Returns:
@@ -461,7 +465,10 @@ async def list_recent(
     """
     st = await _resolve_store(store)
     try:
-        recent = await asyncio.wait_for(st.list_recent(n=n), timeout=ASYNC_TIMEOUT)
+        recent = await asyncio.wait_for(
+            st.list_recent(n=n, level=level, metadata_filter=metadata_filter),
+            timeout=ASYNC_TIMEOUT,
+        )
         logger.debug("Fetched %d recent memories.", len(recent))
     except Exception as e:
         logger.error("List recent failed: %s", e)

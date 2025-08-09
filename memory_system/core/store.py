@@ -380,8 +380,18 @@ class SQLiteMemoryStore:
                 if mem_count != fts_count:
                     await conn.execute("DELETE FROM memories_fts")
                     await conn.execute("INSERT INTO memories_fts(rowid, text) SELECT rowid, text FROM memories")
-                await conn.execute("CREATE INDEX IF NOT EXISTS idx_memories_created_at ON memories(created_at)")
-                await conn.execute("CREATE INDEX IF NOT EXISTS idx_memories_level ON memories(level)")
+                await conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_memories_created_at ON memories(created_at)"
+                )
+                await conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_memories_level ON memories(level)"
+                )
+                await conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_memories_episode_id ON memories(episode_id)"
+                )
+                await conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_memories_modality ON memories(modality)"
+                )
                 await conn.commit()
                 self._initialised = True
             finally:
@@ -719,22 +729,39 @@ class SQLiteMemoryStore:
         finally:
             await self._release(conn)
 
-    async def list_recent(self, *, n: int = 20, level: int | None = None) -> List[Memory]:
-        """Return the most recent *n* memories, optionally filtered by level."""
+    async def list_recent(
+        self,
+        *,
+        n: int = 20,
+        level: int | None = None,
+        metadata_filter: MutableMapping[str, Any] | None = None,
+    ) -> List[Memory]:
+        """Return the most recent *n* memories with optional filters."""
+
         await self.initialise()
         conn = await self._acquire()
         try:
-            params: tuple[Any, ...]
+            clauses: list[str] = []
+            params: list[Any] = []
+            if level is not None:
+                clauses.append("level = ?")
+                params.append(level)
+            if metadata_filter:
+                for key, val in metadata_filter.items():
+                    if key in {"episode_id", "modality"}:
+                        clauses.append(f"{key} = ?")
+                        params.append(val)
+                    else:
+                        clauses.append("json_extract(metadata, ?) = ?")
+                        params.extend([f"$.{key}", val])
             sql = (
                 "SELECT id, text, created_at, importance, valence, emotional_intensity, level, "
                 "episode_id, modality, connections, metadata FROM memories"
             )
-            if level is not None:
-                sql += " WHERE level = ? ORDER BY created_at DESC LIMIT ?"
-                params = (level, n)
-            else:
-                sql += " ORDER BY created_at DESC LIMIT ?"
-                params = (n,)
+            if clauses:
+                sql += " WHERE " + " AND ".join(clauses)
+            sql += " ORDER BY created_at DESC LIMIT ?"
+            params.append(n)
             cursor = await conn.execute(sql, params)
             rows = await cursor.fetchall()
             return [self._row_to_memory(r) for r in rows]
