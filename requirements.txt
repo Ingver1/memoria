@@ -17,6 +17,7 @@ psycopg2-binary>=2.9.7
 redis>=5.0
 libsql-client>=0.3.3
 aiosqlite>=0.19
+qdrant-client>=1.9
 
 # Utilities
 python-dotenv>=1.0

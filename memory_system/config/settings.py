@@ -7,7 +7,7 @@ import logging.config
 import os
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, cast
+from typing import Any, Literal, cast
 from urllib.parse import quote
 
 from cryptography.fernet import Fernet, InvalidToken
@@ -44,6 +44,10 @@ class DatabaseConfig(BaseModel):
     vec_path: Path = Path("data/memory.vectors")
     cache_path: Path = Path("data/memory.cache")
     connection_pool_size: PositiveInt = 10
+    backend: Literal["faiss", "qdrant"] = "faiss"
+    qdrant_url: str = "http://localhost:6333"
+    qdrant_api_key: str | None = None
+    qdrant_collection: str = "memory"
 
     model_config = {"frozen": True}
 
@@ -66,7 +70,14 @@ class ModelConfig(BaseModel):
     hnsw_m: PositiveInt = 32
     hnsw_ef_construction: PositiveInt = 200
     hnsw_ef_search: PositiveInt = 100
+    hnsw_autotune: bool = False
     vector_dim: PositiveInt = 384
+    index_type: str = "HNSW"
+    use_gpu: bool = False
+    ivf_nlist: PositiveInt = 100
+    ivf_nprobe: PositiveInt = 8
+    pq_m: PositiveInt = 16
+    pq_bits: PositiveInt = 8
 
     model_config = {"frozen": True}
 

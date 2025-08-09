@@ -30,7 +30,7 @@ import uuid
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 import faiss
 import numpy as _np
@@ -353,9 +353,29 @@ class VectorStore:
 # Backwards compatibility alias for asynchronous FAISS store
 VectorStoreAsync = AsyncFaissHNSWStore
 
+
+def create_vector_store(
+    *,
+    backend: Literal["faiss", "qdrant"],
+    dim: int,
+    index_path: Path | None = None,
+    **kwargs: Any,
+) -> AbstractVectorStore:
+    """Factory returning a vector store implementation based on ``backend``."""
+    if backend == "faiss":
+        if index_path is None:
+            raise ValueError("index_path is required for FAISS backend")
+        return AsyncFaissHNSWStore(dim=dim, index_path=index_path, **kwargs)
+    if backend == "qdrant":
+        from .qdrant_store import QdrantVectorStore
+
+        return QdrantVectorStore(dim=dim, **kwargs)
+    raise ValueError(f"Unsupported vector store backend: {backend}")
+
 __all__ = [
     "AbstractVectorStore",
     "AsyncFaissHNSWStore",
     "VectorStore",
     "VectorStoreAsync",
+    "create_vector_store",
 ]

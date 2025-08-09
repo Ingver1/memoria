@@ -85,6 +85,7 @@ class FaissHNSWIndex:
         *,
         ef_construction: int | None = None,
         M: int | None = None,
+        ef_search: int | None = None,
         space: str = "cosine",
         index_type: str | None = None,
         use_gpu: bool | None = None,
@@ -106,7 +107,7 @@ class FaissHNSWIndex:
         else:  # default to HNSW
             base = faiss.IndexHNSWFlat(dim, M or self.DEFAULT_HNSW_M, metric)
             base.hnsw.efConstruction = ef_construction or self.DEFAULT_EF_CONSTRUCTION
-            self.ef_search = self.DEFAULT_EF_SEARCH
+            self.ef_search = ef_search or self.DEFAULT_EF_SEARCH
             base.hnsw.efSearch = self.ef_search
 
         if self.use_gpu:
@@ -124,9 +125,7 @@ class FaissHNSWIndex:
         self._reverse_id_map: dict[str, int] = {}
         self._vectors: dict[int, NDArray] = {}
         self._warmed_up: bool = False
-        log.info(
-            "FAISS %s index initialised: dim=%d, metric=%s", self.index_type, dim, space
-        )
+        log.info("FAISS %s index initialised: dim=%d, metric=%s", self.index_type, dim, space)
 
     # ────────────────────────── Internal ──────────────────────────
     def _warm_up(self) -> None:
@@ -162,6 +161,85 @@ class FaissHNSWIndex:
     def _int_to_string(self, i: int) -> str:
         """Map int ID back to string, or hex if missing."""
         return self._id_map.get(i, hex(int(i)))
+
+    def auto_tune(self, sample_vectors: NDArray) -> tuple[int, int, int]:
+        """Benchmark several HNSW configurations and pick the best.
+
+        Parameters
+        ----------
+        sample_vectors:
+            Sample data used both for building the temporary indexes and as
+            queries. It should be shaped ``(n, dim)``.
+
+        Returns
+        -------
+        tuple[int, int, int]
+            ``(M, ef_construction, ef_search)`` of the selected configuration.
+        """
+
+        if sample_vectors.size == 0:
+            return (self.DEFAULT_HNSW_M, self.DEFAULT_EF_CONSTRUCTION, self.DEFAULT_EF_SEARCH)
+
+        vecs = self._to_float32(np.asarray(sample_vectors))
+        if vecs.shape[1] != self.dim:
+            raise ANNIndexError(
+                f"dimension mismatch: expected dim={self.dim}, got {vecs.shape[1]}"
+            )
+        if self.space == "cosine":
+            faiss.normalize_L2(vecs)
+
+        metric = faiss.METRIC_INNER_PRODUCT if self.space == "cosine" else faiss.METRIC_L2
+
+        flat = faiss.IndexFlatIP(self.dim) if metric == faiss.METRIC_INNER_PRODUCT else faiss.IndexFlatL2(self.dim)
+        flat.add(vecs)
+
+        k = min(5, len(vecs))
+        _, gt_idx = flat.search(vecs, k)
+
+        configs = [
+            (16, 100, 50),
+            (32, 200, 100),
+            (64, 400, 200),
+        ]
+
+        results: list[tuple[float, float, int, int, int]] = []
+        for M, ef_c, ef_s in configs:
+            idx = faiss.IndexHNSWFlat(self.dim, M, metric)
+            idx.hnsw.efConstruction = ef_c
+            idx.hnsw.efSearch = ef_s
+            idx.add(vecs)
+
+            start = perf_counter()
+            _, I = idx.search(vecs, k)
+            latency = (perf_counter() - start) * 1000.0 / len(vecs)
+
+            recall = 0.0
+            for q in range(len(vecs)):
+                recall += len(set(I[q]) & set(gt_idx[q])) / k
+            recall /= len(vecs)
+
+            results.append((recall, latency, M, ef_c, ef_s))
+            log.info(
+                "Autotune candidate M=%d efC=%d efS=%d -> recall=%.3f latency=%.2fms",
+                M,
+                ef_c,
+                ef_s,
+                recall,
+                latency,
+            )
+
+        results.sort(key=lambda x: (-x[0], x[1]))
+        best = results[0]
+        _, _, M, ef_c, ef_s = best
+        log.info(
+            "Autotune selected M=%d efC=%d efS=%d (recall=%.3f latency=%.2fms)",
+            M,
+            ef_c,
+            ef_s,
+            best[0],
+            best[1],
+        )
+        return M, ef_c, ef_s
 
     # ─────────────────────── Mutators ────────────────────────
     def add_vectors(self, ids: Sequence[str], vectors: NDArray) -> None:

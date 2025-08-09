@@ -35,6 +35,7 @@ dependencies = [
   # Storage / Vector
   "aiosqlite>=0.19",
   "faiss-cpu>=1.8",
+  "qdrant-client>=1.9",
 
   # Numerical computations
   "numpy>=1.26",

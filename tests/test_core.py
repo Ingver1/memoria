@@ -631,6 +631,14 @@ class TestFaissHNSWIndex:
             path.unlink(missing_ok=True)
             path.with_suffix(".map.json").unlink(missing_ok=True)
 
+    def test_auto_tune(self) -> None:
+        index = FaissHNSWIndex(dim=32)
+        sample = np.random.rand(20, 32).astype(np.float32)
+        M, ef_c, ef_s = index.auto_tune(sample)
+        assert isinstance(M, int)
+        assert isinstance(ef_c, int)
+        assert isinstance(ef_s, int)
+
 
 class TestVectorStore:
     """Test VectorStore functionality."""

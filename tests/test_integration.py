@@ -328,6 +328,38 @@ class TestEndToEndMemoryWorkflow:
             assert len(result_ids) <= 3
             assert len(distances) <= 3
 
+    @pytest.mark.asyncio
+    async def test_semantic_search_with_metadata_filter(self, full_system: Dict[str, Any]) -> None:
+        """Semantic search should respect metadata filters."""
+        components = full_system
+        store: EnhancedMemoryStore = components["store"]
+        embedding_service = components["embedding_service"]
+
+        text = "shared semantic memory"
+        vec = (await embedding_service.embed_text(text)).flatten().tolist()
+
+        mem_user = await store.add_memory(text=text, role="user", embedding=vec)
+        mem_assistant = await store.add_memory(text=text, role="assistant", embedding=vec)
+
+        query_vec = vec
+
+        res_user = await store.semantic_search(
+            embedding=query_vec, k=5, metadata_filter={"role": "user"}
+        )
+        assert mem_user in res_user
+        assert all(m.metadata.get("role") == "user" for m in res_user)
+
+        res_assistant = await store.semantic_search(
+            embedding=query_vec, k=5, metadata_filter={"role": "assistant"}
+        )
+        assert mem_assistant in res_assistant
+        assert all(m.metadata.get("role") == "assistant" for m in res_assistant)
+
+        res_none = await store.semantic_search(
+            embedding=query_vec, k=5, metadata_filter={"role": "missing"}
+        )
+        assert res_none == []
+
 
 class TestAPIIntegration:
     """Test API integration with core components."""
@@ -396,6 +428,30 @@ class TestAPIIntegration:
             assert response.status_code == 200
             data = response.json()
             assert data["version"] == __version__
+
+    def test_search_memory_metadata_filter(self, client: TestClient) -> None:
+        """Search endpoint should support metadata filtering."""
+        payload1 = {
+            "text": "integration filter test",
+            "role": "user",
+            "tags": [],
+            "valence": 0.0,
+            "emotional_intensity": 0.0,
+            "user_id": "u1",
+        }
+        payload2 = dict(payload1, user_id="u2")
+        client.post("/api/v1/memory/", json=payload1)
+        client.post("/api/v1/memory/", json=payload2)
+
+        params = {
+            "q": "integration",
+            "metadata": json.dumps({"user_id": "u1"}),
+        }
+        response = client.get("/api/v1/memory/search", params=params)
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["metadata"]["user_id"] == "u1"
 
     def test_api_error_handling_integration(self, client: TestClient) -> None:
         """Test API error handling integration."""

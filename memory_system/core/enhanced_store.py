@@ -14,8 +14,11 @@ from typing import Any
 
 import numpy as np
 from cryptography.fernet import Fernet
+import logging
 
 __all__ = ["EnhancedMemoryStore", "HealthComponent"]
+
+log = logging.getLogger(__name__)
 
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.index import FaissHNSWIndex
@@ -43,13 +46,36 @@ class EnhancedMemoryStore:
         # Underlying storage components
         dsn = settings.get_database_url()
         self._store = SQLiteMemoryStore(dsn)
-        self._index = FaissHNSWIndex(dim=settings.model.vector_dim)
+        self._index = FaissHNSWIndex(
+            dim=settings.model.vector_dim,
+            M=settings.model.hnsw_m,
+            ef_construction=settings.model.hnsw_ef_construction,
+            ef_search=settings.model.hnsw_ef_search,
+        )
         vec_path = settings.database.vec_path
         if vec_path.exists():
             self._index.load(str(vec_path))
             self._memory_count = self._index.stats().total_vectors
         else:
             self._memory_count = 0
+            if settings.model.hnsw_autotune:
+                sample = np.random.rand(128, settings.model.vector_dim).astype(np.float32)
+                M, ef_c, ef_s = self._index.auto_tune(sample)
+                object.__setattr__(settings.model, "hnsw_m", M)
+                object.__setattr__(settings.model, "hnsw_ef_construction", ef_c)
+                object.__setattr__(settings.model, "hnsw_ef_search", ef_s)
+                log.info(
+                    "Auto-tuned HNSW params: M=%d ef_construction=%d ef_search=%d",
+                    M,
+                    ef_c,
+                    ef_s,
+                )
+                self._index = FaissHNSWIndex(
+                    dim=settings.model.vector_dim,
+                    M=M,
+                    ef_construction=ef_c,
+                    ef_search=ef_s,
+                )
 
         async def _save_index() -> None:
             await asyncio.to_thread(self._index.save, str(vec_path))
@@ -140,44 +166,84 @@ class EnhancedMemoryStore:
         return mem
 
     async def semantic_search(
-        self,
-        *,
-        embedding: list[float],
-        k: int = 5,
-        return_distance: bool = False,
-        ef_search: int | None = None,
-    ) -> list[Any]:
-        """Perform a semantic embedding search.
+    self,
+    *,
+    vector: list[float],
+    k: int = 5,
+    return_distance: bool = False,
+    ef_search: int | None = None,
+    metadata_filter: dict[str, Any] | None = None,
+    level: int | None = None,
+) -> list[Any]:
+    """
+    Perform a semantic vector search.
 
-        Parameters
-        ----------
-        embedding:
-            Query embedding.
-        k:
-            Number of nearest neighbours to return.
-        return_distance:
-            When ``True`` return a ``(Memory, distance)`` tuple for each hit.
-            Otherwise only :class:`Memory` instances are returned.
-        ef_search:
-            Controls HNSW search quality.
+    Parameters
+    ----------
+    vector:
+        Query embedding (list of floats).
+    k:
+        Number of nearest neighbours to return.
+    return_distance:
+        When True, return (Memory, distance) tuples; otherwise return Memory.
+    ef_search:
+        Controls HNSW search quality.
+    metadata_filter:
+        Optional metadata constraints. When provided, only memories whose
+        metadata matches all key/value pairs participate in the results.
+    level:
+        Optional logical level constraint; only memories at this level
+        are returned.
 
-        Returns
-        -------
-        list[Any]
-            A list of memories, optionally paired with their distance from the
-            query embedding.
-        """
-        ids, dists = self._index.search(np.asarray(embedding, dtype=np.float32), k=k, ef_search=ef_search)
-        results: list[Any] = []
-        for _id, dist in zip(ids, dists, strict=False):
-            mem = await self._store.get(_id)
-            if mem is None:
-                continue
-            if return_distance:
-                results.append((mem, float(dist)))
-            else:
-                results.append(mem)
-        return results
+    Returns
+    -------
+    list[Any]
+        A list of memories (optionally paired with their distance).
+    """
+    # Widen the ANN probe only if we plan to post-filter.
+    need_filter = (metadata_filter is not None) or (level is not None)
+    total = self._index.stats().total_vectors or k
+    search_k = min((k * 5) if need_filter else k, max(1, total))
+
+    vec = np.asarray(vector, dtype=np.float32)
+
+    # Single ANN search
+    ids, dists = self._index.search(vec, k=search_k, ef_search=ef_search)
+    candidates = list(zip(ids, dists, strict=False))
+
+    # Optional precomputation of allowed IDs via the SQLite store
+    if need_filter:
+        allowed_mems = await self._store.search(
+            metadata_filters=metadata_filter,
+            limit=total,  # cover whole corpus; store caps internally if needed
+        )
+        allowed_ids = {m.id for m in allowed_mems}
+        if level is not None:
+            # If Memory has a `level` field, filter by it as well
+            allowed_ids = {
+                mid for mid in allowed_ids
+                if (getattr(await self._store.get(mid), "level", None) == level)
+            }
+        if not allowed_ids:
+            return []
+
+        # Keep only candidates that pass constraints, then trim to k
+        candidates = [(_id, dist) for _id, dist in candidates if _id in allowed_ids][:k]
+    else:
+        candidates = candidates[:k]
+
+    # Materialize Memory objects and build the final result list
+    results: list[Any] = []
+    for _id, dist in candidates:
+        mem = await self._store.get(_id)
+        if mem is None:
+            continue
+        if (level is not None) and (getattr(mem, "level", None) != level):
+            # Defensive guard in case the store call above didn’t filter by level
+            continue
+        results.append((mem, float(dist)) if return_distance else mem)
+
+    return results
 
     async def list_memories(self, user_id: str | None = None) -> list[Memory]:
         """List memories, optionally filtering by ``user_id``."""
