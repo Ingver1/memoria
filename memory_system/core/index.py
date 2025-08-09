@@ -249,11 +249,7 @@ class FaissHNSWIndex:
         # Attempt to locate an IVF component hidden inside wrappers
         ivf_index = None
         try:
-            ivf_index = (
-                base_index
-                if isinstance(base_index, faiss.IndexIVF)
-                else faiss.extract_index_ivf(base_index)
-            )
+            ivf_index = base_index if isinstance(base_index, faiss.IndexIVF) else faiss.extract_index_ivf(base_index)
         except Exception:
             ivf_index = None
         if ivf_index is not None and not ivf_index.is_trained:

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from pathlib import Path
 import base64
 from enum import Enum
+from pathlib import Path
 
 
 class EncState(Enum):
@@ -11,9 +11,7 @@ class EncState(Enum):
     UNKNOWN = "unknown"
 
 
-def verify_encryption(
-    path: str | Path, *, scheme: str = "fernet", sample_lines: int = 64
-) -> EncState:
+def verify_encryption(path: str | Path, *, scheme: str = "fernet", sample_lines: int = 64) -> EncState:
     """Heuristically validate that a text-ish artifact contains encrypted content.
 
     - For ``'fernet'`` expects urlsafe-base64 and version byte ``0x80`` after decode.
