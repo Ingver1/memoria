@@ -23,6 +23,7 @@ from memory_system.core.hierarchical_summarizer import HierarchicalSummarizer
 from memory_system.core.index import FaissHNSWIndex
 from memory_system.core.store import Memory, SQLiteMemoryStore
 from memory_system.core.summarization import STRATEGIES, SummaryStrategy
+from memory_system.core.memory_dynamics import MemoryDynamics
 
 # ----------------------------- small utils -----------------------------
 
@@ -202,20 +203,13 @@ def _decay_score(
     emotional_intensity: float,
     age_days: float,
 ) -> float:
-    """
-    Age-aware retention score (higher -> keep):
-
-        base = 0.4*importance + 0.3*emotional_intensity + 0.3*valence
-        score = base * exp(-age_days / 30)
-
-    Negative valence lowers the base score, increasing the chance of forgetting,
-    while positive valence boosts retention.  Tuned to decay over ~1 month while
-    preserving high-importance/intense items.
-    """
-    base = 0.4 * importance + 0.3 * emotional_intensity + 0.3 * valence
-    base = max(0.0, base)
-    decay = float(np.exp(-age_days / 30.0))
-    return base * decay
+    """Compatibility wrapper around :func:`MemoryDynamics.decay`."""
+    return MemoryDynamics.decay(
+        importance=importance,
+        valence=valence,
+        emotional_intensity=emotional_intensity,
+        age_days=age_days,
+    )
 
 
 async def forget_old_memories(
