@@ -30,7 +30,7 @@ from collections.abc import MutableMapping, Sequence
 
 # local
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any, Callable, Protocol
 
 
 @dataclass(slots=True)
@@ -76,6 +76,10 @@ class MemoryStoreProtocol(Protocol):
     ) -> Memory: ...
 
     async def list_recent(self, *, n: int = 20) -> Sequence[Memory]: ...
+
+    async def top_n_by_score(
+        self, n: int, score_fn: Callable[[Memory], float]
+    ) -> Sequence[Memory]: ...
 
 
 logger = logging.getLogger(__name__)
@@ -376,11 +380,31 @@ def _score_best(m: Memory, weights: ListBestWeights) -> float:
     )
 
 
+def _ensure_memory(m: Any) -> Memory:
+    """Coerce *m* into a :class:`Memory` instance if needed."""
+    if isinstance(m, Memory):
+        return m
+    return Memory(
+        memory_id=getattr(m, "memory_id", getattr(m, "id")),
+        text=getattr(m, "text"),
+        created_at=getattr(m, "created_at"),
+        valence=getattr(m, "valence", 0.0),
+        emotional_intensity=getattr(m, "emotional_intensity", 0.0),
+        arousal=getattr(m, "arousal", 0.0),
+        importance=getattr(m, "importance", 0.0),
+        episode_id=getattr(m, "episode_id", None),
+        modality=getattr(m, "modality", "text"),
+        connections=getattr(m, "connections", None),
+        metadata=getattr(m, "metadata", None),
+    )
+
+
 async def list_best(
     n: int = 5,
     *,
     store: MemoryStoreProtocol | None = None,
     weights: ListBestWeights | None = None,
+    include_all: bool = False,
 ) -> Sequence[Memory]:
     """Return *n* most important memories ranked by score.
 
@@ -389,6 +413,8 @@ async def list_best(
         store (MemoryStoreProtocol | None, optional): Store object. Defaults to None.
         weights (ListBestWeights | None, optional): Weight configuration for
             ranking. Defaults to :class:`ListBestWeights`.
+        include_all (bool, optional): When ``True`` the whole store is scanned
+            using a priority queue instead of just the most recent entries.
 
     Returns:
         Sequence[Memory]: List of best memories ordered by score where
@@ -398,12 +424,23 @@ async def list_best(
     if weights is None:
         weights = ListBestWeights()
     try:
-        candidates = await asyncio.wait_for(st.list_recent(n=max(n * 5, 20)), timeout=ASYNC_TIMEOUT)
+        if include_all:
+            # Attempt to leverage store-level optimisation for full scans
+            candidates = await asyncio.wait_for(
+                st.top_n_by_score(n, lambda m: _score_best(m, weights)),
+                timeout=ASYNC_TIMEOUT,
+            )
+            return [_ensure_memory(m) for m in candidates]
+
+        candidates = await asyncio.wait_for(
+            st.list_recent(n=max(n * 5, 20)),
+            timeout=ASYNC_TIMEOUT,
+        )
         scored = sorted(candidates, key=lambda m: _score_best(m, weights), reverse=True)
     except Exception as e:
         logger.error("List best failed: %s", e)
         raise
-    return scored[:n]
+    return [_ensure_memory(m) for m in scored[:n]]
 
 
 __all__ = [
