@@ -34,14 +34,9 @@ class QdrantVectorStore(AbstractVectorStore):
         if len(vectors) != len(metadata):
             raise ValueError("vectors and metadata length mismatch")
         ids = [str(uuid.uuid4()) for _ in vectors]
-        points = [
-            models.PointStruct(id=ids[i], vector=vectors[i], payload=metadata[i])
-            for i in range(len(vectors))
-        ]
+        points = [models.PointStruct(id=ids[i], vector=vectors[i], payload=metadata[i]) for i in range(len(vectors))]
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(
-            None, partial(self._client.upsert, collection_name=self._collection, points=points)
-        )
+        await loop.run_in_executor(None, partial(self._client.upsert, collection_name=self._collection, points=points))
         return ids
 
     async def search(self, vector: list[float], k: int = 5) -> list[tuple[str, float]]:
