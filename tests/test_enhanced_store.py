@@ -15,11 +15,11 @@ import numpy as np
 import pytest
 import pytest_asyncio
 
-from memory_system.config.settings import UnifiedSettings
+from memory_system.config.settings import RankingConfig, UnifiedSettings
 from memory_system.core.enhanced_store import EnhancedMemoryStore
 from memory_system.core.index import ANNIndexError
-from memory_system.unified_memory import _get_ranking_weights
 from memory_system.core.store import Memory
+from memory_system.unified_memory import _get_ranking_weights
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -187,3 +187,41 @@ async def test_duplicate_embeddings_rejected(store: EnhancedMemoryStore) -> None
     # we check duplicate detection at the index level
     with pytest.raises(ValueError):
         store._index.add_vectors([store._index._id_map[1]], np.asarray([v1], dtype=np.float32))
+
+
+@pytest.mark.asyncio
+async def test_semantic_search_respects_min_score() -> None:
+    settings = UnifiedSettings.for_testing()
+    settings = settings.model_copy(update={"ranking": RankingConfig(min_score=0.5)})
+    store = EnhancedMemoryStore(settings)
+    await store.start()
+    try:
+        dim = store.settings.model.vector_dim
+        embedding = _rand_embedding(dim)
+        now = time.time()
+
+        await store.add_memory(
+            text="high",
+            importance=0.8,
+            embedding=embedding,
+            created_at=now,
+            updated_at=now,
+            valence=0.0,
+            emotional_intensity=0.0,
+        )
+        await store.add_memory(
+            text="low",
+            importance=0.1,
+            embedding=embedding,
+            created_at=now,
+            updated_at=now,
+            valence=0.0,
+            emotional_intensity=0.0,
+        )
+
+        res = await store.semantic_search(vector=embedding, k=5)
+        texts = [m.text for m in res]
+        assert "high" in texts
+        assert "low" not in texts
+    finally:
+        await store.close()

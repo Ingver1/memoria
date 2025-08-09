@@ -491,7 +491,7 @@ def _get_ranking_weights() -> ListBestWeights:
         from memory_system.config.settings import get_settings
 
         cfg = get_settings()
-        return ListBestWeights(**cfg.ranking.model_dump())
+        return ListBestWeights(**cfg.ranking.model_dump(exclude={"min_score"}))
     except Exception:  # pragma: no cover - settings module optional
         return ListBestWeights()
 

@@ -245,6 +245,7 @@ class RankingConfig(BaseModel):
     emotional_intensity: float = 1.0
     valence_pos: float = 1.0
     valence_neg: float = 0.5
+    min_score: float = Field(0.0, ge=0.0, description="Minimum combined ranking score for search results")
 
     model_config = {"frozen": True}
 

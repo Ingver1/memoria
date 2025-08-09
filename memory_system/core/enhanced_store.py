@@ -505,12 +505,14 @@ class EnhancedMemoryStore:
         md = dict(metadata_filter or {})
         md.setdefault("modality", modality)
         weights = _get_ranking_weights()
+        min_score = getattr(self.settings.ranking, "min_score", 0.0)
         allowed = await self.meta_store.top_n_by_score(
             k,
             level=level,
             metadata_filter=md,
             weights=weights,
             ids=list(ids),
+            min_score=min_score,
         )
         if return_distance:
             dist_map = dict(zip(ids, dists, strict=True))
