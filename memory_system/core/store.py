@@ -778,6 +778,7 @@ class SQLiteMemoryStore:
         metadata_filter: MutableMapping[str, Any] | None = None,
         weights: ListBestWeights | None = None,
         ids: Sequence[str] | None = None,
+        min_score: float | None = None,
     ) -> List[Memory]:
         """Return ``n`` memories ordered by ranking score.
 
@@ -818,6 +819,9 @@ class SQLiteMemoryStore:
                     placeholders = ", ".join(["?"] * len(ids))
                     clauses.append(f"m.id IN ({placeholders})")
                     params.extend(ids)
+                if min_score is not None:
+                    clauses.append("s.score >= ?")
+                    params.append(min_score)
                 sql = (
                     "SELECT m.id, m.text, m.created_at, m.importance, m.valence, "
                     "m.emotional_intensity, m.level, m.episode_id, m.modality, m.connections, m.metadata "
@@ -834,6 +838,7 @@ class SQLiteMemoryStore:
                     level=level,
                     metadata_filter=metadata_filter,
                     ids=ids,
+                    min_score=min_score,
                 )
             cursor = await conn.execute(sql, params)
             rows = await cursor.fetchall()
