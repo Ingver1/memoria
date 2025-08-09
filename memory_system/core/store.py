@@ -164,12 +164,9 @@ class Memory:
         connections: Optional[Dict[str, float]] = None,
     ) -> "Memory":
         """Return a new :class:`Memory` with a generated UUID."""
-        if not 0.0 <= importance <= 1.0:
-            raise ValueError("importance must be between 0 and 1")
-        if not -1.0 <= valence <= 1.0:
-            raise ValueError("valence must be between -1 and 1")
-        if not 0.0 <= emotional_intensity <= 1.0:
-            raise ValueError("emotional_intensity must be between 0 and 1")
+        importance = max(0.0, min(1.0, importance))
+        valence = max(-1.0, min(1.0, valence))
+        emotional_intensity = max(0.0, min(1.0, emotional_intensity))
 
         return Memory(
             id=str(uuid.uuid4()),

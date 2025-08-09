@@ -8,7 +8,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import AliasChoices, BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field, field_validator
+from types import SimpleNamespace
 
 from memory_system import __version__
 
@@ -28,19 +29,15 @@ class MemoryBase(BaseModel):
     text: str = Field(..., min_length=1, max_length=10_000)
     role: str = Field("user", max_length=32, description="Conversation role label")
     tags: list[str] = Field(default_factory=list, max_length=10)
-    valence: float = Field(0.0, ge=-1.0, le=1.0, description="Emotion polarity")
+    valence: float = Field(0.0, description="Emotion polarity")
     emotional_intensity: float = Field(
-        0.0,
-        ge=0.0,
-        le=1.0,
+        default_factory=lambda: _get_dynamics().initial_intensity,
         description="Strength of emotional reaction",
         validation_alias=AliasChoices("arousal", "emotional_intensity"),
         serialization_alias="arousal",
     )
     importance: float = Field(
         0.0,
-        ge=0.0,
-        le=1.0,
         description="Subjective importance of the memory",
     )
     modality: str = Field("text", max_length=32)
@@ -54,12 +51,9 @@ class MemoryBase(BaseModel):
             raise ValueError("role too long")
         if len(self.tags) > 10:
             raise ValueError("too many tags")
-        if not -1.0 <= self.valence <= 1.0:
-            raise ValueError("valence must be between -1 and 1")
-        if not 0.0 <= self.emotional_intensity <= 1.0:
-            raise ValueError("emotional_intensity must be between 0 and 1")
-        if not 0.0 <= self.importance <= 1.0:
-            raise ValueError("importance must be between 0 and 1")
+        self.valence = max(-1.0, min(1.0, self.valence))
+        self.emotional_intensity = max(0.0, min(1.0, self.emotional_intensity))
+        self.importance = max(0.0, min(1.0, self.importance))
 
 
 class MemoryCreate(MemoryBase):
@@ -84,22 +78,16 @@ class MemoryUpdate(BaseModel):
     tags: list[str] | None = Field(default=None, max_length=10)
     valence: float | None = Field(
         default=None,
-        ge=-1.0,
-        le=1.0,
         description="Set absolute valence value",
     )
     emotional_intensity: float | None = Field(
         default=None,
-        ge=0.0,
-        le=1.0,
         validation_alias=AliasChoices("arousal", "emotional_intensity"),
         serialization_alias="arousal",
         description="Set absolute arousal/emotional intensity",
     )
     importance: float | None = Field(
         default=None,
-        ge=0.0,
-        le=1.0,
         description="Set absolute importance",
     )
     valence_delta: float | None = Field(
@@ -122,11 +110,25 @@ class MemoryUpdate(BaseModel):
         "validate_default": True,
     }
 
+    @field_validator("valence", "valence_delta")
+    @classmethod
+    def _clamp_valence(cls, v: float | None) -> float | None:
+        if v is None:
+            return v
+        return max(-1.0, min(1.0, v))
+
+    @field_validator("emotional_intensity", "emotional_intensity_delta", "importance", "importance_delta")
+    @classmethod
+    def _clamp_unit(cls, v: float | None) -> float | None:
+        if v is None:
+            return v
+        return max(0.0, min(1.0, v))
+
 
 class MemoryReinforce(BaseModel):
     """Payload for reinforce operation."""
 
-    importance_delta: float = Field(0.1)
+    importance_delta: float = Field(default_factory=lambda: _get_dynamics().reinforce_delta)
     valence_delta: float | None = Field(default=None)
     emotional_intensity_delta: float | None = Field(
         default=None,
@@ -138,6 +140,25 @@ class MemoryReinforce(BaseModel):
         "extra": "forbid",
         "validate_default": True,
     }
+
+    @field_validator("importance_delta")
+    @classmethod
+    def _clamp_imp(cls, v: float) -> float:
+        return max(-1.0, min(1.0, v))
+
+    @field_validator("valence_delta")
+    @classmethod
+    def _clamp_val(cls, v: float | None) -> float | None:
+        if v is None:
+            return v
+        return max(-1.0, min(1.0, v))
+
+    @field_validator("emotional_intensity_delta")
+    @classmethod
+    def _clamp_int(cls, v: float | None) -> float | None:
+        if v is None:
+            return v
+        return max(-1.0, min(1.0, v))
 
 
 class MemoryRead(MemoryBase):
@@ -222,3 +243,19 @@ class SuccessResponse(BaseModel):
 class ErrorResponse(BaseModel):
     detail: str
     api_version: str = _API_VERSION
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _get_dynamics() -> SimpleNamespace:
+    try:  # lazy import to avoid optional dependency at import time
+        from memory_system.config.settings import get_settings
+
+        cfg = get_settings()
+        dyn = getattr(cfg, "dynamics", None)
+        if dyn is None:
+            raise AttributeError
+        return dyn
+    except Exception:  # pragma: no cover - optional settings
+        return SimpleNamespace(initial_intensity=0.0, reinforce_delta=0.1, decay_rate=30.0)

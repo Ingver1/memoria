@@ -30,6 +30,7 @@ __all__ = [
     "PerformanceConfig",
     "ReliabilityConfig",
     "RankingConfig",
+    "DynamicsConfig",
     "APIConfig",
     "MonitoringConfig",
     "UnifiedSettings",
@@ -204,6 +205,26 @@ class RankingConfig(BaseModel):
     model_config = {"frozen": True}
 
 
+class DynamicsConfig(BaseModel):
+    """Defaults for memory dynamics such as decay and reinforcement."""
+
+    initial_intensity: float = 0.0
+    reinforce_delta: float = 0.1
+    decay_rate: float = 30.0
+
+    model_config = {"frozen": True}
+
+    @field_validator("initial_intensity", "reinforce_delta")
+    @classmethod
+    def _clamp_unit(cls, value: float) -> float:
+        return max(0.0, min(1.0, value))
+
+    @field_validator("decay_rate")
+    @classmethod
+    def _clamp_decay(cls, value: float) -> float:
+        return max(0.0, value)
+
+
 class APIConfig(BaseModel):
     """HTTP API options."""
 
@@ -269,6 +290,7 @@ class UnifiedSettings(BaseSettings):
     performance: PerformanceConfig = PerformanceConfig()
     reliability: ReliabilityConfig = ReliabilityConfig()
     ranking: RankingConfig = RankingConfig()
+    dynamics: DynamicsConfig = DynamicsConfig()
     api: APIConfig = APIConfig()
     monitoring: MonitoringConfig = MonitoringConfig()
 
@@ -288,6 +310,7 @@ class UnifiedSettings(BaseSettings):
         )
         object.__setattr__(self, "reliability", ReliabilityConfig(**self.reliability.model_dump()))
         object.__setattr__(self, "ranking", RankingConfig(**self.ranking.model_dump()))
+        object.__setattr__(self, "dynamics", DynamicsConfig(**self.dynamics.model_dump()))
         object.__setattr__(self, "api", APIConfig(**self.api.model_dump()))
         object.__setattr__(self, "monitoring", MonitoringConfig(**self.monitoring.model_dump()))
 
@@ -427,6 +450,7 @@ class UnifiedSettings(BaseSettings):
             "performance": scrub(self.performance),
             "reliability": scrub(self.reliability),
             "ranking": scrub(self.ranking),
+            "dynamics": scrub(self.dynamics),
             "api": scrub(self.api),
             "monitoring": scrub(self.monitoring),
         }

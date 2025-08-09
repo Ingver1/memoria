@@ -28,6 +28,7 @@ import uuid
 
 # stdlib
 from collections.abc import MutableMapping, Sequence
+from types import SimpleNamespace
 
 # local
 from dataclasses import dataclass
@@ -140,6 +141,20 @@ async def _resolve_store(
     return resolved
 
 
+def _get_dynamics() -> SimpleNamespace:
+    """Return dynamics configuration or sane defaults."""
+    try:  # lazy import to avoid heavy deps at import time
+        from memory_system.config.settings import get_settings
+
+        cfg = get_settings()
+        dyn = getattr(cfg, "dynamics", None)
+        if dyn is None:
+            raise AttributeError
+        return dyn
+    except Exception:  # pragma: no cover - settings module optional
+        return SimpleNamespace(initial_intensity=0.0, reinforce_delta=0.1, decay_rate=30.0)
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -149,7 +164,7 @@ async def add(
     text: str,
     *,
     valence: float = 0.0,
-    emotional_intensity: float = 0.0,
+    emotional_intensity: float | None = None,
     importance: float = 0.0,
     episode_id: str | None = None,
     modality: str = "text",
@@ -176,6 +191,12 @@ async def add(
     now = _dt.datetime.utcnow().replace(tzinfo=_dt.timezone.utc)
     meta: MutableMapping[str, Any] = dict(copy.deepcopy(metadata) if metadata else {})
     meta.setdefault("last_accessed", now.isoformat())
+    dyn = _get_dynamics()
+    if emotional_intensity is None:
+        emotional_intensity = dyn.initial_intensity
+    valence = max(-1.0, min(1.0, valence))
+    emotional_intensity = max(0.0, min(1.0, emotional_intensity))
+    importance = max(0.0, min(1.0, importance))
     memory = Memory(
         memory_id=str(uuid.uuid4()),
         text=text,
@@ -335,7 +356,7 @@ async def update(
 
 async def reinforce(
     memory_id: str,
-    amount: float = 0.1,
+    amount: float | None = None,
     *,
     valence_delta: float | None = None,
     intensity_delta: float | None = None,
@@ -351,7 +372,7 @@ async def reinforce(
 
     Args:
         memory_id (str): The memory identifier.
-        amount (float, optional): Importance increment. Defaults to 0.1.
+        amount (float | None, optional): Importance increment. Defaults to configured value.
         valence_delta (float | None, optional): Change applied to ``valence``.
         intensity_delta (float | None, optional): Change applied to
             ``emotional_intensity``.
@@ -362,6 +383,14 @@ async def reinforce(
     """
     st = await _resolve_store(store)
     meta = {"last_accessed": _dt.datetime.utcnow().replace(tzinfo=_dt.timezone.utc).isoformat()}
+    dyn = _get_dynamics()
+    if amount is None:
+        amount = dyn.reinforce_delta
+    amount = max(-1.0, min(1.0, amount))
+    if valence_delta is not None:
+        valence_delta = max(-1.0, min(1.0, valence_delta))
+    if intensity_delta is not None:
+        intensity_delta = max(-1.0, min(1.0, intensity_delta))
     try:
         updated = await asyncio.wait_for(
             st.update_memory(
@@ -479,8 +508,12 @@ def _score_decay(m: Memory, weights: ListBestWeights) -> float:
 
     base = _score_best(m, weights)
     last = _last_accessed(m)
-    age_days = max(0.0, (_dt.datetime.utcnow().replace(tzinfo=_dt.timezone.utc) - last).total_seconds() / 86_400.0)
-    return base * math.exp(-age_days / 30.0)
+    age_days = max(
+        0.0,
+        (_dt.datetime.utcnow().replace(tzinfo=_dt.timezone.utc) - last).total_seconds() / 86_400.0,
+    )
+    rate = max(_get_dynamics().decay_rate, 1e-9)
+    return base * math.exp(-age_days / rate)
 
 
 def _ensure_memory(m: Any) -> Memory:

@@ -36,20 +36,20 @@ def test_memory_new_validation_ok() -> None:
 
 
 @pytest.mark.parametrize(
-    "field,value",
+    "field,value,expected",
     [
-        ("importance", 1.1),
-        ("importance", -0.1),
-        ("valence", -1.1),
-        ("valence", 1.1),
-        ("emotional_intensity", 1.1),
-        ("emotional_intensity", -0.1),
+        ("importance", 1.1, 1.0),
+        ("importance", -0.1, 0.0),
+        ("valence", -1.1, -1.0),
+        ("valence", 1.1, 1.0),
+        ("emotional_intensity", 1.1, 1.0),
+        ("emotional_intensity", -0.1, 0.0),
     ],
 )
-def test_memory_new_validation_error(field: str, value: float) -> None:
+def test_memory_new_clamps(field: str, value: float, expected: float) -> None:
     kwargs = {field: value}
-    with pytest.raises(ValueError):
-        Memory.new("x", **kwargs)  # type: ignore[arg-type]
+    mem = Memory.new("x", **kwargs)  # type: ignore[arg-type]
+    assert getattr(mem, field) == pytest.approx(expected)
 
 
 @pytest.mark.asyncio
