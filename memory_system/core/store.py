@@ -24,6 +24,60 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence,
 # ─────────────────────── third-party imports ───────────────────────
 import aiosqlite
 
+try:  # Optional libSQL support
+    from libsql_client import create_client as _create_libsql_client
+except Exception:  # pragma: no cover - libsql optional
+    _create_libsql_client = None
+
+
+class _LibSQLRow(dict):
+    """Row object that supports both index and key access."""
+
+    def __init__(self, columns: Sequence[str], values: Sequence[Any]) -> None:
+        super().__init__(zip(columns, values))
+        self._values = list(values)
+
+    def __getitem__(self, item: Any) -> Any:  # type: ignore[override]
+        if isinstance(item, int):
+            return self._values[item]
+        return super().__getitem__(item)
+
+
+class _LibSQLCursor:
+    def __init__(self, result: Any) -> None:
+        cols = getattr(result, "columns", [])
+        rows = getattr(result, "rows", [])
+        self._rows = [_LibSQLRow(cols, row) for row in rows]
+        self._iter = iter(self._rows)
+
+    async def fetchone(self) -> _LibSQLRow | None:
+        try:
+            return next(self._iter)
+        except StopIteration:
+            return None
+
+    async def fetchall(self) -> list[_LibSQLRow]:
+        return list(self._rows)
+
+
+class _LibSQLConnection:
+    def __init__(self, client: Any) -> None:
+        self._client = client
+
+    async def execute(self, sql: str, params: Sequence[Any] | None = None) -> _LibSQLCursor:
+        res = await self._client.execute(sql, params or [])
+        return _LibSQLCursor(res)
+
+    async def executescript(self, script: str) -> None:
+        for stmt in filter(None, (s.strip() for s in script.split(";"))):
+            await self._client.execute(stmt)
+
+    async def commit(self) -> None:  # pragma: no cover - libsql auto commits
+        return None
+
+    async def close(self) -> None:
+        await self._client.close()
+
 if TYPE_CHECKING:  # pragma: no cover - optional FastAPI import for type hints
     from fastapi import FastAPI, Request
 
@@ -110,19 +164,26 @@ class SQLiteMemoryStore:
     """
 
     def __init__(self, dsn: str | Path = "file:memories.db?mode=rwc", *, pool_size: int = 5) -> None:
-        """Initialise the store with a SQLite DSN and connection pool size."""
+        """Initialise the store with a SQLite or libSQL DSN and pool size."""
+        self._use_libsql = False
         if isinstance(dsn, Path):
             self._path = dsn
             self._dsn = f"file:{dsn}?mode=rwc"
         else:
-            if dsn.startswith("sqlite+sqlcipher:///"):
+            if dsn.startswith("libsql://"):
+                self._dsn = dsn
+                self._use_libsql = True
+                self._path = Path(".")
+            elif dsn.startswith("sqlite+sqlcipher:///"):
                 path_part = dsn.split("sqlite+sqlcipher:///", 1)[1]
                 self._dsn = f"file:{path_part}?mode=rwc"
                 path_str = path_part
+                self._path = Path(path_str)
             elif dsn.startswith("sqlite:///"):
                 path_part = dsn.split("sqlite:///", 1)[1]
                 self._dsn = f"file:{path_part}?mode=rwc"
                 path_str = path_part
+                self._path = Path(path_str)
             else:
                 self._dsn = dsn
                 if dsn.startswith("file:"):
@@ -131,12 +192,13 @@ class SQLiteMemoryStore:
                     path_str = dsn.split("://", 1)[1].split("?", 1)[0]
                 else:
                     path_str = dsn
-            self._path = Path(path_str)
-        self._path.parent.mkdir(parents=True, exist_ok=True)
+                self._path = Path(path_str)
+        if not self._use_libsql:
+            self._path.parent.mkdir(parents=True, exist_ok=True)
         self._pool_size = pool_size
-        self._pool: asyncio.LifoQueue[aiosqlite.Connection] = asyncio.LifoQueue(maxsize=pool_size)
+        self._pool: asyncio.LifoQueue[Any] = asyncio.LifoQueue(maxsize=pool_size)
         self._conn = object()  # placeholder for tests
-        self._acquired: set[aiosqlite.Connection] = set()
+        self._acquired: set[Any] = set()
         try:
             self._loop = asyncio.get_running_loop()
         except RuntimeError:  # no running loop
@@ -150,8 +212,19 @@ class SQLiteMemoryStore:
     # ---------------------------------------------------------------------
     # Low‑level connection helpers
     # ---------------------------------------------------------------------
-    async def _acquire(self) -> aiosqlite.Connection:
+    async def _acquire(self) -> Any:
         """Obtain a connection from the pool, creating one if necessary."""
+        if self._use_libsql:
+            try:
+                conn = self._pool.get_nowait()
+            except asyncio.QueueEmpty:
+                if _create_libsql_client is None:  # pragma: no cover - optional dep
+                    raise RuntimeError("libsql-client is not installed")
+                raw = await _create_libsql_client(self._dsn)
+                conn = _LibSQLConnection(raw)
+                self._created += 1
+            self._acquired.add(conn)
+            return conn
         try:
             conn = self._pool.get_nowait()
         except asyncio.QueueEmpty:
@@ -167,7 +240,7 @@ class SQLiteMemoryStore:
         self._acquired.add(conn)
         return conn
 
-    async def _release(self, conn: aiosqlite.Connection) -> None:
+    async def _release(self, conn: Any) -> None:
         """Return ``conn`` to the pool or close it if the pool is full."""
         self._acquired.discard(conn)
         try:
