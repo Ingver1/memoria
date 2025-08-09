@@ -9,9 +9,9 @@ from typing import cast
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
 
+from memory_system import unified_memory
 from memory_system.api.schemas import MemoryCreate, MemoryQuery, MemoryRead
 from memory_system.core.store import Memory, SQLiteMemoryStore, get_memory_store, get_store
-from memory_system import unified_memory
 from memory_system.utils.security import EnhancedPIIFilter
 
 log = logging.getLogger(__name__)

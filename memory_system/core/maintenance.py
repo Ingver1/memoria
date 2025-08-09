@@ -144,9 +144,7 @@ async def consolidate_store(
             continue
 
         cluster_mems = [all_mems[i] for i in group]
-        summary_text, importance, valence, intensity = summarize_cluster(
-            cluster_mems, strategy=strategy
-        )
+        summary_text, importance, valence, intensity = summarize_cluster(cluster_mems, strategy=strategy)
         if not summary_text:
             continue
 

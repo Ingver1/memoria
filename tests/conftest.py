@@ -32,6 +32,7 @@ except Exception:  # FastAPI or its dependencies may be missing
     TestClient = None  # type: ignore[assignment]
 
 from memory_system import __version__
+
 try:
     from memory_system.api.app import create_app
 except Exception:  # pragma: no cover - optional FastAPI dependency

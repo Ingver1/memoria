@@ -87,9 +87,7 @@ class HierarchicalSummarizer:
             embeddings = embeddings.reshape(1, -1)
         assert embeddings.shape[0] == len(mems)
 
-        clusters = _cluster_embeddings(
-            [embeddings[i] for i in range(embeddings.shape[0])], self.threshold
-        )
+        clusters = _cluster_embeddings([embeddings[i] for i in range(embeddings.shape[0])], self.threshold)
 
         created: List[Memory] = []
         target_level = source_level + 1

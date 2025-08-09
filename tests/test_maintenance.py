@@ -76,12 +76,8 @@ async def test_property_consolidation(store, index, random_texts, fake_embed):
 
 
 async def test_concat_strategy(store, index, fake_embed):
-    mem1 = Memory.new(
-        "a cat", importance=0.2, valence=0.4, emotional_intensity=0.6
-    )
-    mem2 = Memory.new(
-        "the cat", importance=0.4, valence=-0.2, emotional_intensity=0.2
-    )
+    mem1 = Memory.new("a cat", importance=0.2, valence=0.4, emotional_intensity=0.6)
+    mem2 = Memory.new("the cat", importance=0.4, valence=-0.2, emotional_intensity=0.2)
     for m in (mem1, mem2):
         await store.add(m)
         vec = fake_embed(m.text)
@@ -94,13 +90,9 @@ async def test_concat_strategy(store, index, fake_embed):
     assert len(created) == 1
     summary = created[0]
     assert summary.text == "a cat the cat"
-    assert summary.importance == pytest.approx(
-        np.mean([mem1.importance, mem2.importance])
-    )
+    assert summary.importance == pytest.approx(np.mean([mem1.importance, mem2.importance]))
     assert summary.valence == pytest.approx(np.mean([mem1.valence, mem2.valence]))
-    assert summary.emotional_intensity == pytest.approx(
-        np.mean([mem1.emotional_intensity, mem2.emotional_intensity])
-    )
+    assert summary.emotional_intensity == pytest.approx(np.mean([mem1.emotional_intensity, mem2.emotional_intensity]))
 
 
 # Property-based test for forgetting low-scored memories
@@ -124,12 +116,8 @@ async def test_property_forgetting(store, index, random_texts, fake_embed, data)
 
 async def test_negative_valence_increases_forgetting(store, index, fake_embed):
     """Memories with negative valence should be forgotten before positive ones."""
-    pos = Memory.new(
-        "pleasant", importance=0.5, valence=0.5, emotional_intensity=0.5
-    )
-    neg = Memory.new(
-        "unpleasant", importance=0.5, valence=-0.5, emotional_intensity=0.5
-    )
+    pos = Memory.new("pleasant", importance=0.5, valence=0.5, emotional_intensity=0.5)
+    neg = Memory.new("unpleasant", importance=0.5, valence=-0.5, emotional_intensity=0.5)
 
     for mem in (pos, neg):
         await store.add(mem)
