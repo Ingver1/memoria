@@ -646,7 +646,9 @@ class SQLiteMemoryStore:
                 )
             elif importance_delta is not None:
                 await conn.execute(
-                    "UPDATE memories SET importance = importance + ? WHERE id = ?",
+                    "UPDATE memories "
+                    "SET importance = MAX(0.0, MIN(1.0, importance + ?)) "
+                    "WHERE id = ?",
                     (importance_delta, memory_id),
                 )
 
