@@ -1,7 +1,7 @@
 """memory_system.api.app
 =======================
 FastAPI application setup with:
-* Lifespan‑managed `SQLiteMemoryStore` (no hidden globals).
+* Lifespan‑managed `EnhancedMemoryStore` (no hidden globals).
 * OpenTelemetry middleware for distributed tracing.
 * Basic `/health/live` and `/health/ready` endpoints for liveness & readiness probes.
 """
@@ -12,7 +12,7 @@ import importlib
 import json
 import logging
 import os
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, AsyncIterator, cast
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -52,7 +52,8 @@ from memory_system.config.settings import (
     configure_logging,
     get_settings,
 )
-from memory_system.core.store import SQLiteMemoryStore, get_memory_store, get_store
+from memory_system.core.enhanced_store import EnhancedMemoryStore
+from memory_system.core.store import Memory, get_memory_store
 from memory_system.memory_helpers import MemoryStoreProtocol, add, delete, search
 
 logger = logging.getLogger(__name__)
@@ -87,6 +88,46 @@ async def search_memory(
     store = cast(MemoryStoreProtocol, get_memory_store(request))
     metadata_filter = json.loads(metadata) if metadata else None
     return await search(q, k=limit, metadata_filter=metadata_filter, store=store)
+
+@router.post("/batch", summary="Add memories batch", response_description="Memory UUIDs")
+async def add_memories_batch(request: Request, body: list[dict[str, Any]]) -> dict[str, list[str]]:
+    """Add multiple memories in a single request."""
+    store = cast(MemoryStoreProtocol, get_memory_store(request))
+    if isinstance(store, EnhancedMemoryStore):
+        mems = await store.add_memories_batch(body)
+        return {"ids": [m.id for m in mems]}
+    memories = [Memory.new(item["text"], metadata=item.get("metadata", {})) for item in body]
+    await store.add_many(memories)  # type: ignore[attr-defined]
+    return {"ids": [m.id for m in memories]}
+
+
+@router.post("/stream", summary="Stream memories", response_description="Count of inserted records")
+async def stream_memories(request: Request) -> dict[str, int]:
+    """Stream newline-delimited JSON memories to the store."""
+    store = cast(MemoryStoreProtocol, get_memory_store(request))
+
+    async def _aiter() -> AsyncIterator[dict[str, Any]]:
+        async for line in request.stream():
+            if not line:
+                continue
+            yield json.loads(line)
+
+    if isinstance(store, EnhancedMemoryStore):
+        count = await store.add_memories_streaming(_aiter())
+        return {"added": count}
+
+    batch: list[Memory] = []
+    count = 0
+    async for item in _aiter():
+        batch.append(Memory.new(item["text"], metadata=item.get("metadata", {})))
+        if len(batch) >= 100:
+            await store.add_many(batch)  # type: ignore[attr-defined]
+            count += len(batch)
+            batch.clear()
+    if batch:
+        await store.add_many(batch)  # type: ignore[attr-defined]
+        count += len(batch)
+    return {"added": count}
 
 
 # ---------------------------------------------------------------------------
@@ -136,7 +177,7 @@ def create_app(settings: UnifiedSettings | None = None) -> FastAPI:  # pragma: n
     @app.get("/health/ready", include_in_schema=False)
     async def ready(request: Request) -> dict[str, str]:
         try:
-            store: SQLiteMemoryStore = get_memory_store(request)
+            store: EnhancedMemoryStore = get_memory_store(request)
             await store.ping()
             return {"status": "ready"}
         except Exception as exc:  # pylint: disable=broad-except
@@ -146,17 +187,18 @@ def create_app(settings: UnifiedSettings | None = None) -> FastAPI:  # pragma: n
     # Lifespan --------------------------------------------------------------
     @app.on_event("startup")
     async def _startup() -> None:
-        app.state.store = await get_store(settings.database.db_path)
-        app.state.memory_store = app.state.store
+        store = EnhancedMemoryStore(settings)
+        app.state.store = store
+        app.state.memory_store = store
         # Dependency bridge ----------------------------------------------------
-        app.dependency_overrides[get_memory_store] = lambda req: cast(SQLiteMemoryStore, req.app.state.memory_store)
-        logger.info("SQLiteMemoryStore initialised")
+        app.dependency_overrides[get_memory_store] = lambda req: cast(EnhancedMemoryStore, req.app.state.memory_store)
+        logger.info("EnhancedMemoryStore initialised")
 
     @app.on_event("shutdown")
     async def _shutdown() -> None:
-        store = cast(SQLiteMemoryStore, app.state.store)
-        await store.aclose()
-        logger.info("SQLiteMemoryStore closed")
+        store = cast(EnhancedMemoryStore, app.state.store)
+        await store.close()
+        logger.info("EnhancedMemoryStore closed")
 
     # Routers ---------------------------------------------------------------
     # Memory endpoints live under /api/v1/memory
