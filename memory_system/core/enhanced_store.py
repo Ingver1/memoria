@@ -9,6 +9,7 @@ import asyncio
 import datetime as dt
 import time
 import uuid
+from contextlib import suppress
 from dataclasses import dataclass
 from typing import Any
 
@@ -83,6 +84,14 @@ class EnhancedMemoryStore:
         self._store.add_commit_hook(_save_index)
         self._closed = False
 
+        # Recall monitoring configuration
+        self._control_queries: list[tuple[np.ndarray, set[str]]] = []
+        self._recall_target = 0.9
+        self._monitor_interval = 60.0
+        self._min_ef_search = max(16, settings.model.hnsw_ef_search // 2)
+        self._max_ef_search = settings.model.hnsw_ef_search * 4
+        self._monitor_task = asyncio.create_task(self._monitor_recall_loop())
+
     async def get_health(self) -> HealthComponent:
         """Get health status."""
         uptime = int(time.time() - self._start_time)
@@ -125,8 +134,48 @@ class EnhancedMemoryStore:
 
     async def close(self) -> None:
         """Close the store."""
+        self._monitor_task.cancel()
+        with suppress(Exception):
+            await self._monitor_task
         await self._store.aclose()
         self._closed = True
+
+    def add_control_query(self, embedding: list[float], expected_ids: list[str]) -> None:
+        """Register a control query used for recall monitoring."""
+        vec = np.asarray(embedding, dtype=np.float32)
+        self._control_queries.append((vec, set(expected_ids)))
+
+    async def _monitor_recall_loop(self) -> None:
+        """Background task that monitors index recall and tunes ef_search."""
+        try:
+            while True:
+                await asyncio.sleep(self._monitor_interval)
+                await self._evaluate_recall()
+        except asyncio.CancelledError:  # pragma: no cover - task cancelled on shutdown
+            return
+
+    async def _evaluate_recall(self) -> None:
+        """Evaluate recall on control queries and adjust ef_search."""
+        if not self._control_queries:
+            return
+        recalls: list[float] = []
+        for vec, expected in self._control_queries:
+            k = max(len(expected), 10)
+            ids, _ = self._index.search(vec, k=k)
+            if expected:
+                recalls.append(len(set(ids) & expected) / len(expected))
+        if not recalls:
+            return
+        avg_recall = float(sum(recalls) / len(recalls))
+        if avg_recall < self._recall_target and self._index.ef_search < self._max_ef_search:
+            new_ef = min(self._index.ef_search * 2, self._max_ef_search)
+            self._index.search(self._control_queries[0][0], k=1, ef_search=new_ef)
+        elif (
+            avg_recall > self._recall_target + 0.05
+            and self._index.ef_search > self._min_ef_search
+        ):
+            new_ef = max(self._index.ef_search // 2, self._min_ef_search)
+            self._index.search(self._control_queries[0][0], k=1, ef_search=new_ef)
 
     # ------------------------------------------------------------------
     # Stubs matching the expected public API used by routes/tests
