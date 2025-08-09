@@ -78,7 +78,13 @@ class MemoryStoreProtocol(Protocol):
 
     async def upsert_scores(self, scores: Sequence[tuple[str, float]]) -> None: ...
 
-    async def top_n_by_score(self, n: int) -> Sequence[Memory]: ...
+    async def top_n_by_score(
+        self,
+        n: int,
+        *,
+        level: int | None = None,
+        metadata_filter: MutableMapping[str, Any] | None = None,
+    ) -> Sequence[Memory]: ...
 
 
 logger = logging.getLogger(__name__)
@@ -446,25 +452,46 @@ async def list_best(
     n: int = 5,
     *,
     store: MemoryStoreProtocol | None = None,
+    level: int | None = None,
+    metadata_filter: MutableMapping[str, Any] | None = None,
     weights: ListBestWeights | None = None,
 ) -> Sequence[Memory]:
-    """Return *n* memories ranked by score.
-
-    When *weights* is ``None`` the function relies on precomputed
-    scores stored in the :class:`MemoryStoreProtocol` implementation.
-    Supplying a :class:`ListBestWeights` instance allows callers to
-    influence ranking at query time by re-scoring retrieved memories.
     """
+    Return the `n` memories ranked by score.
 
+    Parameters
+    ----------
+    n:
+        Number of memories to return.
+    store:
+        Optional explicit memory store.
+    level:
+        Optional level filter applied before ranking.
+    metadata_filter:
+        Optional metadata constraints (exact match) applied before ranking.
+    weights:
+        If None (default) use precomputed scores from the store.
+        If provided, the function fetches a candidate pool and *re-scores*
+        the candidates using `_score_best(m, weights)` at query time.
+
+    Notes
+    -----
+    - When `weights` is not None we over-sample candidates (max(n*10, 10))
+      to make re-ranking meaningful, then slice to `n`.
+    """
     st = await _resolve_store(store)
     try:
-        limit = n if weights is None else max(n * 10, n)
+        limit = n if weights is None else max(n * 10, 10)
         candidates = await asyncio.wait_for(
-            st.top_n_by_score(limit),
+            st.top_n_by_score(
+                limit,
+                level=level,
+                metadata_filter=metadata_filter,
+            ),
             timeout=ASYNC_TIMEOUT,
         )
     except Exception as e:
-        logger.error("List best failed: %s", e)
+        logger.error("list_best failed: %s", e)
         raise
 
     mems = [_ensure_memory(m) for m in candidates]

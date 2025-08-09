@@ -482,6 +482,28 @@ class TestMemoryEndpoints:
         assert resp.status_code == 200
         assert len(resp.json()) == 2
 
+    def test_best_memories_level_and_filter(self, test_client: TestClient) -> None:
+        """Level and metadata filters should narrow results."""
+        import asyncio
+        from memory_system.core.store import Memory as StoreMemory
+
+        store = test_client.app.state.store
+        loop = asyncio.get_event_loop()
+        m0 = StoreMemory(id="m0", text="base", level=0, metadata={"user_id": "u1"})
+        m1 = StoreMemory(id="m1", text="lvl1", level=1, metadata={"user_id": "u2"})
+        loop.run_until_complete(store.add_memory(m0))
+        loop.run_until_complete(store.add_memory(m1))
+        loop.run_until_complete(store.upsert_scores([(m0.id, 0.1), (m1.id, 0.2)]))
+
+        resp = test_client.get(
+            "/api/v1/memory/best",
+            params={"limit": 5, "level": 1, "user_id": "u2"},
+        )
+        assert resp.status_code == 200
+        payload = resp.json()
+        assert len(payload) == 1
+        assert payload[0]["id"] == "m1"
+
     def test_best_memories_custom_weights(self, test_client: TestClient, tmp_path: Path) -> None:
         """Query-time weights should influence ranking."""
         import asyncio

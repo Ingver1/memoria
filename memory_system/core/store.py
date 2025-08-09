@@ -19,7 +19,7 @@ from collections.abc import AsyncIterator
 # ───────────────────────── local imports ───────────────────────────
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, cast
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, MutableMapping, Optional, Sequence, cast
 
 # ─────────────────────── third-party imports ───────────────────────
 import aiosqlite
@@ -707,18 +707,51 @@ class SQLiteMemoryStore:
         finally:
             await self._release(conn)
 
-    async def top_n_by_score(self, n: int) -> List[Memory]:
-        """Return ``n`` memories ordered by precomputed score."""
+    async def top_n_by_score(
+        self,
+        n: int,
+        *,
+        level: int | None = None,
+        metadata_filter: MutableMapping[str, Any] | None = None,
+    ) -> List[Memory]:
+        """Return ``n`` memories ordered by precomputed score.
+
+        Parameters
+        ----------
+        n:
+            Number of memories to return.
+        level:
+            Optional exact level filter.
+        metadata_filter:
+            Mapping of metadata key/value pairs that must all match.
+        """
+
         await self.initialise()
         conn = await self._acquire()
         try:
-            cursor = await conn.execute(
+            clauses: list[str] = []
+            params: list[Any] = []
+            if level is not None:
+                clauses.append("m.level = ?")
+                params.append(level)
+            if metadata_filter:
+                for key, val in metadata_filter.items():
+                    if key in {"episode_id", "modality"}:
+                        clauses.append(f"m.{key} = ?")
+                        params.append(val)
+                    else:
+                        clauses.append("json_extract(m.metadata, ?) = ?")
+                        params.extend([f"$.{key}", val])
+            sql = (
                 "SELECT m.id, m.text, m.created_at, m.importance, m.valence, "
                 "m.emotional_intensity, m.level, m.episode_id, m.modality, m.connections, m.metadata "
-                "FROM memory_scores s JOIN memories m ON m.id = s.memory_id "
-                "ORDER BY s.score DESC LIMIT ?",
-                (n,),
+                "FROM memory_scores s JOIN memories m ON m.id = s.memory_id"
             )
+            if clauses:
+                sql += " WHERE " + " AND ".join(clauses)
+            sql += " ORDER BY s.score DESC LIMIT ?"
+            params.append(n)
+            cursor = await conn.execute(sql, params)
             rows = await cursor.fetchall()
             return [self._row_to_memory(r) for r in rows]
         finally:

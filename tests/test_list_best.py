@@ -4,6 +4,7 @@ import pytest
 
 from memory_system import memory_helpers as mh
 from memory_system import unified_memory as um
+from memory_system.core.store import Memory as StoreMemory
 
 
 @pytest.mark.asyncio
@@ -80,3 +81,19 @@ async def test_config_weights_change_ranking(monkeypatch, store):
 
     best = await um.list_best(n=2, store=store)
     assert best[0].memory_id == neg.memory_id
+
+
+@pytest.mark.asyncio
+async def test_level_and_metadata_filters(store):
+    """`list_best` should respect level and metadata filters."""
+    mem0 = StoreMemory(id="m0", text="base", level=0, metadata={"user_id": "u1"})
+    mem1 = StoreMemory(id="m1", text="lvl1", level=1, metadata={"user_id": "u2"})
+    await store.add_memory(mem0)
+    await store.add_memory(mem1)
+    await store.upsert_scores([(mem0.id, 0.1), (mem1.id, 0.2)])
+
+    best_lvl1 = await um.list_best(n=5, store=store, level=1)
+    assert [m.memory_id for m in best_lvl1] == [mem1.id]
+
+    best_user = await um.list_best(n=5, store=store, metadata_filter={"user_id": "u1"})
+    assert [m.memory_id for m in best_user] == [mem0.id]

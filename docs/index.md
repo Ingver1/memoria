@@ -33,10 +33,12 @@ The `/api/v1/memory/best` endpoint scores memories using weighted attributes:
 
 Defaults are configured via `RankingConfig` and may be overridden with
 environment variables such as `AI_RANKING__IMPORTANCE=2.0`.
-Per-request weights can be supplied as query parameters:
+Per-request weights can be supplied as query parameters.  Results may also
+be limited to a specific ``level`` or filtered by metadata fields such as
+``user_id``:
 
 ```bash
-curl "http://localhost:8000/api/v1/memory/best?limit=2&importance=2.0&valence_neg=1.0"
+curl "http://localhost:8000/api/v1/memory/best?limit=2&level=1&user_id=42&importance=2.0&valence_neg=1.0"
 ```
 
 ## Database Encryption
