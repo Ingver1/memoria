@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from memory_system.core.store import Memory, SQLiteMemoryStore, get_store
+from memory_system.unified_memory import add as um_add, reinforce
 
 
 @pytest.fixture
@@ -124,3 +125,30 @@ async def test_get_store_recreates_on_path_change(tmp_path: Path) -> None:
 
     await store2.aclose()
     store_mod._STORE = None
+
+
+def test_update_memory_increments_importance_and_merges_metadata(
+    store: SQLiteMemoryStore,
+) -> None:
+    async def _run() -> None:
+        mem = Memory.new("base", importance=0.2, metadata={"a": 1})
+        await store.add(mem)
+
+        updated = await store.update_memory(
+            mem.id, importance_delta=0.3, metadata={"b": 2}
+        )
+
+        assert abs(updated.importance - 0.5) < 1e-6
+        assert updated.metadata == {"a": 1, "b": 2}
+
+    asyncio.run(_run())
+
+
+def test_reinforce_returns_updated_importance(store: SQLiteMemoryStore) -> None:
+    async def _run() -> None:
+        mem = await um_add("hi", importance=0.1, store=store)
+        updated = await reinforce(mem.memory_id, 0.2, store=store)
+
+        assert abs(updated.importance - 0.3) < 1e-6
+
+    asyncio.run(_run())

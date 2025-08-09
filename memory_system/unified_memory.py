@@ -297,11 +297,13 @@ async def reinforce(
     """
     st = await _resolve_store(store)
     meta = {
-        "importance_delta": amount,
         "last_accessed": _dt.datetime.utcnow().replace(tzinfo=_dt.timezone.utc).isoformat(),
     }
     try:
-        updated = await asyncio.wait_for(st.update_memory(memory_id, metadata=meta), timeout=ASYNC_TIMEOUT)
+        updated = await asyncio.wait_for(
+            st.update_memory(memory_id, importance_delta=amount, metadata=meta),
+            timeout=ASYNC_TIMEOUT,
+        )
         logger.debug("Memory %s reinforced by %.2f.", memory_id, amount)
     except Exception as e:
         logger.error("Reinforce failed: %s", e)
