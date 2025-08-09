@@ -18,7 +18,6 @@ from memory_system.utils.metrics import (
     CACHE_MISSES_TOTAL,
 )
 
-
 pytestmark = [pytest.mark.needs_fastapi, pytest.mark.needs_httpx]
 
 
