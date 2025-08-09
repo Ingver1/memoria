@@ -16,8 +16,7 @@ except ImportError:  # FastAPI >= 0.111
     from fastapi.testclient import TestClient
 from starlette.responses import Response
 
-from memory_system import __version__
-from memory_system import unified_memory
+from memory_system import __version__, unified_memory
 from memory_system.api.app import create_app
 from memory_system.api.schemas import (
     ErrorResponse,
@@ -485,6 +484,7 @@ class TestMemoryEndpoints:
     def test_best_memories_level_and_filter(self, test_client: TestClient) -> None:
         """Level and metadata filters should narrow results."""
         import asyncio
+
         from memory_system.core.store import Memory as StoreMemory
 
         store = test_client.app.state.store
