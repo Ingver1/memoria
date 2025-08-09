@@ -260,13 +260,13 @@ async def forget_old_memories(
     ):
         for m in chunk:
             last_access = m.created_at
-            if ttl is not None and m.metadata:
+            if m.metadata:
                 ts = m.metadata.get("last_accessed")
                 if isinstance(ts, str):
                     try:
                         last_access = dt.datetime.fromisoformat(ts)
                     except ValueError:
-                        last_access = m.created_at
+                        pass
             if ttl is not None and (now - last_access).total_seconds() > ttl:
                 try:
                     await store.update_memory(m.id, importance=0.0)
@@ -276,7 +276,7 @@ async def forget_old_memories(
                 continue
 
             total += 1
-            age_days = max(0.0, (now - m.created_at).total_seconds() / 86_400.0)
+            age_days = max(0.0, (now - last_access).total_seconds() / 86_400.0)
             score = _decay_score(
                 importance=m.importance,
                 valence=m.valence,
