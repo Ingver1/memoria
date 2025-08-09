@@ -62,7 +62,21 @@ All CPU-bound FAISS calls run in the default thread pool for snappy event loop.
 
 ---
 
-## 4. API Surface 🌐
+## 4. Hierarchical summarisation 🧩
+Memories can be compacted into higher-level summaries to keep the store
+manageable over time.
+
+- Each memory carries a numeric `level`; raw inserts start at `0`.
+- The `HierarchicalSummarizer` groups memories on a source level by cosine
+  similarity and writes a new summary to `level + 1`.
+- Singleton memories that do not meet the clustering threshold are tagged
+  with `metadata['final'] = True` so they are skipped on future passes.
+- Summaries keep track of their inputs via `metadata['source_ids']` and
+  `metadata['cluster_size']`.
+
+---
+
+## 5. API Surface 🌐
 - REST (`/memory/add`, `/search`)
 - Events (`/sse`) — memory-updated stream
 - CLI (`ai-mem add/search`)
@@ -72,7 +86,7 @@ All endpoints use FastAPI + OpenTelemetryMiddleware for full span tracing.
 
 ---
 
-## 5. Observability 👀
+## 6. Observability 👀
 | Component | Tech                                       |
 |-----------|--------------------------------------------|
 | Metrics   | prometheus_client (latency, faiss_queries) |
@@ -85,7 +99,7 @@ Additional metrics:
 
 ---
 
-## 6. Deployment 🚀
+## 7. Deployment 🚀
 - Single-container image (`python:3.12-slim-bookworm`, ≈120 MB)
 - Health probes:
   - `/health/live` → liveness (always 200 unless Uvicorn crashes)
