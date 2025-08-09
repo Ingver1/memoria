@@ -166,79 +166,84 @@ class EnhancedMemoryStore:
         return mem
 
     async def semantic_search(
-        self,
-        *,
-        embedding: list[float],
-        k: int = 5,
-        return_distance: bool = False,
-        ef_search: int | None = None,
-        level: int | None = None,
-        metadata_filter: dict[str, Any] | None = None,
-    ) -> list[Any]:
-        """Perform a semantic embedding search.
+    self,
+    *,
+    vector: list[float],
+    k: int = 5,
+    return_distance: bool = False,
+    ef_search: int | None = None,
+    metadata_filter: dict[str, Any] | None = None,
+    level: int | None = None,
+) -> list[Any]:
+    """
+    Perform a semantic vector search.
 
-        Parameters
-        ----------
-        embedding:
-            Query embedding.
-        k:
-            Number of nearest neighbours to return.
-        return_distance:
-            When ``True`` return a ``(Memory, distance)`` tuple for each hit.
-            Otherwise only :class:`Memory` instances are returned.
-        ef_search:
-            Controls HNSW search quality.
-            metadata_filter:
-            Optional metadata constraints. When provided, only memories whose
-            metadata matches all key/value pairs participate in the search.
-        level:
-            When provided, restrict results to memories stored at this level.
+    Parameters
+    ----------
+    vector:
+        Query embedding (list of floats).
+    k:
+        Number of nearest neighbours to return.
+    return_distance:
+        When True, return (Memory, distance) tuples; otherwise return Memory.
+    ef_search:
+        Controls HNSW search quality.
+    metadata_filter:
+        Optional metadata constraints. When provided, only memories whose
+        metadata matches all key/value pairs participate in the results.
+    level:
+        Optional logical level constraint; only memories at this level
+        are returned.
 
-        Returns
-        -------
-        list[Any]
-            A list of memories, optionally paired with their distance from the
-            query embedding.
-        """
-        search_k = k * 5 if level is not None else k
-        vec = np.asarray(embedding, dtype=np.float32)
-        if metadata_filter:
-            # Obtain candidate IDs matching the metadata filter from the SQLite store
-            allowed = await self._store.search(
-                metadata_filters=metadata_filter, limit=self._memory_count or k
-            )
-            id_map = {m.id: m for m in allowed}
-            if not id_map:
-                return []
-            ids, dists = self._index.search(vec, k=self._memory_count or k, ef_search=ef_search)
-            filtered = [
-                (_id, dist)
-                for _id, dist in zip(ids, dists, strict=False)
-                if _id in id_map
-            ][0:k]
-        else:
-            ids, dists = self._index.search(vec, k=k, ef_search=ef_search)
-            id_map = {}
-            filtered = list(zip(ids, dists))
+    Returns
+    -------
+    list[Any]
+        A list of memories (optionally paired with their distance).
+    """
+    # Widen the ANN probe only if we plan to post-filter.
+    need_filter = (metadata_filter is not None) or (level is not None)
+    total = self._index.stats().total_vectors or k
+    search_k = min((k * 5) if need_filter else k, max(1, total))
 
-        ids, dists = self._index.search(
-            np.asarray(embedding, dtype=np.float32), k=search_k, ef_search=ef_search
+    vec = np.asarray(vector, dtype=np.float32)
+
+    # Single ANN search
+    ids, dists = self._index.search(vec, k=search_k, ef_search=ef_search)
+    candidates = list(zip(ids, dists, strict=False))
+
+    # Optional precomputation of allowed IDs via the SQLite store
+    if need_filter:
+        allowed_mems = await self._store.search(
+            metadata_filters=metadata_filter,
+            limit=total,  # cover whole corpus; store caps internally if needed
         )
+        allowed_ids = {m.id for m in allowed_mems}
+        if level is not None:
+            # If Memory has a `level` field, filter by it as well
+            allowed_ids = {
+                mid for mid in allowed_ids
+                if (getattr(await self._store.get(mid), "level", None) == level)
+            }
+        if not allowed_ids:
+            return []
 
-        results: list[Any] = []
-        for _id, dist in zip(ids, dists, strict=False):
-            if len(results) >= k:
-                break
-            mem = await self._store.get(_id)
-            if mem is None:
-                continue
-            if level is not None and mem.level != level:
-                continue
-            if return_distance:
-                results.append((mem, float(dist)))
-            else:
-                results.append(mem)
-        return results
+        # Keep only candidates that pass constraints, then trim to k
+        candidates = [(_id, dist) for _id, dist in candidates if _id in allowed_ids][:k]
+    else:
+        candidates = candidates[:k]
+
+    # Materialize Memory objects and build the final result list
+    results: list[Any] = []
+    for _id, dist in candidates:
+        mem = await self._store.get(_id)
+        if mem is None:
+            continue
+        if (level is not None) and (getattr(mem, "level", None) != level):
+            # Defensive guard in case the store call above didn’t filter by level
+            continue
+        results.append((mem, float(dist)) if return_distance else mem)
+
+    return results
 
     async def list_memories(self, user_id: str | None = None) -> list[Memory]:
         """List memories, optionally filtering by ``user_id``."""
