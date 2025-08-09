@@ -40,7 +40,11 @@ from pydantic import BaseModel, SecretStr, ValidationInfo, field_validator
 
 __all__ = [
     "CryptoContext",
+    "KeyManager",
     "KeyManagementBackend",
+    "LocalKeyManager",
+    "VaultKeyManager",
+    "AWSKMSKeyManager",
     "LocalKeyBackend",
     "PIIPatterns",
     "EnhancedPIIFilter",
@@ -80,6 +84,48 @@ class ManagedKey(BaseModel):
 
     def as_fernet(self) -> Fernet:
         return Fernet(self.fernet_key.get_secret_value().encode())
+
+
+# ---------------------------------------------------------------------------
+# High level key manager interface
+# ---------------------------------------------------------------------------
+class KeyManager(ABC):
+    """Retrieve encryption keys from various backends."""
+
+    @abstractmethod
+    def get_key(self) -> str:
+        """Return a base64‑encoded 32‑byte key suitable for ``Fernet``."""
+        raise NotImplementedError
+
+
+class LocalKeyManager(KeyManager):
+    """Key manager that simply returns a provided local key."""
+
+    def __init__(self, key: str) -> None:
+        self._key = key
+
+    def get_key(self) -> str:
+        return self._key
+
+
+class VaultKeyManager(KeyManager):
+    """Placeholder for a HashiCorp Vault backed key manager."""
+
+    def __init__(self, **params: Any) -> None:
+        self.params = params
+
+    def get_key(self) -> str:  # pragma: no cover - placeholder
+        raise NotImplementedError("HashiCorp Vault integration not implemented")
+
+
+class AWSKMSKeyManager(KeyManager):
+    """Placeholder for an AWS KMS backed key manager."""
+
+    def __init__(self, **params: Any) -> None:
+        self.params = params
+
+    def get_key(self) -> str:  # pragma: no cover - placeholder
+        raise NotImplementedError("AWS KMS integration not implemented")
 
 
 # ---------------------------------------------------------------------------

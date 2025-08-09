@@ -92,7 +92,7 @@ pytest -q -m "not perf"
 
 | Env var                  | Default                | Description           |
 |--------------------------|------------------------|-----------------------|
-| AI_DATABASE__URL         | sqlite:///./data/memory.db | DB path / DSN     |
+| AI_DATABASE__URL         | sqlite:///./data/memory.db | DB path / DSN (use `libsql://` for remote) |
 | AI_DATABASE__BACKEND     | faiss                  | Vector store backend  |
 | AI_DATABASE__QDRANT_URL  | http://localhost:6333  | Qdrant endpoint       |
 | AI_DATABASE__QDRANT_COLLECTION | memory           | Qdrant collection     |
@@ -150,6 +150,20 @@ AI_DATABASE__URL=sqlite+sqlcipher:///./data/memory.db
 - **SQLCipher** – protects the entire database (metadata, indices). Choose when
   host or disk access is untrusted; requires the SQLCipher driver and adds a
   small performance cost.
+
+### Key management backends
+
+Encryption keys can be supplied directly or loaded from an external key
+management service. Configure this behaviour via the `kms_backend` field in
+`SecurityConfig`:
+
+```bash
+AI_SECURITY__KMS_BACKEND=local        # or 'vault', 'aws'
+AI_SECURITY__KMS_PARAMS='{"url":"https://vault"}'
+```
+
+`vault` and `aws` are currently placeholders that raise
+`NotImplementedError` when used.
 
 ---
 

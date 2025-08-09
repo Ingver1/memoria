@@ -97,6 +97,8 @@ class SecurityConfig(BaseModel):
     max_text_length: PositiveInt = 10_000
     rate_limit_per_minute: PositiveInt = 1_000
     api_token: str = "your-secret-token-change-me"
+    kms_backend: str | None = None
+    kms_params: dict[str, Any] = Field(default_factory=dict)
 
     model_config = {"frozen": True}
 
@@ -130,6 +132,16 @@ class SecurityConfig(BaseModel):
     def _validate_token(cls, value: str) -> str:
         if len(value) < 8:
             raise ValueError("API token must be at least 8 characters long")
+        return value
+
+    @field_validator("kms_backend")
+    @classmethod
+    def _validate_kms_backend(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        allowed = {"local", "aws", "vault"}
+        if value not in allowed:
+            raise ValueError(f"kms_backend must be one of {allowed}")
         return value
 
 
