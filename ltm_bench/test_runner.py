@@ -17,9 +17,7 @@ def ensure_no_pii(results: Iterable[str]) -> bool:
     return True
 
 
-def run_report(
-    index_path: str | Path, search_results: Iterable[str]
-) -> dict[str, object]:
+def run_report(index_path: str | Path, search_results: Iterable[str]) -> dict[str, object]:
     """Run security checks and return a small summary report.
 
     Parameters
