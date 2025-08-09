@@ -192,7 +192,7 @@ class MemorySearchResult(MemoryRead):
 class HealthResponse(BaseModel):
     """Global health report for the service."""
 
-    status: str = Field(..., description="healthy | degraded | unhealthy")
+    status: str = Field(..., description="healthy | degraded | unhealthy | reindexing")
     timestamp: str
     uptime_seconds: int = Field(..., ge=0)
     version: str = Field(_SERVICE_VERSION, description="Service version")

@@ -75,8 +75,13 @@ async def health_check() -> Response:
     """Return basic health information including component checks."""
     store = await _store()
     component = await store.get_health()
+    status_str = (
+        "reindexing"
+        if getattr(component, "reindexing", False)
+        else ("healthy" if component.healthy else "unhealthy")
+    )
     payload = HealthResponse(
-        status="healthy" if component.healthy else "unhealthy",
+        status=status_str,
         timestamp=datetime.now(UTC).isoformat(),
         uptime_seconds=component.uptime,
         version=__version__,
@@ -84,7 +89,7 @@ async def health_check() -> Response:
         memory_store_health={"uptime": component.uptime},
         api_enabled=True,
     )
-    status_code = 200 if component.healthy else status.HTTP_503_SERVICE_UNAVAILABLE
+    status_code = 200 if status_str == "healthy" else status.HTTP_503_SERVICE_UNAVAILABLE
     data = payload.model_dump()
     data["healthy"] = component.healthy
     return JSONResponse(
