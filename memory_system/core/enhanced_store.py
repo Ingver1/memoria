@@ -258,7 +258,8 @@ class EnhancedMemoryStore:
             importance=importance,
             valence=valence,
             emotional_intensity=emotional_intensity,
-            metadata={"role": role, "tags": tags or [], "modality": modality},
+            metadata={"role": role, "tags": tags or []},
+            modality=modality,
         )
         await self._store.add(mem)
         self._index.add_vectors(modality, [mem.id], np.asarray([embedding], dtype=np.float32))
@@ -284,7 +285,8 @@ class EnhancedMemoryStore:
                 importance=item.get("importance", 0.0),
                 valence=item.get("valence", 0.0),
                 emotional_intensity=item.get("emotional_intensity", 0.0),
-                metadata={"role": item.get("role"), "tags": item.get("tags", []), "modality": modality},
+                metadata={"role": item.get("role"), "tags": item.get("tags", [])},
+                modality=modality,
             )
             mems.append(mem)
             vec = np.asarray(item["embedding"], dtype=np.float32)
@@ -326,7 +328,8 @@ class EnhancedMemoryStore:
                 importance=item.get("importance", 0.0),
                 valence=item.get("valence", 0.0),
                 emotional_intensity=item.get("emotional_intensity", 0.0),
-                metadata={"role": item.get("role"), "tags": item.get("tags", []), "modality": modality},
+                metadata={"role": item.get("role"), "tags": item.get("tags", [])},
+                modality=modality,
             )
             batch.append((modality, mem, np.asarray(item["embedding"], dtype=np.float32)))
             if len(batch) >= batch_size:

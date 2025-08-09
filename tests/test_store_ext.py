@@ -1,6 +1,8 @@
 import asyncio
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -49,11 +51,47 @@ def test_memory_new_validation_error(field: str, value: float) -> None:
 
 @pytest.mark.asyncio
 async def test_row_to_memory_roundtrip(store: SQLiteMemoryStore) -> None:
-    mem = Memory.new("hello", metadata={"foo": 1}, importance=0.5, valence=0.2)
+    mem = Memory.new(
+        "hello",
+        metadata={"foo": 1},
+        importance=0.5,
+        valence=0.2,
+        episode_id="ep1",
+        modality="text",
+        connections={"bar": 0.1},
+    )
     await store.add(mem)
 
     loaded = await store.get(mem.id)
     assert loaded == mem
+
+
+@pytest.mark.asyncio
+async def test_add_memory_extracts_fields(store: SQLiteMemoryStore) -> None:
+    @dataclass
+    class ExtMem:
+        memory_id: str
+        text: str
+        episode_id: str | None = None
+        modality: str = "text"
+        connections: dict[str, float] | None = None
+        metadata: dict[str, Any] | None = None
+
+    obj = ExtMem(
+        memory_id="m1",
+        text="hi",
+        episode_id="epX",
+        modality="audio",
+        connections={"m2": 0.7},
+        metadata={"foo": "bar"},
+    )
+    await store.add_memory(obj)
+
+    loaded = await store.get("m1")
+    assert loaded.episode_id == "epX"
+    assert loaded.modality == "audio"
+    assert loaded.connections == {"m2": 0.7}
+    assert loaded.metadata == {"foo": "bar"}
 
 
 @pytest.mark.asyncio
