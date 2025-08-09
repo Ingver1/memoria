@@ -13,9 +13,23 @@ vector index so they can participate in subsequent searches.
 
 from __future__ import annotations
 
-from typing import List, Sequence
+from typing import List, Sequence, TYPE_CHECKING, Any
 
-import numpy as np
+try:  # optional numpy
+    import numpy as np
+except ModuleNotFoundError:  # pragma: no cover - optional dependency
+    np = None  # type: ignore[assignment]
+
+if TYPE_CHECKING:  # pragma: no cover - typing helper
+    import numpy as _np
+
+
+def _require_numpy() -> Any:
+    if np is None:
+        raise ModuleNotFoundError(
+            "numpy is required for hierarchical summarisation. Install ai-memory[core]."
+        )
+    return np
 
 from embedder import embed as embed_text
 from memory_system.core.index import FaissHNSWIndex
@@ -23,12 +37,13 @@ from memory_system.core.store import Memory, SQLiteMemoryStore
 from memory_system.core.summarization import STRATEGIES, SummaryStrategy
 
 
-def _cos_sim(a: np.ndarray, b: np.ndarray) -> float:
+def _cos_sim(a: "_np.ndarray", b: "_np.ndarray") -> float:
     """Cosine similarity for two 1-D L2-normalised vectors."""
+    np = _require_numpy()
     return float(np.dot(a, b))
 
 
-def _cluster_embeddings(embeddings: Sequence[np.ndarray], threshold: float) -> List[List[int]]:
+def _cluster_embeddings(embeddings: Sequence["_np.ndarray"], threshold: float) -> List[List[int]]:
     """Greedy single-pass clustering.
 
     Returns a list of clusters where each cluster is a list of indices into
@@ -92,6 +107,7 @@ class HierarchicalSummarizer:
             return []
 
         texts = [m.text for m in mems]
+        np = _require_numpy()
         embeddings = embed_text(texts)
         if isinstance(embeddings, np.ndarray) and embeddings.ndim == 1:
             embeddings = embeddings.reshape(1, -1)

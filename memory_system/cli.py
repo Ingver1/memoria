@@ -19,8 +19,20 @@ from pathlib import Path
 from typing import Any, Optional, Type, cast
 
 # ────────────────────────────── third-party imports ────────────────────────────
-import httpx
+try:  # optional http client
+    import httpx
+except ModuleNotFoundError:  # pragma: no cover - optional dependency
+    httpx = None  # type: ignore[assignment]
 import typer
+
+
+def _require_httpx() -> Any:
+    """Return httpx module or raise a helpful error."""
+    if httpx is None:  # pragma: no cover - runtime guard
+        raise ModuleNotFoundError(
+            "httpx is required for CLI operations. Install ai-memory[cli]."
+        )
+    return httpx
 
 Panel: Type[Any]
 Table: Type[Any]
@@ -109,7 +121,8 @@ DEFAULT_API = "http://localhost:8000"
 
 def _client(base_url: str) -> httpx.AsyncClient:  # noqa: D401
     """Return shared httpx client with reasonable timeout."""
-    return httpx.AsyncClient(base_url=base_url, timeout=30.0)
+    hx = _require_httpx()
+    return hx.AsyncClient(base_url=base_url, timeout=30.0)
 
 
 def _metadata_option(

@@ -1,10 +1,25 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Sequence
+from typing import Sequence, TYPE_CHECKING, Any
 
-import numpy as np
-from numpy.typing import NDArray
+try:  # optional numpy
+    import numpy as np
+except ModuleNotFoundError:  # pragma: no cover - optional dependency
+    np = None  # type: ignore[assignment]
+
+if TYPE_CHECKING:  # pragma: no cover - typing helper
+    from numpy.typing import NDArray
+else:
+    NDArray = Any
+
+
+def _require_numpy() -> Any:
+    if np is None:
+        raise ModuleNotFoundError(
+            "numpy is required for FaissVectorStore. Install ai-memory[core]."
+        )
+    return np
 
 from memory_system.config.settings import UnifiedSettings
 from memory_system.core.index import FaissHNSWIndex, MultiModalFaissIndex
@@ -55,7 +70,8 @@ class FaissVectorStore(VectorStore):
         return self._index
 
     # ------------------------------------------------------------------
-    def add(self, ids: Sequence[str], vectors: NDArray[np.float32], *, modality: str = "text") -> None:
+    def add(self, ids: Sequence[str], vectors: NDArray, *, modality: str = "text") -> None:
+        np = _require_numpy()
         arr = np.asarray(vectors, dtype=np.float32)
         if self._multimodal:
             self._index.add_vectors(modality, list(ids), arr)
@@ -64,18 +80,19 @@ class FaissVectorStore(VectorStore):
 
     def search(
         self,
-        vector: NDArray[np.float32],
+        vector: NDArray,
         *,
         k: int = 5,
         modality: str = "text",
         ef_search: int | None = None,
     ) -> tuple[list[str], list[float]]:
+        np = _require_numpy()
         vec = np.asarray(vector, dtype=np.float32)
         if self._multimodal:
             return self._index.search(modality, vec, k=k, ef_search=ef_search)
         return self._index.search(vec, k=k, ef_search=ef_search)
 
-    def update(self, ids: Sequence[str], vectors: NDArray[np.float32], *, modality: str = "text") -> None:
+    def update(self, ids: Sequence[str], vectors: NDArray, *, modality: str = "text") -> None:
         self.delete(ids, modality=modality)
         self.add(ids, vectors, modality=modality)
 
