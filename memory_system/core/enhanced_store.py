@@ -52,6 +52,12 @@ class EnhancedMemoryStore:
             M=settings.model.hnsw_m,
             ef_construction=settings.model.hnsw_ef_construction,
             ef_search=settings.model.hnsw_ef_search,
+            index_type=settings.model.index_type,
+            use_gpu=settings.model.use_gpu,
+            ivf_nlist=settings.model.ivf_nlist,
+            ivf_nprobe=settings.model.ivf_nprobe,
+            pq_m=settings.model.pq_m,
+            pq_bits=settings.model.pq_bits,
         )
         vec_path = settings.database.vec_path
         if vec_path.exists():
@@ -76,6 +82,12 @@ class EnhancedMemoryStore:
                     M=M,
                     ef_construction=ef_c,
                     ef_search=ef_s,
+                    index_type=settings.model.index_type,
+                    use_gpu=settings.model.use_gpu,
+                    ivf_nlist=settings.model.ivf_nlist,
+                    ivf_nprobe=settings.model.ivf_nprobe,
+                    pq_m=settings.model.pq_m,
+                    pq_bits=settings.model.pq_bits,
                 )
 
         async def _save_index() -> None:
