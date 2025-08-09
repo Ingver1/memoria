@@ -30,7 +30,7 @@ from collections.abc import MutableMapping, Sequence
 
 # local
 from dataclasses import dataclass
-from typing import Any, Callable, Protocol
+from typing import Any, Protocol
 
 
 @dataclass(slots=True)
@@ -76,9 +76,9 @@ class MemoryStoreProtocol(Protocol):
 
     async def list_recent(self, *, n: int = 20) -> Sequence[Memory]: ...
 
-    async def top_n_by_score(
-        self, n: int, score_fn: Callable[[Memory], float]
-    ) -> Sequence[Memory]: ...
+    async def upsert_scores(self, scores: Sequence[tuple[str, float]]) -> None: ...
+
+    async def top_n_by_score(self, n: int) -> Sequence[Memory]: ...
 
 
 logger = logging.getLogger(__name__)
@@ -173,6 +173,12 @@ async def add(
     st = await _resolve_store(store)
     try:
         await asyncio.wait_for(st.add_memory(memory), timeout=ASYNC_TIMEOUT)
+        weights = _get_ranking_weights()
+        score = _score_best(memory, weights)
+        await asyncio.wait_for(
+            st.upsert_scores([(memory.memory_id, score)]),
+            timeout=ASYNC_TIMEOUT,
+        )
         logger.debug("Memory %s added (%d chars).", memory.memory_id, len(text))
     except Exception as e:
         logger.error("Failed to add memory: %s", e)
@@ -286,6 +292,12 @@ async def update(
             ),
             timeout=ASYNC_TIMEOUT,
         )
+        weights = _get_ranking_weights()
+        score = _score_best(updated, weights)
+        await asyncio.wait_for(
+            st.upsert_scores([(memory_id, score)]),
+            timeout=ASYNC_TIMEOUT,
+        )
         logger.debug("Memory %s updated.", memory_id)
     except Exception as e:
         logger.error("Update failed: %s", e)
@@ -331,6 +343,12 @@ async def reinforce(
                 emotional_intensity_delta=intensity_delta,
                 metadata=meta,
             ),
+            timeout=ASYNC_TIMEOUT,
+        )
+        weights = _get_ranking_weights()
+        score = _score_best(updated, weights)
+        await asyncio.wait_for(
+            st.upsert_scores([(memory_id, score)]),
             timeout=ASYNC_TIMEOUT,
         )
         logger.debug("Memory %s reinforced by %.2f.", memory_id, amount)
@@ -380,6 +398,17 @@ class ListBestWeights:
     valence_neg: float = 0.5
 
 
+def _get_ranking_weights() -> ListBestWeights:
+    """Load ranking weights from configuration if available."""
+    try:  # lazy import to avoid optional dependency at import time
+        from memory_system.config.settings import get_settings
+
+        cfg = get_settings()
+        return ListBestWeights(**cfg.ranking.model_dump())
+    except Exception:  # pragma: no cover - settings module optional
+        return ListBestWeights()
+
+
 def _score_best(m: Memory, weights: ListBestWeights) -> float:
     """Return the ranking score for a memory.
 
@@ -417,50 +446,19 @@ async def list_best(
     n: int = 5,
     *,
     store: MemoryStoreProtocol | None = None,
-    weights: ListBestWeights | None = None,
-    include_all: bool = False,
 ) -> Sequence[Memory]:
-    """Return *n* most important memories ranked by score.
+    """Return *n* memories with the highest precomputed score."""
 
-    Args:
-        n (int, optional): Number of top memories. Defaults to 5.
-        store (MemoryStoreProtocol | None, optional): Store object. Defaults to None.
-        weights (ListBestWeights | None, optional): Weight configuration for
-            ranking. Defaults to :class:`ListBestWeights`.
-        include_all (bool, optional): When ``True`` the whole store is scanned
-            using a priority queue instead of just the most recent entries.
-
-    Returns:
-        Sequence[Memory]: List of best memories ordered by score where
-        negative ``valence`` reduces the overall ranking.
-    """
     st = await _resolve_store(store)
-    if weights is None:
-        try:  # load from configuration if available
-            from memory_system.config.settings import get_settings
-
-            cfg = get_settings()
-            weights = ListBestWeights(**cfg.ranking.model_dump())
-        except Exception:  # pragma: no cover - settings module optional
-            weights = ListBestWeights()
     try:
-        if include_all:
-            # Attempt to leverage store-level optimisation for full scans
-            candidates = await asyncio.wait_for(
-                st.top_n_by_score(n, lambda m: _score_best(m, weights)),
-                timeout=ASYNC_TIMEOUT,
-            )
-            return [_ensure_memory(m) for m in candidates]
-
         candidates = await asyncio.wait_for(
-            st.list_recent(n=max(n * 5, 20)),
+            st.top_n_by_score(n),
             timeout=ASYNC_TIMEOUT,
         )
-        scored = sorted(candidates, key=lambda m: _score_best(m, weights), reverse=True)
     except Exception as e:
         logger.error("List best failed: %s", e)
         raise
-    return [_ensure_memory(m) for m in scored[:n]]
+    return [_ensure_memory(m) for m in candidates]
 
 
 __all__ = [
