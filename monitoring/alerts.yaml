@@ -1,0 +1,27 @@
+groups:
+  - name: memoria-alerts
+    rules:
+      - alert: HighSearchLatency
+        expr: histogram_quantile(0.95, sum(rate(ums_ann_query_latency_seconds_bucket[5m])) by (le)) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: ANN search p95 latency high (>200ms)
+          description: 95th percentile of ums_ann_query_latency_seconds exceeded 200ms for 5m.
+      - alert: AnnQueryErrors
+        expr: rate(ums_ann_query_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Errors while querying ANN index
+          description: ums_ann_query_errors_total has been >0 for 5m.
+      - alert: BadMemorySpike
+        expr: sum(rate(ums_quality_gate_drop_reason_total[5m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Surge in memories failing quality gate
+          description: Rate of ums_quality_gate_drop_reason_total exceeded 10/min for 5m.

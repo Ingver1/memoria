@@ -1,0 +1,21 @@
+[run]
+branch = True
+source =
+    memory_system
+omit =
+    memory_system/_vendor/*
+    memory_system/agent/*
+    memory_system/api/*
+    memory_system/cli.py
+    memory_system/config/*
+    memory_system/utils/metrics.py
+    memory_system/utils/rwlock.py
+    memory_system/utils/security.py
+    memory_system/utils/loop.py
+    memory_system/utils/kms_aws.py
+    memory_system/core/*
+    memory_system/unified_memory.py
+    memory_system/working_memory.py
+    memory_system/utils/exceptions.py
+    memory_system/__init__.py
+    

@@ -1,0 +1,138 @@
+openapi: 3.0.2
+info:
+  title: Unified Memory System
+  version: '0.8.0a0'
+paths:
+  /api/v1/health:
+    get:
+      responses:
+        '200':
+          description: OK
+  /api/v1/health/live:
+    get:
+      responses:
+        '200':
+          description: OK
+  /api/v1/health/ready:
+    get:
+      responses:
+        '200':
+          description: OK
+        '503':
+          description: Service Unavailable
+  /api/v1/stats:
+    get:
+      responses:
+        '200':
+          description: OK
+  /api/v1/version:
+    get:
+      responses:
+        '200':
+          description: OK
+  /api/v1/memory:
+    get:
+      responses:
+        '200':
+          description: OK
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text:
+                  type: string
+              required:
+                - text
+      responses:
+        '201':
+          description: Created
+  /api/v1/memory/search:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query:
+                  type: string
+              required:
+                - query
+                responses:
+        '200':
+          description: OK
+  /api/v1/memory/best:
+    get:
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+  /api/v1/memory/{memory_id}:
+    patch:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: OK
+  /api/v1/memory/{memory_id}/reinforce:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: OK
+  /api/v1/admin/maintenance-mode:
+    get:
+      responses:
+        '200':
+          description: OK
+        '501':
+          description: Not Implemented
+  /api/v1/admin/maintenance-mode/enable:
+    post:
+      responses:
+        '204':
+          description: No Content
+        '501':
+          description: Not Implemented
+  /api/v1/admin/maintenance-mode/disable:
+    post:
+      responses:
+        '204':
+          description: No Content
+        '501':
+          description: Not Implemented
+  /:
+    get:
+      responses:
+        '200':
+          description: OK
+  /health:
+    get:
+      responses:
+        '200':
+          description: OK
+  /api/v1/metrics:
+    get:
+      responses:
+        '200':
+          description: OK
+        '404':
+          description: Not Found

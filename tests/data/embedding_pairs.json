@@ -1,0 +1,6 @@
+[
+  {"pair": ["This is a test sentence.", "This is a test sentence."], "label": "similar"},
+  {"pair": ["Another sample sentence.", "A different sample text."], "label": "different"},
+  {"pair": ["Embedding models produce vectors.", "Embedding models produce vectors."], "label": "similar"},
+  {"pair": ["Cats and dogs are animals.", "Space exploration is fascinating."], "label": "different"}
+]

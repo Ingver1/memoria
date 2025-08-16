@@ -1,0 +1,22 @@
+# Test Suite Notes
+
+## Stub policy
+
+The directory `_stubs` contains lightweight stand-ins for optional
+dependencies (e.g. FastAPI, Starlette, httpx). They allow the majority of
+tests to run even when these packages are not installed.
+
+* `tests/conftest.py` installs a stub only when the real package cannot be
+  imported. If the dependency is present the real implementation is used.
+* Tests that actually require the real library are marked with
+  `needs_<package>` and are skipped when the dependency is missing.
+
+When updating or adding stubs:
+
+1. Compare the stub with the upstream library's public API and add only the
+   minimal methods or attributes required by the tests.
+2. Prefer using `unittest.mock` or `pytest-mock` to simulate behaviour rather
+   than re‑implementing complex logic.
+3. Keep stubs in sync with new test requirements and verify the suite with and
+   without the real dependencies installed.
+

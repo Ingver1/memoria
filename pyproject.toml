@@ -1,0 +1,125 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name            = "memoria"
+dynamic         = ["version"]
+description     = "Self-hosted long-term memory backend (FastAPI, FAISS, SQLite)."
+readme          = "README.md"
+requires-python = ">=3.11"
+license         = { text = "Apache-2.0" }
+authors         = [{ name = "Ingver", email = "kayel.20221967@gmail.com" }]
+keywords        = ["memory", "FAISS", "vector", "FastAPI", "SQLite"]
+
+[tool.setuptools.dynamic]
+version = { attr = "memory_system.__version__" }
+
+[tool.setuptools.packages.find]
+include = [ "memory_system*" ]
+
+[tool.memoria.router]
+min_query_len = 5
+no_memory_prefix = "no memory:"
+enable_personal = true
+enable_project = true
+
+# -------------------------------
+# Formatting: Black
+# -------------------------------
+[tool.black]
+line-length    = 100
+target-version = ["py311"]
+# keep noisy/vendor paths out of formatter
+extend-exclude = '''
+/(\.venv|\.mypy_cache|\.ruff_cache|\.pytest_cache|
+ memory_system/_vendor|
+ build|dist|third_party)/
+'''
+
+# -------------------------------
+# Linting: Ruff
+# -------------------------------
+[tool.ruff]
+target-version = "py311"
+line-length    = 100
+exclude = [
+  ".git", ".mypy_cache", ".pytest_cache", ".ruff_cache",
+  ".venv", "venv", "build", "dist", "third_party",
+  "memory_system/_vendor",
+]
+force-exclude = true
+
+[tool.ruff.lint]
+# balanced set: style + correctness + modernization
+select = ["E","F","W","I","UP","B","SIM","N","PL","ARG","RUF"]
+# avoid formatter conflicts (Ruff docs recommend ignoring these with formatter)
+ignore = ["D203","D212","COM812","ISC001"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**"        = ["D","S","ANN","ARG","PLR","PLC","SLF001","DTZ003","PT","TRY"]
+"**/__init__.py"  = ["F401","F403"]
+"scripts/**"      = ["T20","S","D"]
+"embedder.py"     = ["PLC0415"]
+"ltm_bench/metrics.py" = ["PLR0911","PLR2004"]
+"ltm_bench/scenario/synthetic.py" = ["E402"]
+"memory_system/__init__.py" = ["PLR0911","PLC0415"]
+"memory_system/agent/planner.py" = ["E402"]
+"memory_system/agent/resolver.py" = ["E402"]
+"memory_system/api/**" = ["E402","PLC0415","B008","PLR0915","PLR0912","E501","N806"]
+"memory_system/api/dependencies.py" = ["ARG002","B008","PLR2004"]
+"memory_system/api/middleware.py" = ["PLW0603","PLR0912"]
+
+[tool.ruff.lint.isort]
+known-first-party   = ["memoria", "memory_system"]
+combine-as-imports  = true
+
+[tool.ruff.format]
+quote-style   = "preserve"
+indent-style  = "space"
+line-ending   = "lf"
+docstring-code-format = true
+
+# -------------------------------
+# Typing: mypy
+# -------------------------------
+[tool.mypy]
+python_version              = "3.11"
+strict                      = true
+ignore_missing_imports      = true
+show_error_codes            = true
+warn_unused_ignores         = true
+# Limit type-checking to library code; exclude tests, scripts, and benches
+exclude                     = '((^|/)(tests|scripts|bench|ltm_bench|load_tests|monitoring)/|(^|/)(sitecustomize\.py|usercustomize\.py|embedder\.py|my_asyncio_plugin\.py|pytest_asyncio/.*)|memory_system/_vendor)'
+files                       = ["memory_system"]
+mypy_path                   = ["stubs"]
+allow_subclassing_any       = true
+disallow_untyped_decorators = false
+
+[[tool.mypy.overrides]]
+module = ["fastapi.*", "memory_system._vendor.aiosqlite.*"]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = ["tests._stubs.*"]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+# Temporarily relax strictness on optional backends and API surface
+module = [
+  "memory_system.core.qdrant_store",
+  "memory_system.rag_router",
+  "memory_system.api.*",
+]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+# Temporarily relax strictness for heavy core modules while tightening types incrementally
+module = [
+  "memory_system.core.store",
+  "memory_system.core.enhanced_store",
+  "memory_system.core.maintenance",
+  "memory_system.core.hierarchical_summarizer",
+  "memory_system.core.faiss_vector_store",
+]
+ignore_errors = true

@@ -1,0 +1,62 @@
+# ===============================
+# Python compiled / cached files
+# ===============================
+__pycache__/           # Compiled Python bytecode cache
+*.py[cod]              # Compiled Python files
+*$py.class             # Legacy compiled Python format
+
+# ===============================
+# Virtual environments
+# ===============================
+.venv/                 # Local Python virtual environment
+env/                   # Alternative virtual environment folder
+venv/                  # Another common virtual environment folder
+
+# ===============================
+# Logs and reports
+# ===============================
+*.log                  # Log files (e.g., ruff.log, mypy.log)
+.coverage              # Test coverage data file
+coverage.xml           # Test coverage report in XML format
+htmlcov/               # Test coverage HTML report folder
+
+# ===============================
+# Pytest cache
+# ===============================
+.pytest_cache/         # Cache files created by pytest
+
+# ===============================
+# Temporary / backup files
+# ===============================
+*.tmp                  # Temporary files
+*.bak                  # Backup files
+*.swp                  # Vim swap files
+*.swo                  # Additional Vim swap files
+
+# ===============================
+# System-specific files
+# ===============================
+.DS_Store              # macOS Finder metadata file
+Thumbs.db              # Windows Explorer thumbnail cache
+
+# ===============================
+# Local databases & vectors
+# ===============================
+data/*.db              # Local database files inside 'data'
+data/*.db-*            # Split database files in 'data'
+data/*.sqlite          # SQLite database files in 'data'
+data/*.sqlite-*        # Split SQLite files in 'data'
+data/*.vectors         # Local vector index files in 'data'
+*.db                   # Database files in project root
+*.db-*                 # Split database files in root
+
+# ===============================
+# Local keyring / secrets
+# ===============================
+.keyring.json          # Local keyring or secrets cache file
+
+# ===============================
+# Adapter-generated files
+# ===============================
+memory_system/adapter/.cache/  # Adapter cache files
+memory_system/adapter/tmp/     # Temporary adapter files
