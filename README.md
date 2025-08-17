@@ -6,15 +6,18 @@
 
 ---
 
+### Security
+Found a vulnerability? See [SECURITY.md](./SECURITY.md).
+
 ## 🚀 Why UMS?
 
 UMS is a plug-and-play semantic memory service for LLM agents. It’s small, fast, secure, and production-ready. If you want a memory backend that “just works” and is easy to audit, UMS is for you.
 
 ---
 
-## ✨ Highlights (July 2025)
+## ✨ Highlights
 
-| Feature               | UMS (v1.0)           | MemOS (Preview)         |
+| Feature               | UMS (v0.8)           | MemOS (Preview)         |
 |-----------------------|----------------------|-------------------------|
 | Install size          | ~180 MB Docker       | 2+ GB multi-service     |
 | Storage backend       | SQLite + FAISS/Qdrant | Custom “MemCube”       |
