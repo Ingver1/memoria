@@ -2,6 +2,8 @@
 
 *Scalable, encrypted, and fully-tested vector-memory backend for LLM agents.*
 
+> **Note:** This project is a work in progress and is not yet functional.
+
 ---
 
 ## 🚀 Why UMS?
