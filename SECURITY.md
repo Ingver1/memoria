@@ -17,7 +17,33 @@ Existing connections are closed so subsequent operations require the new
 key. After rotating, attempts to access the database with the old key
 will fail with `sqlite3.DatabaseError`.
 
-Keep encryption keys secret and rotate them regularly.
+## Key & Secret Management
+- Store keys only in environment variables or secret managers; never commit to VCS.
+- Rotate keys on compromise or at least every **90 days**.
+- After `rotate_key()`, revoke any old backups containing previous keys.
+
+## Reporting a Vulnerability
+Please report security issues privately via **GitHub Private Vulnerability Reporting** (Security → "Report a vulnerability")
+or email **https://kayel.20221967@gmail.com**.  
+Do **not** open public issues with sensitive details.
+
+## Supported Versions
+We actively support the latest minor release.  
+Security fixes are backported to the **latest** patch only.
+
+## Scope
+- Code in this repo and default configurations
+- Encryption-at-rest (SQLCipher) configuration
+- Memory store adapters maintained here
+
+### Out of Scope
+- Third-party deployments and forks we don’t operate
+- User custom code or external plugins
+- Social engineering
+
+## Responsible Disclosure / Safe Harbor
+Non-destructive, good-faith research is welcome.  
+Please avoid data exfiltration, service disruption, and privacy violations.
 
 ## Security Requirements Status
 
