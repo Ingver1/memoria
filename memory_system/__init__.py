@@ -39,7 +39,7 @@ try:  # pragma: no cover - optional dependency during testing
 except ModuleNotFoundError:  # pragma: no cover - httpx may not be installed
     pass
 
-__version__: str = "1.0.0"
+__version__: str = "0.8"
 # Rebuild the module docstring to embed the current version.
 __doc__ = f"Unified Memory System v{__version__}.\n\n" + __doc__.split("\n", 1)[1]
 __author__ = "Enhanced Memory Team"
