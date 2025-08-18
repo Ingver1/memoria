@@ -70,6 +70,11 @@ logger = logging.getLogger(__name__)
 
 LOGO_URL = "https://fastapi.tiangolo.com/img/logo-margin/logo-teal.png"
 
+# Maximum number of memories buffered before persisting to the store when
+# streaming. 100 strikes a balance between throughput (fewer writes) and
+# memory usage (avoiding unbounded accumulation in RAM).
+MAX_BATCH_SIZE = 100
+
 TAGS_METADATA = [
     {"name": "Auth", "description": "Authentication operations"},
     {"name": "Memory", "description": "Endpoints for managing memories"},
@@ -285,7 +290,7 @@ async def stream_memories(request: Request) -> dict[str, int]:
                 decay=item.decay,
             )
         )
-        if len(batch) >= 100:
+        if len(batch) >= MAX_BATCH_SIZE:
             await store.add_many(cast("list[UMMemory]", batch))
             count += len(batch)
             batch.clear()
