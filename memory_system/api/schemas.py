@@ -357,6 +357,23 @@ class MemoryQuery(BaseModel):
             raise ValueError("Only 'global' channel is supported")
 
 
+class SearchParams(BaseModel):
+    """Optional overrides for search limits and timeout."""
+
+    max_k: int | None = Field(
+        default=None, ge=1, description="Maximum number of results to return"
+    )
+    max_context_tokens: int | None = Field(
+        default=None, ge=1, description="Total context token budget"
+    )
+    max_cross_rerank_n: int | None = Field(
+        default=None, ge=1, description="Maximum documents to cross re-rank"
+    )
+    timeout: float | None = Field(
+        default=None, gt=0, description="Search timeout in seconds"
+    )
+
+
 class MemorySearchResult(MemoryRead):
     """Memory with an additional similarity score."""
 
