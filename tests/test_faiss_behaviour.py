@@ -31,8 +31,8 @@ def test_ef_search_recall_monotonic() -> None:
     k = 5
     gt = faiss.IndexFlatL2(dim)
     gt.add(xb)
-    _, I_gt = gt.search(xq, k)
-    gt_ids = [[ids[j] for j in row] for row in I_gt]
+    _, i_gt = gt.search(xq, k)
+    gt_ids = [[ids[j] for j in row] for row in i_gt]
 
     def recall_at(ef: int) -> float:
         total = 0.0
