@@ -315,9 +315,9 @@ async def search_memories(
             ),
             timeout=timeout,
         )
-    except TimeoutError:
+    except TimeoutError as err:
         log.warning("search timeout after %.2f s", timeout)
-        raise HTTPException(status_code=429, detail="Search timeout")
+        raise HTTPException(status_code=429, detail="Search timeout") from err
     payload = [MemoryRead.model_validate(asdict(r)) for r in results]
     trimmed: list[MemoryRead] = []
     total = 0
