@@ -39,7 +39,11 @@ def test_add_get_search_cycle(app: FastAPI) -> None:
         resp = client.get("/api/v1/memory", params={"user_id": None})
         assert resp.status_code == 200
 
-        resp = client.post("/api/v1/memory/search", json={"query": "hello", "top_k": 5})
+        resp = client.post(
+            "/api/v1/memory/search",
+            json={"query": "hello", "top_k": 5},
+            params={"max_k": 5},
+        )
         assert resp.status_code == 200
         assert any(r["id"] == mem_id for r in resp.json())
 

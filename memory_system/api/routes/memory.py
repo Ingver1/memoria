@@ -10,7 +10,7 @@ import uuid
 from dataclasses import asdict
 from typing import TYPE_CHECKING, Any, Literal, cast
 
-from fastapi import APIRouter, Body, HTTPException, Query, Request, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, status
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from pydantic import BaseModel, Field
@@ -30,6 +30,7 @@ from memory_system.api.schemas import (
     MemoryRead,
     MemoryReinforce,
     MemoryUpdate,
+    SearchParams
 )
 from memory_system.core.index import FaissHNSWIndex
 from memory_system.core.maintenance import consolidate_store, forget_old_memories
@@ -273,10 +274,7 @@ async def search_memories(
     request: Request,
     query: MemoryQuery = Body(..., examples=[MEMORY_QUERY_EXAMPLE]),
     effort: Literal["low", "med", "high"] = Query("med"),
-    max_k: int | None = Query(None, ge=1),
-    max_context_tokens: int | None = Query(None, ge=1),
-    max_cross_rerank_n: int | None = Query(None, ge=1),
-    timeout: float | None = Query(None, gt=0),
+    limits: SearchParams = Depends(),
 ) -> list[MemoryRead]:
     if not query.query:
         raise HTTPException(status_code=422, detail="Query must not be empty")
@@ -286,16 +284,19 @@ async def search_memories(
         raise HTTPException(status_code=422, detail="Only 'global' channel is supported")
     settings = get_settings()
     budgets = getattr(settings.effort, effort)
-    if max_cross_rerank_n is not None and max_cross_rerank_n > budgets.max_cross_rerank_n:
+    if (
+        limits.max_cross_rerank_n is not None
+        and limits.max_cross_rerank_n > budgets.max_cross_rerank_n
+    ):
         log.warning(
             "cross rerank limit exceeded: requested %d allowed %d",
-            max_cross_rerank_n,
+            limits.max_cross_rerank_n,
             budgets.max_cross_rerank_n,
         )
         raise HTTPException(status_code=429, detail="Cross rerank limit exceeded")
-    max_k = max_k or budgets.max_k
-    max_context_tokens = max_context_tokens or budgets.max_context_tokens
-    timeout = timeout or budgets.timeout_seconds
+    max_k = limits.max_k or budgets.max_k
+    max_context_tokens = limits.max_context_tokens or budgets.max_context_tokens
+    timeout = limits.timeout or budgets.timeout_seconds
     if query.top_k > max_k:
         log.warning("k limit exceeded: requested %d allowed %d", query.top_k, max_k)
         raise HTTPException(status_code=429, detail="Requested k exceeds limit")
