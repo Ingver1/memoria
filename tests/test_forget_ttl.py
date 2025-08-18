@@ -1,9 +1,5 @@
 import datetime as dt
-
 import pytest
-
-from memory_system.core.maintenance import forget_old_memories
-from memory_system.core.store import Memory, SQLiteMemoryStore
 
 np = pytest.importorskip("numpy")
 
@@ -11,6 +7,9 @@ try:  # pragma: no cover - optional dependency
     from memory_system.core.index import FaissHNSWIndex
 except ImportError:  # pragma: no cover - optional dependency
     FaissHNSWIndex = None  # type: ignore
+
+from memory_system.core.maintenance import forget_old_memories
+from memory_system.core.store import Memory, SQLiteMemoryStore
 
 
 @pytest.mark.skipif(FaissHNSWIndex is None, reason="faiss not available")
