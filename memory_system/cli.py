@@ -1,11 +1,11 @@
 """
 memory_system.cli
 
-Command‑line interface for **AI‑memory‑**.
+Command-line interface for **AI-memory**.
 
 This optional CLI interacts with the running API service via HTTP.  It
 lives in the `cli` extra so production deployments can avoid pulling
-interactive libraries.  When *rich* is missing we degrade to plain‑text
+interactive libraries.  When *rich* is missing we degrade to plain-text
 output.
 """
 
@@ -477,7 +477,7 @@ def import_json(
     ),
     retry: int = typer.Option(0, "--retry", help="Retry attempts on failure."),
 ) -> None:
-    """Bulk‑import memories from a .jsonl file."""
+    """Bulk-import memories from a .jsonl file."""
 
     async def _run_import() -> None:
         async with _client(url) as client:
