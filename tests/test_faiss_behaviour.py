@@ -8,7 +8,7 @@ np = pytest.importorskip("numpy")
 from memory_system.core.index import FaissHNSWIndex
 
 
-def test_normalize_L2_idempotent() -> None:
+def test_normalize_l2_idempotent() -> None:
     rng = np.random.default_rng(42)
     vecs = rng.random((10, 16), dtype=np.float32)
     norm1 = vecs.copy()
