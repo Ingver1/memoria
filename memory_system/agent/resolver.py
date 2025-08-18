@@ -25,7 +25,7 @@ async def resolve(
     The ``generator`` coroutine is invoked up to ``n`` times producing a tuple
     of ``(answer, chain)``.  Each ``answer`` is checked with ``verifier``
     which returns ``(ok, reason)``.  The first passing variant is returned and
-    its reasoning chain stored in long‑term memory via
+    its reasoning chain stored in long-term memory via
     :func:`memory_system.unified_memory.add`.
 
     Args:
