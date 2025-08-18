@@ -1,13 +1,13 @@
 import pytest
 
-import memory_system.core.hierarchical_summarizer as hs
-from memory_system.core.hierarchical_summarizer import HierarchicalSummarizer
-from memory_system.core.store import Memory
-
 np = pytest.importorskip("numpy")
 faiss = pytest.importorskip("faiss")
 if faiss.__name__.startswith("tests._stubs"):
     pytest.skip("faiss not installed", allow_module_level=True)
+
+import memory_system.core.hierarchical_summarizer as hs
+from memory_system.core.hierarchical_summarizer import HierarchicalSummarizer
+from memory_system.core.store import Memory
 
 pytestmark = pytest.mark.asyncio
 
