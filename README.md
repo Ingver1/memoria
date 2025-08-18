@@ -15,23 +15,6 @@ UMS is a plug-and-play semantic memory service for LLM agents. It’s small, fas
 
 ---
 
-## ✨ Highlights
-
-| Feature               | UMS (v0.8)           | MemOS (Preview)         |
-|-----------------------|----------------------|-------------------------|
-| Install size          | ~180 MB Docker       | 2+ GB multi-service     |
-| Storage backend       | SQLite + FAISS/Qdrant | Custom “MemCube”       |
-| Encryption-at-rest    | ✅ SQLCipher         | ❌ Coming Q4 2025       |
-| Test coverage         | 100% unit/integration| Unknown                 |
-| Deployment            | pip, Docker, serverless | k8s Operator (beta)  |
-| Hardware requirements | 1 CPU / 1 GB RAM     | 8 CPUs / 16 GB RAM      |
-| License               | Apache-2.0           | Clause-7 research       |
-| Status                | Stable / Prod        | Preview / Research      |
-
-<sub>Sources: arXiv 2507.03724, VentureBeat 08-Jul-2025, MemTensor/MemOS release notes.</sub>
-
----
-
 ## 🔑 Key Features
 
 - **Async FastAPI + FAISS HNSW or Qdrant**: blazing fast semantic search
