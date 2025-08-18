@@ -2,7 +2,7 @@
 memory_system.api.app
 =======================
 FastAPI application setup with:
-* Lifespan‑managed `EnhancedMemoryStore` (no hidden globals).
+* Lifespan-managed `EnhancedMemoryStore` (no hidden globals).
 * OpenTelemetry middleware for distributed tracing.
 * Basic `/health/live` and `/health/ready` endpoints for liveness & readiness probes.
 """
@@ -490,7 +490,7 @@ def create_app(settings: UnifiedSettings | None = None) -> FastAPI:  # pragma: n
 
 
 # ---------------------------------------------------------------------------
-# Entry‑point for `uvicorn memory_system.api.app:create_app`
+# Entry-point for `uvicorn memory_system.api.app:create_app`
 # (`uvicorn memory_system.api.app:app` remains for backward compatibility)
 # ---------------------------------------------------------------------------
 settings = get_settings()
