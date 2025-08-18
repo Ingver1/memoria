@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-import os
-
 import pytest
-
-pytestmark = pytest.mark.needs_faiss
 
 faiss = pytest.importorskip("faiss")
 np = pytest.importorskip("numpy")
 
+import os
 from bench.faiss_hnsw import run_benchmark
+
+pytestmark = pytest.mark.needs_faiss
 
 # Baseline timings in milliseconds with generous tolerance.
 BASE_BUILD_MS = 100.0
