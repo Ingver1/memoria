@@ -4,7 +4,6 @@ np = pytest.importorskip("numpy")
 faiss = pytest.importorskip("faiss")
 if faiss.__name__.startswith("tests._stubs"):
     pytest.skip("faiss not installed", allow_module_level=True)
-
 from memory_system.core.maintenance import _decay_score, forget_old_memories
 from memory_system.core.store import Memory
 
