@@ -9,7 +9,7 @@ try:  # pragma: no cover - optional fastapi security module
 except Exception:  # pragma: no cover - stub fallback when fastapi not installed
 
     class _OAuth2PasswordRequestForm:
-        def __init__(self, *args: object, **kwargs: object) -> None:
+        def __init__(self, *_args: object, **_kwargs: object) -> None:
             self.username = ""
             self.password = ""
             self.scopes: list[str] = []
