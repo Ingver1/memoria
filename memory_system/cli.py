@@ -34,20 +34,20 @@ except ModuleNotFoundError:  # pragma: no cover - degrade gracefully when Typer 
     class _Typer:
         """Minimal stub so module imports without typer installed."""
 
-        def __init__(self, *args: Any, **kwargs: Any) -> None:
+        def __init__(self, *_args: Any, **_kwargs: Any) -> None:
             pass
 
-        def command(self, *args: Any, **kwargs: Any) -> Callable[[Any], Any]:
+        def command(self, *_args: Any, **_kwargs: Any) -> Callable[[Any], Any]:
             def decorator(func: Any) -> Any:
                 return func
 
             return decorator
 
-    def _argument(default: Any = None, *args: Any, **kwargs: Any) -> Any:
-        return default
+    def _argument(_default: Any = None, *_args: Any, **_kwargs: Any) -> Any:
+        return _default
 
-    def _option(default: Any = None, *args: Any, **kwargs: Any) -> Any:
-        return default
+    def _option(_default: Any = None, *_args: Any, **_kwargs: Any) -> Any:
+        return _default
 
     class _Context:  # pragma: no cover - simple placeholders
         pass
